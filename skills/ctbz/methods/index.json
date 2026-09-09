@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "methods": [
+    {
+      "id": "using-superpowers", "stage": "routing", "roles": ["parent"],
+      "entry": "methods/superpowers/using-superpowers.md",
+      "resources": ["methods/contract.md"], "tools": ["Read", "Bash"],
+      "output": "所选方法、已读取资源和当前项目检查点",
+      "source": "skills/using-superpowers/SKILL.md"
+    },
+    {
+      "id": "brainstorming", "stage": "discussion", "roles": ["parent", "planner", "researcher"],
+      "entry": "methods/superpowers/brainstorming.md",
+      "resources": ["methods/contract.md", "methods/templates/document-review.md"], "tools": ["Read"],
+      "output": "研究问题或设计草稿、集中待决事项及有来源的规格",
+      "source": "skills/brainstorming/SKILL.md"
+    },
+    {
+      "id": "writing-plans", "stage": "planning", "roles": ["parent", "planner"],
+      "entry": "methods/superpowers/writing-plans.md",
+      "resources": ["methods/contract.md", "methods/templates/task-brief.md", "methods/templates/document-review.md"], "tools": ["Read"],
+      "output": "需求到任务的映射、明确接口/write-set/依赖/验证的计划草稿",
+      "source": "skills/writing-plans/SKILL.md"
+    },
+    {
+      "id": "executing-plans", "stage": "execution", "roles": ["parent"],
+      "entry": "methods/superpowers/executing-plans.md",
+      "resources": ["methods/contract.md", "methods/templates/task-brief.md"], "tools": ["Read", "Bash"],
+      "output": "主会话任务成果、检查点、验证和未解决事项",
+      "source": "skills/executing-plans/SKILL.md"
+    },
+    {
+      "id": "dispatching-parallel-agents", "stage": "dispatch", "roles": ["parent"],
+      "entry": "methods/superpowers/dispatching-parallel-agents.md",
+      "resources": ["methods/contract.md", "methods/templates/task-brief.md"], "tools": ["Read", "Bash"],
+      "output": "独立任务契约、实际派发回执与按依赖集成的证据",
+      "source": "skills/dispatching-parallel-agents/SKILL.md"
+    },
+    {
+      "id": "subagent-driven-development", "stage": "execution", "roles": ["parent"],
+      "entry": "methods/superpowers/subagent-driven-development.md",
+      "resources": ["methods/contract.md", "methods/templates/task-brief.md", "methods/templates/task-review.md", "methods/templates/re-review.md", "methods/references/review-evidence.md"], "tools": ["Read", "Bash"],
+      "output": "实现、规格/质量评审、修复复审和完成恢复的同身份记录",
+      "source": "skills/subagent-driven-development/SKILL.md"
+    },
+    {
+      "id": "test-driven-development", "stage": "implementation", "roles": ["parent", "implementer", "debugger", "tester"],
+      "entry": "methods/superpowers/test-driven-development.md",
+      "resources": ["methods/contract.md", "methods/references/writing-good-tests.md"], "tools": ["Read", "Bash"],
+      "output": "能发现目标错误的测试、实现及真实 RED/GREEN 证据",
+      "source": "skills/test-driven-development/SKILL.md"
+    },
+    {
+      "id": "systematic-debugging", "stage": "debugging", "roles": ["parent", "debugger", "tester", "explorer"],
+      "entry": "methods/superpowers/systematic-debugging.md",
+      "resources": ["methods/contract.md", "methods/references/debugging-techniques.md"], "tools": ["Read"],
+      "output": "复现、调用链、根因假设、正负证据和授权内修复报告",
+      "source": "skills/systematic-debugging/SKILL.md"
+    },
+    {
+      "id": "requesting-code-review", "stage": "review", "roles": ["parent"],
+      "entry": "methods/superpowers/requesting-code-review.md",
+      "resources": ["methods/contract.md", "methods/templates/task-review.md", "methods/templates/re-review.md", "methods/references/review-evidence.md"], "tools": ["Read", "Bash"],
+      "output": "固定身份/工作区/内容摘要的评审材料及独立双结论",
+      "source": "skills/requesting-code-review/SKILL.md"
+    },
+    {
+      "id": "receiving-code-review", "stage": "revision", "roles": ["parent", "implementer", "debugger", "tester"],
+      "entry": "methods/superpowers/receiving-code-review.md",
+      "resources": ["methods/contract.md", "methods/templates/re-review.md"], "tools": ["Read"],
+      "output": "逐项评审处置、证据、修复结果与未解决风险",
+      "source": "skills/receiving-code-review/SKILL.md"
+    },
+    {
+      "id": "verification-before-completion", "stage": "verification", "roles": ["parent", "planner", "reviewer", "debugger", "implementer", "explorer", "researcher", "tester", "reporter"],
+      "entry": "methods/superpowers/verification-before-completion.md",
+      "resources": ["methods/contract.md", "methods/templates/task-review.md"], "tools": ["Read"],
+      "output": "与实际内容对应的验收证据、准确完成声明和限制",
+      "source": "skills/verification-before-completion/SKILL.md"
+    },
+    {
+      "id": "using-git-worktrees", "stage": "isolation", "roles": ["parent"],
+      "entry": "methods/superpowers/using-git-worktrees.md",
+      "resources": ["methods/contract.md"], "tools": ["Read", "Bash"],
+      "output": "已记录来源、基线、写集合与所有权的隔离工作区",
+      "source": "skills/using-git-worktrees/SKILL.md"
+    },
+    {
+      "id": "finishing-a-development-branch", "stage": "finish", "roles": ["parent"],
+      "entry": "methods/superpowers/finishing-a-development-branch.md",
+      "resources": ["methods/contract.md"], "tools": ["Read", "Bash"],
+      "output": "授权内的集成/交付与验收记录、保留或受控清理结果",
+      "source": "skills/finishing-a-development-branch/SKILL.md"
+    },
+    {
+      "id": "writing-skills", "stage": "maintenance", "roles": ["parent", "implementer", "tester", "reviewer"],
+      "entry": "methods/superpowers/writing-skills.md",
+      "resources": ["methods/contract.md", "methods/references/skill-scenarios.md"], "tools": ["Read"],
+      "output": "边界明确的方法改动、资源闭包与前向消费场景证据",
+      "source": "skills/writing-skills/SKILL.md"
+    },
+    {
+      "id": "ponytail", "stage": "implementation", "roles": ["parent", "planner", "reviewer", "debugger", "implementer", "tester"],
+      "entry": "methods/ponytail.md",
+      "resources": ["methods/contract.md", "methods/references/writing-good-tests.md"], "tools": ["Read"],
+      "output": "覆盖完整需求的最简可行方案及有意义的验证",
+      "source": "skills/ponytail/SKILL.md"
+    },
+    {
+      "id": "i-have-adhd", "stage": "reporting", "roles": ["parent", "planner", "reviewer", "debugger", "implementer", "explorer", "researcher", "tester", "reporter"],
+      "entry": "methods/i-have-adhd.md",
+      "resources": ["methods/contract.md"], "tools": ["Read"],
+      "output": "结论/行动先行、状态清楚且保留证据与限制的汇报",
+      "source": "skills/i-have-adhd/SKILL.md"
+    }
+  ]
+}

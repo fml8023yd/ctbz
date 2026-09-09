@@ -1,0 +1,154 @@
+#!/usr/bin/env node
+
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import {
+  CliError,
+  parseProfileFrontmatter,
+  readJson,
+  validateTeamConfiguration,
+} from "./lib/team-config.mjs";
+
+function fail(message) {
+  throw new CliError(message);
+}
+
+function parseArguments(arguments_) {
+  const options = {};
+  const pathOptions = new Map([
+    ["--team", "teamPath"],
+    ["--catalog", "catalogPath"],
+    ["--profiles", "profilesPath"],
+  ]);
+
+  for (let index = 0; index < arguments_.length; index += 1) {
+    const argument = arguments_[index];
+    const key = pathOptions.get(argument);
+    if (key === undefined) fail("invalid arguments");
+    const value = arguments_[index + 1];
+    if (value === undefined || value.startsWith("--")) {
+      fail(`a value is required for ${argument}`);
+    }
+    if (options[key] !== undefined) fail(`${argument} may only be provided once`);
+    options[key] = value;
+    index += 1;
+  }
+
+  if (options.teamPath === undefined) fail("--team is required");
+  if (options.catalogPath === undefined) fail("--catalog is required");
+  return options;
+}
+
+function drift(errors, code, profile, field) {
+  errors.push({
+    code,
+    path: `profiles/${profile.file}#${field}`,
+    message: `profile ${field} differs from team configuration`,
+  });
+}
+
+function sameList(actual, expected) {
+  return (
+    Array.isArray(actual) &&
+    actual.length === expected.length &&
+    actual.every((value, index) => value === expected[index])
+  );
+}
+
+async function validateProfiles(profilesPath, profiles, errors) {
+  for (const expected of profiles) {
+    let markdown;
+    try {
+      markdown = await readFile(join(profilesPath, expected.file), "utf8");
+    } catch {
+      errors.push({
+        code: "missing-profile",
+        path: `profiles/${expected.file}`,
+        message: "expected profile file is missing or unreadable",
+      });
+      continue;
+    }
+
+    const parsed = parseProfileFrontmatter(markdown);
+    if (parsed === undefined) {
+      errors.push({
+        code: "invalid-profile-frontmatter",
+        path: `profiles/${expected.file}`,
+        message: "profile must contain frontmatter",
+      });
+      continue;
+    }
+    const { fields: actual, unknownFields, duplicateFields } = parsed;
+    for (const field of unknownFields) {
+      errors.push({
+        code: "unsupported-profile-field",
+        path: `profiles/${expected.file}#${field}`,
+        message: "profile frontmatter contains an unsupported field",
+      });
+    }
+    for (const field of duplicateFields) {
+      errors.push({
+        code: "duplicate-profile-field",
+        path: `profiles/${expected.file}#${field}`,
+        message: "profile frontmatter contains a duplicate field",
+      });
+    }
+    if (actual.name !== expected.name) {
+      drift(errors, "profile-name-drift", expected, "name");
+    }
+    if (actual.model !== expected.modelRef) {
+      drift(errors, "profile-model-drift", expected, "model");
+    }
+    if (actual.thoughtLevel !== expected.thoughtLevel) {
+      drift(errors, "profile-thought-level-drift", expected, "thoughtLevel");
+    }
+    if (!sameList(actual.tools, expected.tools)) {
+      drift(errors, "profile-tools-drift", expected, "tools");
+    }
+    for (const [field, code] of [
+      ["permissionMode", "profile-permission-mode-drift"],
+      ["maxTurns", "profile-max-turns-drift"],
+      ["background", "profile-background-drift"],
+      ["injectAgentsMd", "profile-inject-agents-md-drift"],
+    ]) {
+      if (actual[field] !== expected[field]) {
+        drift(errors, code, expected, field);
+      }
+    }
+  }
+}
+
+async function main() {
+  const { teamPath, catalogPath, profilesPath } = parseArguments(
+    process.argv.slice(2),
+  );
+  const team = await readJson(teamPath, "team");
+  const catalog = await readJson(catalogPath, "catalog");
+  const { errors, warnings, profiles } = validateTeamConfiguration(team, catalog);
+
+  if (profilesPath !== undefined) {
+    await validateProfiles(profilesPath, profiles, errors);
+  }
+
+  const output = { valid: errors.length === 0, errors, warnings };
+  process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+  if (!output.valid) process.exitCode = 1;
+}
+
+try {
+  await main();
+} catch (error) {
+  const message = error instanceof CliError ? error.message : "validation failed";
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        valid: false,
+        errors: [{ code: "cli-error", path: "$", message }],
+        warnings: [],
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  process.exitCode = 1;
+}

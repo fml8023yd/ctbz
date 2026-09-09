@@ -1,0 +1,12 @@
+{
+  "name": "ponytail",
+  "repository": "https://github.com/DietrichGebert/ponytail",
+  "comparisonCommit": "974d940a1c5344210874150b98ff0d2c861fab6a",
+  "originalImportCommit": null,
+  "archive": "source-ctbz-1.2.1.tar.gz",
+  "sourceStatus": "import-snapshot-byte-matched-to-upstream",
+  "license": "MIT",
+  "licenseStatus": "verified-upstream",
+  "retrievedAt": "2026-09-06",
+  "notes": "Imported 1.2.1 skill bytes exactly match skills/ponytail/SKILL.md at comparisonCommit. Original acquisition revision is unknown. Runtime is CTBZ adapted."
+}

@@ -1,0 +1,206 @@
+#!/usr/bin/env node
+
+import { constants } from "node:fs";
+import { open, readdir } from "node:fs/promises";
+import { basename, isAbsolute, join } from "node:path";
+import {
+  defaultRunManifest,
+  defaultStateDir,
+  discoverWorkspace,
+} from "./lib/paths.mjs";
+
+class CliError extends Error {}
+
+function fail(message) {
+  throw new CliError(message);
+}
+
+async function findLatestRunManifest(stateDir, team) {
+  const runsDir = join(stateDir, team, "runs");
+  let entries;
+  try {
+    entries = await readdir(runsDir, { withFileTypes: true });
+  } catch {
+    fail("no run manifest found; pass --run-manifest or ensure a run exists");
+  }
+  const jsonFiles = entries
+    .filter((e) => e.isFile() && e.name.endsWith(".json"))
+    .map((e) => e.name)
+    .sort()
+    .reverse();
+  if (jsonFiles.length === 0) {
+    fail("no run manifest found; pass --run-manifest or ensure a run exists");
+  }
+  const dated = await Promise.all(jsonFiles.map(async name => {
+    const p = join(runsDir, name), m = await readManifest(p);
+    const time = Date.parse(m.updatedAt ?? m.createdAt);
+    if (!Number.isFinite(time)) fail('run manifest lacks valid timestamp');
+    return { path: p, time };
+  }));
+  dated.sort((a,b) => b.time-a.time || a.path.localeCompare(b.path));
+  return dated[0].path;
+}
+
+async function parseArguments(arguments_) {
+  let manifestPath;
+
+  for (let index = 0; index < arguments_.length; index += 2) {
+    const option = arguments_[index];
+    const value = arguments_[index + 1];
+
+    if (option !== "--run-manifest") fail("invalid option");
+    if (value === undefined || value.startsWith("--")) {
+      fail("a value is required for --run-manifest");
+    }
+    if (manifestPath !== undefined) {
+      fail("--run-manifest may only be provided once");
+    }
+    manifestPath = value;
+  }
+
+  if (manifestPath === undefined) {
+    const workspace = discoverWorkspace();
+    const stateDir = defaultStateDir(workspace);
+    manifestPath = await findLatestRunManifest(stateDir, "dev");
+  }
+  if (!isAbsolute(manifestPath)) fail("--run-manifest must be absolute");
+  if (basename(manifestPath).toLowerCase() === "credentials.json") {
+    fail("--run-manifest must not target credentials.json");
+  }
+  return manifestPath;
+}
+
+async function readManifest(path) {
+  let file;
+  try {
+    file = await open(
+      path,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
+  } catch (error) {
+    if (error?.code === "ENOENT") fail("--run-manifest must exist");
+    if (error?.code === "ELOOP") fail("--run-manifest must not be a symlink");
+    throw error;
+  }
+
+  try {
+    const stats = await file.stat();
+    if (!stats.isFile()) {
+      fail("--run-manifest must be a regular file");
+    }
+
+    let manifest;
+    try {
+      manifest = JSON.parse(await file.readFile("utf8"));
+    } catch (error) {
+      if (error instanceof SyntaxError) fail("--run-manifest must contain valid JSON");
+      throw error;
+    }
+    if (manifest === null || typeof manifest !== "object" || Array.isArray(manifest)) {
+      fail("--run-manifest must contain a JSON object");
+    }
+    if (manifest.tasks !== undefined && !Array.isArray(manifest.tasks)) {
+      fail("run manifest tasks must be an array");
+    }
+    return manifest;
+  } finally {
+    await file.close();
+  }
+}
+
+function scalar(value) {
+  return ["string", "number", "boolean"].includes(typeof value) ? value : null;
+}
+
+function stringList(value) {
+  return Array.isArray(value)
+    ? value.filter((item) => typeof item === "string")
+    : [];
+}
+
+function safeObject(value, fields) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return Object.fromEntries(fields.map((field) => [field, scalar(value[field])]));
+}
+
+function failureStatus(task) {
+  const failure =
+    task.failure !== null &&
+    typeof task.failure === "object" &&
+    !Array.isArray(task.failure)
+      ? task.failure
+      : null;
+  if (failure !== null) {
+    return {
+      class: scalar(failure.class),
+      summaryPresent: failure.summary != null,
+    };
+  }
+  if (task.failureClass === undefined && task.failureSummary === undefined) return null;
+  return {
+    class: scalar(task.failureClass),
+    summaryPresent: task.failureSummary != null,
+  };
+}
+
+function evidenceStatus(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return {
+    status: scalar(value.status),
+    evidencePresent: value.evidence != null,
+  };
+}
+
+function taskStatus(task) {
+  const source =
+    task !== null && typeof task === "object" && !Array.isArray(task) ? task : {};
+  return {
+    taskId: scalar(source.taskId),
+    status: scalar(source.status),
+    dependsOn: stringList(source.dependsOn),
+    role: scalar(source.role),
+    profile: scalar(source.profile),
+    agentId: scalar(source.agentId),
+    attempt: scalar(source.attempt),
+    worktree: scalar(source.worktree),
+    failure: failureStatus(source),
+    retry: safeObject(source.retry, ["limit", "used", "remaining"]),
+    fallback: safeObject(source.fallback, [
+      "limit",
+      "used",
+      "remaining",
+      "profile",
+    ]),
+    verification: evidenceStatus(source.verification),
+    review: evidenceStatus(source.review),
+    integration: evidenceStatus(source.integration),
+  };
+}
+
+function statusView(manifest) {
+  return {
+    run: {
+      runId: scalar(manifest.runId),
+      status: scalar(manifest.status),
+      sessionId: scalar(manifest.sessionId),
+      configFingerprint: scalar(manifest.configFingerprint),
+      profileFingerprint: scalar(manifest.profileFingerprint),
+      catalogFingerprint: scalar(manifest.catalogFingerprint),
+    },
+    tasks: (manifest.tasks ?? []).map(taskStatus),
+  };
+}
+
+try {
+  const manifestPath = await parseArguments(process.argv.slice(2));
+  const manifest = await readManifest(manifestPath);
+  process.stdout.write(`${JSON.stringify(statusView(manifest))}\n`);
+} catch (error) {
+  const message = error instanceof CliError ? error.message : "status operation failed";
+  process.stderr.write(`${message}\n`);
+  process.exitCode = 1;
+}

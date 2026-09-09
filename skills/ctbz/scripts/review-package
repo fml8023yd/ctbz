@@ -1,0 +1,96 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import {isDeepStrictEqual} from 'node:util';
+
+const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+function git(root, args) {
+  const result = spawnSync('git', ['-C', root, ...args], {maxBuffer: 32 * 1024 * 1024});
+  if (result.status !== 0) throw Error(`Git failed: ${result.stderr?.toString().trim()}`);
+  return result.stdout;
+}
+function directory(value) {
+  if (!value || !path.isAbsolute(value) || fs.lstatSync(value).isSymbolicLink() || !fs.statSync(value).isDirectory()) throw Error('Expected an absolute, non-symlink directory');
+  return fs.realpathSync(value);
+}
+function within(root, file) {
+  const relative = path.relative(root, file);
+  if (!relative || relative.startsWith(`..${path.sep}`) || relative === '..' || path.isAbsolute(relative)) throw Error('Review material must remain in the specified root');
+}
+function safeFile(root, relative) {
+  if (!relative || relative.includes('\\') || path.isAbsolute(relative) || relative.split('/').some(part => part === '..' || part === '.' || !part)) throw Error('Invalid file path');
+  if (path.basename(relative).toLowerCase() === 'credentials.json') throw Error('Review package must not read credentials.json');
+  const file = path.join(root, relative);
+  for (let part = file; part !== root; part = path.dirname(part)) {
+    if (fs.existsSync(part) && fs.lstatSync(part).isSymbolicLink()) throw Error(`Symlink is not supported in review snapshots: ${relative}`);
+  }
+  return file;
+}
+function snapshot(worktree, base) {
+  if (typeof base !== 'string' || !/^[a-f0-9]{40}$/i.test(base)) throw Error('Snapshot base must be a full commit SHA');
+  const head = git(worktree, ['rev-parse', 'HEAD']).toString().trim();
+  const changed = git(worktree, ['diff', '--name-only', '--no-renames', '-z', base, '--']).toString().split('\0');
+  const untracked = git(worktree, ['ls-files', '--others', '--exclude-standard', '-z']).toString().split('\0');
+  const paths = [...new Set([...changed, ...untracked])].filter(file => file && !file.startsWith('.ctbz-record/')).sort();
+  const files = paths.map(relative => {
+    const file = safeFile(worktree, relative);
+    if (!fs.existsSync(file)) return {path: relative, sha256: null, mode: null};
+    if (!fs.statSync(file).isFile()) throw Error(`Review file is not regular: ${relative}`);
+    return {path: relative, sha256: sha(fs.readFileSync(file)), mode: fs.statSync(file).mode & 0o777};
+  });
+  const diffs = {
+    'changes.patch': git(worktree, ['diff', '--binary', '--no-ext-diff', base, '--', '.', ':(exclude).ctbz-record']),
+    'staged.patch': git(worktree, ['diff', '--cached', '--binary', '--no-ext-diff', '--', '.', ':(exclude).ctbz-record']),
+    'unstaged.patch': git(worktree, ['diff', '--binary', '--no-ext-diff', '--', '.', ':(exclude).ctbz-record']),
+  };
+  return {head, files, diffHashes: Object.fromEntries(Object.entries(diffs).map(([name, data]) => [name, sha(data)])), diffs};
+}
+
+try {
+  const [command, ...argv] = process.argv.slice(2), args = {};
+  const allowed = command === 'create' ? ['--workspace','--worktree','--project','--node','--run','--task','--base','--out'] : command === 'check' ? ['--package'] : [];
+  if (!allowed.length) throw Error('Use review-package create or check');
+  for (let i = 0; i < argv.length; i += 2) {
+    if (!allowed.includes(argv[i]) || !argv[i+1]?.trim() || args[argv[i]]) throw Error('Invalid review-package arguments');
+    args[argv[i]] = argv[i+1];
+  }
+  if (allowed.some(key => !args[key])) throw Error(`Required options: ${allowed.join(' ')}`);
+  if (command === 'create') {
+    const workspace = directory(args['--workspace']), worktree = directory(args['--worktree']);
+    const common = root => fs.realpathSync(path.resolve(root, git(root, ['rev-parse','--git-common-dir']).toString().trim()));
+    if (common(workspace) !== common(worktree)) throw Error('Task worktree belongs to another repository');
+    if (!/^[a-f0-9]{7,40}$/i.test(args['--base'])) throw Error('--base must be a fixed commit SHA');
+    const base = git(worktree, ['rev-parse', '--verify', `${args['--base']}^{commit}`]).toString().trim();
+    const out = path.resolve(args['--out']), record = path.join(workspace, '.ctbz-record');
+    if (!path.isAbsolute(args['--out'])) throw Error('--out must be absolute');
+    within(record, out);
+    safeFile(workspace, path.relative(workspace, out));
+    if (fs.existsSync(out)) throw Error('Review package exists; choose a new revision directory');
+    const state = snapshot(worktree, base);
+    const manifest = {schemaVersion:1,projectId:args['--project'],nodeId:args['--node'],runId:args['--run'],taskId:args['--task'],workspace,worktree,base,head:state.head,files:state.files,diffHashes:state.diffHashes,createdAt:new Date().toISOString()};
+    fs.mkdirSync(out, {recursive:true,mode:0o700});
+    for (const [name, bytes] of Object.entries(state.diffs)) fs.writeFileSync(path.join(out,name), bytes, {flag:'wx',mode:0o600});
+    for (const entry of state.files.filter(file => file.sha256)) {
+      const target = path.join(out,'files',entry.path); fs.mkdirSync(path.dirname(target),{recursive:true,mode:0o700});
+      const bytes = fs.readFileSync(safeFile(worktree,entry.path));
+      if (sha(bytes) !== entry.sha256) throw Error('Task changed while creating review package; create a new snapshot');
+      fs.writeFileSync(target,bytes,{flag:'wx',mode:0o600});
+    }
+    const after = snapshot(worktree,base);
+    if (!isDeepStrictEqual([state.head,state.files,state.diffHashes],[after.head,after.files,after.diffHashes])) throw Error('Task changed while creating review package; create a new snapshot');
+    const bytes = JSON.stringify(manifest,null,2)+'\n';
+    fs.writeFileSync(path.join(out,'manifest.json'),bytes,{flag:'wx',mode:0o600});
+    console.log(JSON.stringify({created:true,package:out,manifest:path.join(out,'manifest.json'),sha256:sha(bytes),files:state.files.length}));
+  } else {
+    const root = directory(args['--package']);
+    const manifest = JSON.parse(fs.readFileSync(safeFile(root,'manifest.json'),'utf8'));
+    if (manifest.schemaVersion !== 1) throw Error('Unsupported review package');
+    const state = snapshot(directory(manifest.worktree),manifest.base);
+    if (!isDeepStrictEqual([manifest.head,manifest.files,manifest.diffHashes],[state.head,state.files,state.diffHashes])) throw Error('Worktree changed; previous review no longer covers this version');
+    for (const [name, hash] of Object.entries(manifest.diffHashes)) if (sha(fs.readFileSync(safeFile(root,name))) !== hash) throw Error('Review patch changed');
+    for (const entry of manifest.files.filter(file=>file.sha256)) if (sha(fs.readFileSync(safeFile(root,`files/${entry.path}`))) !== entry.sha256) throw Error('Review snapshot changed');
+    console.log(JSON.stringify({valid:true,package:root,head:state.head,files:state.files.length}));
+  }
+} catch (error) { console.error(error.message); process.exitCode=1; }

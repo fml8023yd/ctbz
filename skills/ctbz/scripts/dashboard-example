@@ -1,0 +1,79 @@
+#!/usr/bin/env node
+import {isAbsolute} from 'node:path';
+import {initBoard, readBoard, mutateBoard} from './lib/dashboard-store.mjs';
+
+try {
+  const args = process.argv.slice(2);
+  if (args.includes('--help')) {
+    console.log('node dashboard-example --workspace <absolute-directory> [--mode normal|loop]');
+    process.exit(0);
+  }
+  const options = {};
+  for (let i = 0; i < args.length; i += 2) {
+    if (!['--workspace', '--mode'].includes(args[i]) || !args[i + 1] || options[args[i]]) throw Error('Invalid arguments');
+    options[args[i]] = args[i + 1];
+  }
+  const workspace = options['--workspace'];
+  const mode = options['--mode'] ?? 'loop';
+  if (!workspace || !isAbsolute(workspace) || !['normal', 'loop'].includes(mode)) throw Error('An absolute workspace and normal/loop mode are required');
+  if (await readBoard(workspace)) throw Error('Workspace already has a board; the example will not overwrite it');
+  await initBoard(workspace, {
+    title: mode === 'loop' ? '特征衍生研究' : '项目交付计划',
+    goal: mode === 'loop' ? '比较特征衍生方向，保留验证依据与负结果。所有内容均为示例，未执行真实建模。' : '通过明确的模块、依赖与验收完成一次交付。所有内容均为示例。',
+    mode, isExample: true,
+  });
+  const apply = (action, payload, actor = 'agent') => mutateBoard(workspace, action, payload, {actor});
+  const node = value => apply('node.upsert', {node: value});
+  await node({id: 'goal', kind: 'group', title: mode === 'loop' ? '特征衍生' : '交付目标', description: '示例项目，展示已完成、待推进与受阻方向。'});
+  const titles = mode === 'loop'
+    ? ['时间窗口', '趋势与变化', '交互组合', '频次与间隔', '分群相对位置', '稳定性', '缺失模式', '非线性变换', '跨源一致性']
+    : ['明确范围与验收', '状态与数据接口', '树与任务表', '轮次和知识', '浏览器联调', '交付与归档'];
+  for (const [index, title] of titles.entries()) {
+    await node({id: `direction-${index + 1}`, parentId: 'goal', kind: mode === 'loop' ? 'experiment' : 'task', title,
+      owner: ['researcher', 'implementer', 'reviewer'][index % 3], score: 95 - index * 5,
+      scoreReason: '示例评分：结合目标相关性、预期信息增量与投入成本。',
+      description: '示例任务。需要实际材料和验证才能形成业务结论。',
+      ...(mode === 'normal' && index > 0 ? {dependsOn: [`direction-${index}`]} : {})});
+  }
+  if (mode === 'loop') await apply('project.update', {budget: {maxRounds: 12, minutes: 180}});
+  for (let index = 1; index <= 3; index++) {
+    if (mode === 'loop') await apply('round.start', {nodeId: `direction-${index}`});
+    else await node({id: `direction-${index}`, status: 'active'});
+    await node({id: `direction-${index}`, status: 'completed', outcome: index === 2 ? 'rejected' : 'inconclusive',
+      result: index === 2 ? '示例负结果：当前定义不满足可比条件，需要改写假设。' : '示例：已形成方案比较，真实样本与效果仍待接入。',
+      method: '示例方法：口径核对、基准对照、边界分析。', pitfalls: '示例教训：不可把不同数据窗口的结果直接比较。',
+      nextSteps: '基于本节点形成更具体的待验证问题。', evidence: [`示例材料 E${index}，不是实际实验结果`],
+    });
+    if (mode === 'loop') await apply('round.finish', {
+      summary: `完成第 ${index} 个方向的示例检查`, method: '对照定义与验证条件', pitfalls: '不能用缺失数据支持效果结论',
+      conclusion: index === 2 ? '示例方向被否定，保留原因。' : '方案可继续细化，效果尚未验证。', nextSteps: '拆出具体实验并重新评估候选优先级。',
+    });
+  }
+  if (mode === 'loop') {
+    const branches = [
+      ['短窗口敏感性', '长窗口覆盖率', '窗口边界检查', '季节性偏移', '多窗口组合'],
+      ['变化率的分母', '趋势平滑策略', '拐点定义', '趋势稳定性'],
+      ['交互项稳定性', '交互项解释性', '组合稀疏度', '冗余信息检查', '交互项复现'],
+    ];
+    for (const [parent, children] of branches.entries()) {
+      for (const [index, title] of children.entries()) await node({id: `followup-${parent}-${index}`, parentId: `direction-${parent + 1}`,
+        kind: 'experiment', title, owner: 'researcher', score: 92 - parent * 5 - index * 4,
+        scoreReason: '示例评分：优先消除影响下轮选择的关键不确定性。', description: '从已完成的示例方向延伸出的待验证问题。'});
+    }
+  } else {
+    await node({id: 'direction-4', status: 'active'});
+    await node({id: 'direction-6', status: 'blocked', description: '示例阻塞：等待验收结果。'});
+  }
+  await apply('question.upsert', {question: {id: 'next-focus', title: '下一阶段优先解决什么？', context: '示例决策，不代表用户已作选择。',
+    options: [{id: 'evidence', label: '先补验证依据', reason: '降低后续判断的不确定性。'}, {id: 'coverage', label: '先扩展候选范围', reason: '增加潜在方向，但需要更多筛选成本。'}, {id: 'delivery', label: '先形成阶段汇报', reason: '便于对齐目标和下一阶段投入。'}],
+    recommendedOptionId: 'evidence'}});
+  await apply('knowledge.upsert', {entry: {id: 'example-experience', title: '跨窗口比较需要一致口径', content: '示例经验：先确认统计对象、数据窗口和分母，再解释数值差异。', source: '示例轮次记录，未在真实项目中验证', scope: '本示例', confidence: 'medium', sourceNodeIds: ['direction-1']}});
+  await apply('knowledge.upsert', {entry: {id: 'example-confirmed', title: '完成与结论有效分开记录', content: '示例规则：验证得到负结果也可完成；中断执行不能标为完成。', source: '示例确认事件，不是用户实际确认', scope: '本示例', confidence: 'high'}});
+  await apply('knowledge.confirm', {id: 'example-confirmed'}, 'user');
+  await apply('project.update', {status: 'paused', phase: 'planning'});
+  await apply('note.add', {text: '示例数据建立完成。没有调用模型，没有运行实验，也没有修改其他项目。'});
+  console.log(JSON.stringify({workspace, mode, isExample: true, created: true}));
+} catch (error) {
+  console.error(error.message);
+  process.exitCode = 1;
+}

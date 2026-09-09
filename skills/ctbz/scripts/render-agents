@@ -1,0 +1,475 @@
+#!/usr/bin/env node
+
+import { randomUUID } from "node:crypto";
+import {
+  copyFile,
+  cp,
+  lstat,
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { basename, dirname, isAbsolute, join, normalize, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  CliError,
+  expectedProfiles,
+  readJson,
+  renderProfile,
+} from "./lib/team-config.mjs";
+import {
+  DEFAULT_AGENTS,
+  defaultTeamConfig,
+  defaultCatalog,
+  discoverWorkspace,
+} from "./lib/paths.mjs";
+
+const JOURNAL_VERSION = 1;
+const JOURNAL_PHASES = new Set(["prepared", "output-renamed", "published"]);
+const TRANSACTION_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function fail(message) {
+  throw new CliError(message);
+}
+
+function parseArguments(arguments_) {
+  const options = { apply: false };
+  const pathOptions = new Map([
+    ["--team", "teamPath"],
+    ["--catalog", "catalogPath"],
+    ["--output", "outputPath"],
+    ["--backup-dir", "backupPath"],
+    ["--workspace", "workspace"],
+  ]);
+
+  for (let index = 0; index < arguments_.length; index += 1) {
+    const argument = arguments_[index];
+    if (argument === "--apply") {
+      if (options.apply) fail("--apply may only be provided once");
+      options.apply = true;
+      continue;
+    }
+
+    const key = pathOptions.get(argument);
+    if (key === undefined) fail("invalid arguments");
+    const value = arguments_[index + 1];
+    if (value === undefined || value.startsWith("--")) {
+      fail(`a value is required for ${argument}`);
+    }
+    if (options[key] !== undefined) fail(`${argument} may only be provided once`);
+    options[key] = value;
+    index += 1;
+  }
+
+  // Apply convention defaults.
+  const workspace = options.workspace
+    ? options.workspace
+    : discoverWorkspace();
+  if (options.teamPath === undefined) options.teamPath = defaultTeamConfig(workspace);
+  if (options.catalogPath === undefined) options.catalogPath = defaultCatalog(workspace);
+  if (options.outputPath === undefined) options.outputPath = DEFAULT_AGENTS;
+
+  return options;
+}
+
+function requireAbsolutePath(path, label) {
+  if (!isAbsolute(path)) fail(`${label} must be absolute`);
+}
+
+async function inspectPath(path) {
+  try {
+    return await lstat(path);
+  } catch (error) {
+    if (error?.code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+async function requireInputFile(path, label) {
+  requireAbsolutePath(path, label);
+  const stats = await inspectPath(path);
+  if (stats === undefined || stats.isSymbolicLink() || !stats.isFile()) {
+    fail(`${label} must be a regular file and not a symlink`);
+  }
+}
+
+async function requireDirectory(path, label, { allowMissing = false } = {}) {
+  requireAbsolutePath(path, label);
+  const stats = await inspectPath(path);
+  if (stats === undefined) {
+    if (allowMissing) return undefined;
+    fail(`${label} must exist`);
+  }
+  if (stats.isSymbolicLink() || !stats.isDirectory()) {
+    fail(`${label} must be a directory and not a symlink`);
+  }
+  return stats;
+}
+
+function isNestedPath(parent, child) {
+  const pathFromParent = relative(parent, child);
+  return (
+    pathFromParent !== "" &&
+    pathFromParent !== ".." &&
+    !pathFromParent.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) &&
+    !isAbsolute(pathFromParent)
+  );
+}
+
+function transactionPaths(outputPath, transactionId) {
+  const parent = dirname(outputPath);
+  const outputName = basename(outputPath);
+  return {
+    journalPath: join(parent, `.${outputName}.render-journal.json`),
+    rollbackPath: join(parent, `.${outputName}.rollback-${transactionId}`),
+    stagingPath: join(parent, `.${outputName}.staging-${transactionId}`),
+  };
+}
+
+async function writeJournal(journalPath, journal) {
+  const temporaryPath = `${journalPath}.tmp-${process.pid}-${randomUUID()}`;
+  try {
+    await writeFile(temporaryPath, `${JSON.stringify(journal)}\n`, {
+      encoding: "utf8",
+      flag: "wx",
+      mode: 0o600,
+    });
+    await rename(temporaryPath, journalPath);
+  } finally {
+    await rm(temporaryPath, { force: true }).catch(() => {});
+  }
+}
+
+function validateJournal(journal, outputPath) {
+  const fields = [
+    "output",
+    "phase",
+    "rollback",
+    "staging",
+    "transactionId",
+    "version",
+  ];
+  if (
+    journal === null ||
+    typeof journal !== "object" ||
+    Array.isArray(journal) ||
+    Object.keys(journal).sort().join("\n") !== fields.join("\n") ||
+    journal.version !== JOURNAL_VERSION ||
+    journal.output !== outputPath ||
+    !TRANSACTION_ID_PATTERN.test(journal.transactionId) ||
+    !JOURNAL_PHASES.has(journal.phase)
+  ) {
+    fail("invalid render transaction journal");
+  }
+
+  const paths = transactionPaths(outputPath, journal.transactionId);
+  if (
+    journal.staging !== paths.stagingPath ||
+    journal.rollback !== paths.rollbackPath ||
+    dirname(journal.staging) !== dirname(outputPath) ||
+    dirname(journal.rollback) !== dirname(outputPath)
+  ) {
+    fail("invalid render transaction journal");
+  }
+  return paths;
+}
+
+async function requireTransactionDirectory(path) {
+  const stats = await inspectPath(path);
+  if (stats !== undefined && (stats.isSymbolicLink() || !stats.isDirectory())) {
+    fail("invalid render transaction path");
+  }
+  return stats;
+}
+
+async function recoverPendingTransaction(outputPath) {
+  const { journalPath } = transactionPaths(outputPath, "unused");
+  const journalStats = await inspectPath(journalPath);
+  if (journalStats === undefined) return;
+  if (journalStats.isSymbolicLink() || !journalStats.isFile()) {
+    fail("invalid render transaction journal");
+  }
+
+  let journal;
+  try {
+    journal = JSON.parse(await readFile(journalPath, "utf8"));
+  } catch {
+    fail("invalid render transaction journal");
+  }
+  const { rollbackPath, stagingPath } = validateJournal(journal, outputPath);
+  const outputStats = await requireTransactionDirectory(outputPath);
+  const rollbackStats = await requireTransactionDirectory(rollbackPath);
+  await requireTransactionDirectory(stagingPath);
+
+  if (outputStats === undefined) {
+    if (rollbackStats === undefined) fail("unable to recover render transaction");
+    await rename(rollbackPath, outputPath);
+  }
+  await rm(stagingPath, { recursive: true, force: true });
+  await rm(rollbackPath, { recursive: true, force: true });
+  await rm(journalPath);
+}
+
+async function validateManagedTargets(outputPath, profiles) {
+  for (const profile of profiles) {
+    const stats = await inspectPath(join(outputPath, profile.file));
+    if (stats !== undefined && (stats.isSymbolicLink() || !stats.isFile())) {
+      fail("managed profile targets must be regular files and not symlinks");
+    }
+  }
+}
+
+async function managedProfileFiles(outputPath, teamName) {
+  const prefix = `team-${teamName}-`;
+  const entries = await readdir(outputPath, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    if (!entry.name.startsWith(prefix) || !entry.name.endsWith(".md")) continue;
+    if (!entry.isFile() || entry.isSymbolicLink()) {
+      fail("managed profile targets must be regular files and not symlinks");
+    }
+    files.push(entry.name);
+  }
+  return files;
+}
+
+async function writeStaging(
+  stagingPath,
+  outputPath,
+  outputExists,
+  previousProfileFiles,
+  profiles,
+) {
+  if (outputExists) {
+    await cp(outputPath, stagingPath, {
+      recursive: true,
+      errorOnExist: true,
+      force: false,
+      preserveTimestamps: true,
+    });
+  } else {
+    await mkdir(stagingPath, { mode: 0o700 });
+  }
+
+  for (const file of previousProfileFiles) {
+    await rm(join(stagingPath, file), { force: true });
+  }
+  for (const profile of profiles) {
+    const target = join(stagingPath, profile.file);
+    await writeFile(target, profile.content, {
+      encoding: "utf8",
+      flag: "wx",
+      mode: 0o600,
+    });
+  }
+}
+
+async function backupReplacedProfiles({
+  outputPath,
+  stagingPath,
+  backupPath,
+  previousProfileFiles,
+}) {
+  if (previousProfileFiles.length === 0) return undefined;
+
+  const defaultBackupRoot = join(outputPath, ".backups");
+  const usesDefaultRoot = backupPath === undefined || backupPath === defaultBackupRoot;
+  const backupRoot = backupPath ?? defaultBackupRoot;
+  const transactionId = `${new Date().toISOString().replaceAll(":", "-")}-${randomUUID()}`;
+  const finalTransactionPath = join(backupRoot, transactionId);
+  const writeTransactionPath = usesDefaultRoot
+    ? join(stagingPath, ".backups", transactionId)
+    : finalTransactionPath;
+
+  await mkdir(writeTransactionPath, { recursive: true, mode: 0o700 });
+  try {
+    for (const file of previousProfileFiles) {
+      await copyFile(join(outputPath, file), join(writeTransactionPath, file));
+    }
+  } catch (error) {
+    await rm(writeTransactionPath, { recursive: true, force: true }).catch(() => {});
+    throw error;
+  }
+  return finalTransactionPath;
+}
+
+async function publishStaging(
+  stagingPath,
+  outputPath,
+  originalIdentity,
+  transactionId,
+) {
+  const currentIdentity = await inspectPath(outputPath);
+  if (originalIdentity === undefined) {
+    if (currentIdentity !== undefined) fail("output changed during rendering");
+    await rename(stagingPath, outputPath);
+    return;
+  }
+
+  if (
+    currentIdentity === undefined ||
+    currentIdentity.isSymbolicLink() ||
+    !currentIdentity.isDirectory() ||
+    currentIdentity.dev !== originalIdentity.dev ||
+    currentIdentity.ino !== originalIdentity.ino
+  ) {
+    fail("output changed during rendering");
+  }
+
+  const { journalPath, rollbackPath } = transactionPaths(
+    outputPath,
+    transactionId,
+  );
+  const journal = {
+    version: JOURNAL_VERSION,
+    output: outputPath,
+    staging: stagingPath,
+    rollback: rollbackPath,
+    phase: "prepared",
+    transactionId,
+  };
+  await writeJournal(journalPath, journal);
+  await rename(outputPath, rollbackPath);
+  await writeJournal(journalPath, { ...journal, phase: "output-renamed" });
+  try {
+    await rename(stagingPath, outputPath);
+  } catch (error) {
+    try {
+      await rename(rollbackPath, outputPath);
+      await rm(journalPath, { force: true });
+    } catch {}
+    throw error;
+  }
+  await writeJournal(journalPath, { ...journal, phase: "published" });
+  await rm(rollbackPath, { recursive: true, force: true });
+  await rm(journalPath);
+}
+
+async function applyProfiles({ teamName, outputPath, backupPath, profiles }) {
+  outputPath = normalize(outputPath);
+  backupPath = backupPath === undefined ? undefined : normalize(backupPath);
+  const outputParent = dirname(outputPath);
+  await requireDirectory(outputParent, "output parent");
+  await recoverPendingTransaction(outputPath);
+  const outputIdentity = await requireDirectory(outputPath, "output", {
+    allowMissing: true,
+  });
+  let previousProfileFiles = [];
+  if (outputIdentity !== undefined) {
+    await validateManagedTargets(outputPath, profiles);
+    previousProfileFiles = await managedProfileFiles(outputPath, teamName);
+    const defaultBackup = join(outputPath, ".backups");
+    await requireDirectory(defaultBackup, "default backup directory", {
+      allowMissing: true,
+    });
+  }
+
+  if (backupPath !== undefined) {
+    await requireDirectory(backupPath, "backup directory", { allowMissing: true });
+    const defaultBackup = join(outputPath, ".backups");
+    if (backupPath === outputPath) {
+      fail("backup directory must not equal output");
+    }
+    if (backupPath !== defaultBackup && isNestedPath(outputPath, backupPath)) {
+      fail("backup directory inside output must be output/.backups");
+    }
+    await requireDirectory(dirname(backupPath), "backup parent");
+  }
+
+  const transactionId = randomUUID();
+  const { stagingPath } = transactionPaths(outputPath, transactionId);
+  let published = false;
+  try {
+    await writeStaging(
+      stagingPath,
+      outputPath,
+      outputIdentity !== undefined,
+      previousProfileFiles,
+      profiles,
+    );
+    const backup = await backupReplacedProfiles({
+      outputPath,
+      stagingPath,
+      backupPath,
+      previousProfileFiles,
+    });
+    await publishStaging(
+      stagingPath,
+      outputPath,
+      outputIdentity,
+      transactionId,
+    );
+    published = true;
+    return backup;
+  } finally {
+    if (!published) {
+      await rm(stagingPath, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+}
+
+async function main() {
+  const { teamPath, catalogPath, outputPath, backupPath, apply } = parseArguments(
+    process.argv.slice(2),
+  );
+  await requireInputFile(teamPath, "team");
+  await requireInputFile(catalogPath, "catalog");
+  requireAbsolutePath(outputPath, "output");
+  if (backupPath !== undefined) requireAbsolutePath(backupPath, "backup directory");
+
+  const team = await readJson(teamPath, "team");
+  const catalog = await readJson(catalogPath, "catalog");
+  const scriptDirectory = dirname(fileURLToPath(import.meta.url));
+  const templatePath = join(scriptDirectory, "../assets/agent-profile.md.tmpl");
+  let template;
+  try {
+    template = await readFile(templatePath, "utf8");
+  } catch {
+    fail("unable to read agent profile template");
+  }
+
+  const profiles = expectedProfiles(team, catalog).map((profile) => ({
+    ...profile,
+    content: renderProfile(template, profile),
+  }));
+
+  let backup;
+  if (apply) {
+    try {
+      backup = await applyProfiles({
+        teamName: team.team,
+        outputPath,
+        backupPath,
+        profiles,
+      });
+    } catch (error) {
+      if (error instanceof CliError) throw error;
+      fail("unable to write agent profiles");
+    }
+  }
+
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        applied: apply,
+        output: outputPath,
+        backup: backup ?? null,
+        profiles: profiles.map(({ name, file, content }) => ({ name, file, content })),
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}
+
+try {
+  await main();
+} catch (error) {
+  const message = error instanceof CliError ? error.message : "render failed";
+  process.stderr.write(`${message}\n`);
+  process.exitCode = 1;
+}

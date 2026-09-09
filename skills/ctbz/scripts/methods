@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import {verifyBundle} from './lib/methods.mjs';
+
+try {
+  const [command, id, ...extra] = process.argv.slice(2);
+  if (!['check','list','show'].includes(command) || extra.length || (command !== 'show' && id)) throw Error('用法: methods check | list | show <方法ID>');
+  const bundle = verifyBundle();
+  if (command === 'check') console.log(JSON.stringify({valid: true, installRoot: bundle.installRoot, fingerprint: bundle.fingerprint, methods: bundle.methods.length}));
+  else if (command === 'list') console.log(JSON.stringify(bundle.methods.map(method => ({...method, entry: path.join(bundle.installRoot, method.entry)}))));
+  else {
+    const method = bundle.methods.find(method => method.id === id);
+    if (!method) throw Error('未找到内置方法');
+    process.stdout.write(fs.readFileSync(path.join(bundle.installRoot, method.entry), 'utf8'));
+  }
+} catch (error) { console.error(error.message); process.exitCode = 1; }

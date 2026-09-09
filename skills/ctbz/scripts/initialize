@@ -1,0 +1,114 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import {homedir} from 'node:os';
+import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
+import {randomUUID} from 'node:crypto';
+import {storageRoot,storageLocation,documentsDir,ensureStorage} from './lib/存储位置.mjs';
+import {initialize,selectProfile} from './lib/初始化.mjs';
+import {read,safe,atomic,defaultRules,rulesFile,route} from './lib/本机配置.mjs';
+import {fingerprint} from './lib/team-config.mjs';
+import {verifyBundle,requireBundleBinding,roleMethods} from './lib/methods.mjs';
+const scripts=path.dirname(fileURLToPath(import.meta.url)),root=path.resolve(scripts,'..');
+function run(name,args){const r=spawnSync(process.execPath,[path.join(scripts,name),...args],{encoding:'utf8'});if(r.status!==0)throw Error(`${name}: ${r.stderr||r.stdout}`);return JSON.parse(r.stdout);}
+try{
+  const [cmd,...argv]=process.argv.slice(2),a={};
+  const allowed=['--home','--storage','--agents','--config','--catalog','--selection','--session','--loaded','--role','--parent-model','--excluded','--now'];
+  for(let i=0;i<argv.length;i+=2){if(!allowed.includes(argv[i])||!argv[i+1]||Object.hasOwn(a,argv[i]))throw Error('参数无效');a[argv[i]]=argv[i+1];}
+  for(const flag of ['--config','--catalog','--selection','--loaded','--excluded'])if(a[flag])safe(a[flag],false,flag);
+  const home=a['--home']?safe(a['--home'],true,'--home'):storageRoot(a['--storage'],homedir());
+  const agents=path.resolve(safe(a['--agents']??path.join(homedir(),'.zcode/agents'),true,'--agents'));
+  if(!home && cmd!=='status') throw Error('请先选择状态目录：documents、绝对自定义目录或later');
+  const statePath=home&&path.join(home,'初始化状态.json'),rulesPath=home&&path.join(home,'调用规则.json'),marker=home&&path.join(home,'已初始化.txt');
+  const registry=read(path.join(root,'角色清单.json'));
+  const methods=verifyBundle();
+  if(cmd==='status'){
+    if(!home)console.log(JSON.stringify({initialized:false,needsStorageChoice:true,mode:'parent-only',documents:documentsDir(homedir()),options:['documents','custom','later']}));
+    else if(!fs.existsSync(safe(statePath,true)))console.log(JSON.stringify({initialized:false,mode:'parent-only',home,recommendation:'建议初始化后使用团队角色'}));
+    else {const s=read(statePath);let drift=null;try{requireBundleBinding(s.bundle,methods);}catch(e){drift=e.message;}console.log(JSON.stringify({initialized:!drift&&fs.existsSync(safe(marker,true))&&s.version===registry.version,phase:s.phase,version:s.version,home,rules:rulesPath,drift}));}
+  }else if(cmd==='prepare'){
+    if(!a['--session'])throw Error('缺少--session');
+    ensureStorage(agents);
+    const catalog=a['--catalog']?read(a['--catalog'],'--catalog'):run('discover-config',['--config',a['--config']??path.join(homedir(),'.zcode/v2/config.json'),'--agents',agents]);
+    const selected=a['--selection']?read(a['--selection'],'--selection'):catalog.candidates.map(x=>x.key);
+    const bundle=initialize(registry,catalog,selected);
+    const team=bundle.team;
+    team.catalogFingerprint=fingerprint({providers:(catalog.providers??[]).map(({credentialPresent,...p})=>p),candidates:catalog.candidates});
+    team.profileFingerprint=fingerprint(bundle.profiles.map(p=>({file:p.name+'.md',content:p.markdown})).sort((a,b)=>a.file.localeCompare(b.file)));
+    ensureStorage(home);
+    const lock=safe(path.join(home,'初始化.lock'),true);fs.writeFileSync(lock,String(process.pid),{flag:'wx'});
+    const changed=[];
+    function beforeWrite(target){
+      safe(target,true);
+      if(!changed.some(x=>x.target===target)){
+        if(fs.existsSync(target)&&!fs.statSync(target).isFile())throw Error('写入目标必须是普通文件');
+        changed.push({target,before:fs.existsSync(target)?fs.readFileSync(target,'utf8'):null});
+      }
+    }
+    function replace(target,value){beforeWrite(target);atomic(target,value);}
+    function retire(target,backup){
+      beforeWrite(target);
+      atomic(backup,fs.readFileSync(target,'utf8'));
+      fs.unlinkSync(target);
+    }
+    try{
+      const old=fs.existsSync(safe(statePath,true))?read(statePath):null;
+      const oldAgents=old&&path.resolve(safe(old.agents,true));
+      for(const p of bundle.profiles){const target=safe(path.join(agents,p.name+'.md'),true);if(fs.existsSync(target)){const text=fs.readFileSync(target,'utf8'),managed=oldAgents===agents&&old.bundle.profiles.find(x=>x.name===p.name);if(text!==p.markdown&&(!managed||text!==managed.markdown))throw Error('用户自定义profile冲突：'+p.name);}}
+      const retired=[];
+      for(const p of old?.bundle.profiles??[]){
+        if(!/^team-ctbz-[a-z0-9-]+$/.test(p.name))throw Error('旧受管profile名称无效');
+        const target=safe(path.join(oldAgents,p.name+'.md'),true);
+        if(oldAgents===agents&&bundle.profiles.some(x=>x.name===p.name))continue;
+        if(fs.existsSync(target)){
+          if(fs.readFileSync(target,'utf8')!==p.markdown)throw Error('用户自定义profile冲突：'+p.name);
+          retired.push({target,name:p.name});
+        }
+      }
+      if(fs.existsSync(safe(rulesPath,true)))rulesFile(rulesPath);
+      const unchanged=old&&old.bundle.team?.catalogFingerprint===team.catalogFingerprint&&old.bundle.registryHash===bundle.registryHash&&JSON.stringify(old.bundle.profiles)===JSON.stringify(bundle.profiles)&&oldAgents===agents&&bundle.profiles.every(p=>fs.existsSync(path.join(agents,p.name+'.md'))&&fs.readFileSync(path.join(agents,p.name+'.md'),'utf8')===p.markdown);
+      let result;
+      if(unchanged){
+        rulesFile(rulesPath);result={phase:old.phase,unchanged:true,home};
+      }else{
+      const generation=safe(path.join(home,'generations',randomUUID()),true);fs.mkdirSync(generation,{recursive:true});
+      const teamPath=path.join(generation,'team.json');atomic(teamPath,team);
+      for(const p of bundle.profiles){const target=path.join(agents,p.name+'.md');if(fs.existsSync(target))atomic(path.join(generation,'backup',p.name+'.md'),fs.readFileSync(target,'utf8'));replace(target,p.markdown);}
+      for(const p of retired)retire(p.target,path.join(generation,'backup','retired',p.name+'.md'));
+      const setupFile=path.join(generation,'setup.json');atomic(setupFile,{teamConfigPath:teamPath,configFingerprint:team.catalogFingerprint,profileFingerprint:team.profileFingerprint,catalogFingerprint:team.catalogFingerprint});
+      const stateDir=path.join(generation,'state');
+      run('team-state',['setup','--state-dir',stateDir,'--team','ctbz','--config-version','1','--session',a['--session'],'--setup-file',setupFile]);
+      if(!fs.existsSync(rulesPath))replace(rulesPath,defaultRules());
+      if(fs.existsSync(safe(marker,true)))retire(marker,path.join(generation,'旧初始化标记.txt'));
+      replace(statePath,{version:registry.version,phase:'awaiting-new-session',bundle,teamPath,stateDir,agents,generatedInSession:a['--session']});
+      result={phase:'awaiting-new-session',profiles:bundle.profiles.length,retired:retired.length,home};
+      }
+      if(a['--storage']&&!a['--home'])replace(storageLocation(),{schemaVersion:1,root:home});
+      console.log(JSON.stringify(result));
+    }catch(e){for(const x of changed.reverse()){if(x.before===null){if(fs.existsSync(safe(x.target,true)))fs.unlinkSync(x.target);}else atomic(x.target,x.before);}throw e;}finally{fs.unlinkSync(lock);}
+  }else if(cmd==='activate'){
+    const activationLock=safe(path.join(home,'初始化.lock'),true);
+    fs.writeFileSync(activationLock,String(process.pid),{flag:'wx'});
+    try {
+    const s=read(statePath),loaded=read(a['--loaded'],'--loaded');
+    requireBundleBinding(s.bundle,methods);
+    if(!Array.isArray(loaded)||s.bundle.profiles.some(p=>!loaded.includes(p.name)))throw Error('当前宿主尚未加载全部版本角色配置');
+    const result=run('doctor',['--activate','--session',a['--session'],'--config',a['--config']??path.join(homedir(),'.zcode/v2/config.json'),'--agents',s.agents,'--team-config',s.teamPath,'--state-dir',s.stateDir,'--workspace',home]);
+    const activatedAt=new Date().toISOString();
+    const activeSessions={...(s.activeSessions??(s.activatedSession?{[s.activatedSession]:s.activatedAt}:{})),[a['--session']]:activatedAt};
+    atomic(statePath,{...s,phase:'initialized',activeSessions,activatedSession:a['--session'],activatedAt});atomic(marker,activatedAt+'\n');console.log(JSON.stringify(result));
+    } finally {fs.unlinkSync(activationLock);}
+  }else if(cmd==='select'||cmd==='reload'){
+    const cached=rulesFile(rulesPath);
+    if(cmd==='reload')console.log(JSON.stringify({reloaded:true,hash:cached.hash,rules:cached.rules}));
+    else{
+      const s=read(statePath);if(s.phase!=='initialized'||!(s.activeSessions?Object.hasOwn(s.activeSessions,a['--session']):s.activatedSession===a['--session']))throw Error('请在当前会话完成激活');
+      const ready=run('team-state',['can-run','--state-dir',s.stateDir,'--team','ctbz','--session',a['--session']]);if(!ready.canRun)throw Error('运行配置失效');
+      const order=route(cached.rules,s.bundle.profiles,a['--parent-model'],a['--role'],a['--now']?new Date(a['--now']):new Date());
+      const p=selectProfile(s.bundle,registry,{defaultOrder:order},a['--role'],read(a['--loaded'],'--loaded'),a['--excluded']?read(a['--excluded'],'--excluded'):[]);
+      if(fs.readFileSync(safe(path.join(s.agents,p.name+'.md')),'utf8')!==p.markdown)throw Error('profile文件已变化，请重新初始化');
+      console.log(JSON.stringify({profile:p.name,modelRef:p.modelRef,rulesHash:cached.hash,stateDir:s.stateDir,team:'ctbz',methods:roleMethods(a['--role'],methods),methodFingerprint:methods.fingerprint}));
+    }
+  }else throw Error('命令：status/prepare/activate/select/reload');
+}catch(e){console.error(e.message);process.exitCode=1;}

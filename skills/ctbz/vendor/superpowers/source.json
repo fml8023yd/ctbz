@@ -1,0 +1,13 @@
+{
+  "name": "superpowers",
+  "version": "6.3.0",
+  "repository": "https://github.com/obra/superpowers",
+  "commit": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797",
+  "archive": "source-6.3.0.tar.gz",
+  "sourceStatus": "verified-pinned-archive",
+  "license": "MIT",
+  "licenseStatus": "verified-upstream",
+  "retrievedAt": "2026-09-06",
+  "runtime": "../../methods/superpowers",
+  "notes": "Complete original repository is source-only. CTBZ does not unpack it or execute its hooks/scripts."
+}

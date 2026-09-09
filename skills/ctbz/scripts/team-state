@@ -1,0 +1,1016 @@
+#!/usr/bin/env node
+
+import { lstat, realpath, readdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
+import { teamConfigFingerprint } from "./lib/team-config.mjs";
+import { initBoard, mutateBoard, readBoard, syncTask, validateTaskBinding, getScope, scopeForNode, assertScopeOwner, assertCanDispatch, boardView } from "./lib/dashboard-store.mjs";
+import {
+  readJson,
+  requireAbsolutePath,
+  requireNonSymlink,
+  requirePathWithinRoot,
+  StateError,
+  writeJsonAtomic,
+  withFileLock,
+} from "./lib/state.mjs";
+import {
+  defaultStateDir,
+  defaultTeamConfig,
+  discoverWorkspace,
+} from "./lib/paths.mjs";
+
+class CliError extends Error {}
+
+const fingerprintOptions = [
+  "--config-fingerprint",
+  "--profile-fingerprint",
+  "--catalog-fingerprint",
+  "--team-config-fingerprint",
+];
+
+const commandOptions = {
+  setup: new Set([
+    "--state-dir",
+    "--team",
+    "--config-version",
+    "--session",
+    "--setup-file",
+    "--workspace",
+  ]),
+  activate: new Set([
+    "--state-dir",
+    "--team",
+    "--config-version",
+    "--session",
+    "--doctor-attestation",
+    "--workspace",
+  ]),
+  "can-run": new Set([
+    "--state-dir",
+    "--team",
+    "--config-version",
+    "--session",
+    ...fingerprintOptions,
+    "--workspace",
+  ]),
+  "init-run": new Set([
+    "--state-dir",
+    "--team",
+    "--run-id",
+    "--session",
+    "--goal",
+    "--config-version",
+    ...fingerprintOptions,
+    "--workspace",
+    "--scope-id",
+  ]),
+  "update-task": new Set([
+    "--state-dir",
+    "--team",
+    "--run-id",
+    "--task-file",
+    "--session",
+    ...fingerprintOptions,
+    "--workspace",
+  ]),
+  "finish-run": new Set([
+    "--state-dir", "--team", "--run-id", "--session", "--summary",
+    "--status", ...fingerprintOptions, "--workspace",
+  ]),
+  "sync-run": new Set(["--state-dir", "--team", "--run-id", "--session", ...fingerprintOptions, "--workspace"]),
+  "adopt-run": new Set(["--state-dir", "--team", "--run-id", "--session", "--reason", ...fingerprintOptions, "--workspace"]),
+  "checkpoint": new Set(["--state-dir", "--team", "--run-id", "--session", "--file", ...fingerprintOptions, "--workspace"]),
+  "revise-task": new Set(["--state-dir", "--team", "--run-id", "--session", "--request-id", "--reason", ...fingerprintOptions, "--workspace"]),
+};
+
+function fail(message) {
+  throw new CliError(message);
+}
+
+function parseArguments(arguments_) {
+  const [command, ...optionArguments] = arguments_;
+  if (!Object.hasOwn(commandOptions, command)) fail("unknown or missing command");
+
+  const options = {};
+  for (let index = 0; index < optionArguments.length; index += 2) {
+    const option = optionArguments[index];
+    const value = optionArguments[index + 1];
+
+    if (!commandOptions[command].has(option)) fail(`invalid option: ${option}`);
+    if (value === undefined || value.startsWith("--")) {
+      fail(`a value is required for ${option}`);
+    }
+    if (Object.hasOwn(options, option)) fail(`${option} may only be provided once`);
+    options[option] = value;
+  }
+
+  return { command, options };
+}
+
+async function resolveDefaults(command, options) {
+  const resolved = { ...options };
+
+  // --state-dir and --team can be derived from workspace + team config.
+  if (resolved["--state-dir"] === undefined) {
+    const workspace = discoverWorkspace(resolved["--workspace"]);
+    resolved["--state-dir"] = defaultStateDir(workspace);
+    if (resolved["--team"] === undefined) {
+      resolved["--team"] = "dev";
+    }
+  }
+  if (resolved["--team"] === undefined) {
+    // Try reading team name from team-state.json at the resolved state-dir.
+    const candidates = ["dev"];
+    for (const candidate of candidates) {
+      try {
+        const statePath = join(resolved["--state-dir"], candidate, "team-state.json");
+        const state = await readJson(statePath);
+        if (typeof state.team === "string") {
+          resolved["--team"] = state.team;
+          break;
+        }
+      } catch {
+        // try next candidate
+      }
+    }
+    if (resolved["--team"] === undefined) fail("--team is required or set up a team state first");
+  }
+
+  return resolved;
+}
+
+function parseConfigVersion(value) {
+  if (!/^\d+$/.test(String(value))) {
+    fail("--config-version must be a positive integer");
+  }
+
+  const version = Number.parseInt(value, 10);
+  if (!Number.isSafeInteger(version) || version < 1) {
+    fail("--config-version must be a positive integer");
+  }
+  return version;
+}
+
+function requireNonEmptyString(value, label) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    fail(`${label} must be a non-empty string`);
+  }
+  return value;
+}
+
+function requireFingerprint(value, label) {
+  if (typeof value !== "string" || !/^sha256:[a-f0-9]{64}$/.test(value)) {
+    fail(`${label} must be a lowercase SHA-256 fingerprint`);
+  }
+  return value;
+}
+
+function requireSafeSegment(value, option) {
+  if (
+    typeof value !== 'string' || value.trim().length === 0 ||
+    value === "." ||
+    value === ".." ||
+    value.includes("/") ||
+    value.includes("\\")
+  ) {
+    fail(`${option} must be a single path segment`);
+  }
+  return value;
+}
+
+function requireObject(value, label) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail(`${label} must be a JSON object`);
+  }
+  return value;
+}
+
+function requireStringArray(value, label) {
+  if (
+    !Array.isArray(value) ||
+    value.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    fail(`${label} must be an array of non-empty strings`);
+  }
+  if (new Set(value).size !== value.length) {
+    fail(`${label} must not contain duplicates`);
+  }
+  return value;
+}
+
+function requireRoutes(value) {
+  const routes = requireObject(value, "routes");
+  if (Object.keys(routes).length === 0) fail("routes must not be empty");
+  for (const [role, profiles] of Object.entries(routes)) {
+    requireNonEmptyString(role, "route role");
+    requireStringArray(profiles, `route ${role}`);
+    if (profiles.length === 0) fail(`route ${role} must not be empty`);
+  }
+  return routes;
+}
+
+function deriveRouting(teamConfig) {
+  const roles = requireObject(teamConfig.roles, "team configuration roles");
+  const routes = {};
+  const requiredProfiles = [];
+  const seenProfiles = new Set();
+
+  for (const [role, roleConfiguration] of Object.entries(roles)) {
+    requireNonEmptyString(role, "team configuration role");
+    const route = requireStringArray(
+      requireObject(
+        roleConfiguration,
+        `team configuration role ${role}`,
+      ).route,
+      `team configuration route ${role}`,
+    );
+    if (route.length === 0) {
+      fail(`team configuration route ${role} must not be empty`);
+    }
+    routes[role] = [...route];
+    for (const profile of route) {
+      if (!seenProfiles.has(profile)) {
+        seenProfiles.add(profile);
+        requiredProfiles.push(profile);
+      }
+    }
+  }
+
+  if (Object.keys(routes).length === 0) {
+    fail("team configuration roles must not be empty");
+  }
+  return { requiredProfiles, routes };
+}
+
+function requireMatchingSetupRouting(input, derivedRouting) {
+  if (
+    "routes" in input &&
+    !isDeepStrictEqual(requireRoutes(input.routes), derivedRouting.routes)
+  ) {
+    fail("routes must match team configuration");
+  }
+  if (
+    "requiredProfiles" in input &&
+    !isDeepStrictEqual(
+      requireStringArray(input.requiredProfiles, "requiredProfiles"),
+      derivedRouting.requiredProfiles,
+    )
+  ) {
+    fail("requiredProfiles must match team configuration");
+  }
+}
+
+async function validateStateDirectory(options, allowMissing = false) {
+  return requireNonSymlink(options["--state-dir"], "--state-dir", {
+    allowMissing,
+  });
+}
+
+function teamStatePath(options) {
+  const team = requireSafeSegment(options["--team"], "--team");
+  return join(options["--state-dir"], team, "team-state.json");
+}
+
+function teamDirectory(options) {
+  const team = requireSafeSegment(options["--team"], "--team");
+  return join(options["--state-dir"], team);
+}
+
+function runManifestPath(options, runId) {
+  const team = requireSafeSegment(options["--team"], "--team");
+  return join(options["--state-dir"], team, "runs", `${runId}.json`);
+}
+
+async function requireAnchoredPath(path, stateDir, label) {
+  await requireNonSymlink(path, label);
+  await requirePathWithinRoot(path, stateDir, label, "--state-dir");
+}
+
+async function readTeamState(options) {
+  await validateStateDirectory(options);
+  const stateDir = await realpath(options["--state-dir"]);
+  const teamDir = teamDirectory(options);
+  await requireAnchoredPath(teamDir, stateDir, "team state directory");
+  const statePath = teamStatePath(options);
+  await requireAnchoredPath(statePath, stateDir, "team-state.json");
+  const state = await readJson(statePath);
+  await requireNonSymlink(state.teamConfigPath, "teamConfigPath");
+  return state;
+}
+
+async function setup(options) {
+  await validateStateDirectory(options, true);
+  requireAbsolutePath(options["--setup-file"], "--setup-file");
+  const input = requireObject(
+    await readJson(options["--setup-file"]),
+    "setup file",
+  );
+  await requireNonSymlink(input.teamConfigPath, "teamConfigPath");
+
+  const teamConfig = requireObject(
+    await readJson(input.teamConfigPath),
+    "team configuration",
+  );
+  const { requiredProfiles, routes } = deriveRouting(teamConfig);
+  requireMatchingSetupRouting(input, { requiredProfiles, routes });
+
+  const team = requireSafeSegment(options["--team"], "--team");
+  await requireNonSymlink(teamDirectory(options), "team state directory", {
+    allowMissing: true,
+  });
+  await requireNonSymlink(teamStatePath(options), "team-state.json", {
+    allowMissing: true,
+  });
+  const state = {
+    team,
+    configVersion: parseConfigVersion(options["--config-version"]),
+    teamConfigPath: input.teamConfigPath,
+    configFingerprint: requireFingerprint(
+      input.configFingerprint,
+      "configFingerprint",
+    ),
+    profileFingerprint: requireFingerprint(
+      input.profileFingerprint,
+      "profileFingerprint",
+    ),
+    catalogFingerprint: requireFingerprint(
+      input.catalogFingerprint,
+      "catalogFingerprint",
+    ),
+    teamConfigFingerprint: teamConfigFingerprint(teamConfig),
+    requiredProfiles,
+    routes,
+    generatedAt: new Date().toISOString(),
+    generatedInSessionId: requireNonEmptyString(
+      options["--session"],
+      "--session",
+    ),
+    status: "activationRequired",
+  };
+
+  await writeJsonAtomic(teamStatePath(options), state);
+  return state;
+}
+
+function parseAttestation(value) {
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    fail("--doctor-attestation must be valid JSON");
+  }
+  const attestation = requireObject(parsed, "--doctor-attestation");
+  const requiredFields = [
+    "sessionId",
+    "configVersion",
+    "teamConfigPath",
+    "catalogFingerprint",
+    "profileFingerprint",
+    "teamConfigFingerprint",
+    "loadedProfiles",
+    "verifiedAt",
+    "agentToolListInternallyVerified",
+  ];
+  for (const field of requiredFields) {
+    if (!Object.hasOwn(attestation, field)) {
+      fail(`doctor attestation field ${field} is required`);
+    }
+  }
+  if (attestation.agentToolListInternallyVerified !== false) {
+    fail("attestation agentToolListInternallyVerified must be false");
+  }
+  requireNonEmptyString(attestation.sessionId, "attestation sessionId");
+  attestation.configVersion = parseConfigVersion(attestation.configVersion);
+  requireAbsolutePath(attestation.teamConfigPath, "attestation teamConfigPath");
+  requireFingerprint(
+    attestation.catalogFingerprint,
+    "attestation catalogFingerprint",
+  );
+  requireFingerprint(
+    attestation.profileFingerprint,
+    "attestation profileFingerprint",
+  );
+  requireFingerprint(
+    attestation.teamConfigFingerprint,
+    "attestation teamConfigFingerprint",
+  );
+  requireStringArray(attestation.loadedProfiles, "attestation loadedProfiles");
+  if (
+    typeof attestation.verifiedAt !== "string" ||
+    Number.isNaN(Date.parse(attestation.verifiedAt))
+  ) {
+    fail("attestation verifiedAt must be a valid date-time string");
+  }
+  return attestation;
+}
+
+async function activate(options) {
+  const state = await readTeamState(options);
+  const requestedVersion = parseConfigVersion(options["--config-version"]);
+  const requestedSession = requireNonEmptyString(
+    options["--session"],
+    "--session",
+  );
+  const attestation = parseAttestation(options["--doctor-attestation"]);
+  await requireNonSymlink(
+    attestation.teamConfigPath,
+    "attestation teamConfigPath",
+  );
+  const currentTeamConfigFingerprint = teamConfigFingerprint(
+    requireObject(
+      await readJson(state.teamConfigPath),
+      "team configuration",
+    ),
+  );
+
+  if (state.configVersion !== requestedVersion) {
+    return { activated: false, reason: "configVersionMismatch" };
+  }
+  if (attestation.sessionId !== requestedSession) {
+    return { activated: false, reason: "sessionMismatch" };
+  }
+  if (state.generatedInSessionId === requestedSession) {
+    return { activated: false, reason: "newSessionRequired" };
+  }
+  if (state.teamConfigFingerprint !== currentTeamConfigFingerprint) {
+    return { activated: false, reason: "teamConfigFingerprintMismatch" };
+  }
+
+  const comparisons = [
+    ["configVersion", state.configVersion, attestation.configVersion],
+    ["teamConfigPath", state.teamConfigPath, attestation.teamConfigPath],
+    [
+      "catalogFingerprint",
+      state.catalogFingerprint,
+      attestation.catalogFingerprint,
+    ],
+    [
+      "profileFingerprint",
+      state.profileFingerprint,
+      attestation.profileFingerprint,
+    ],
+    [
+      "teamConfigFingerprint",
+      state.teamConfigFingerprint,
+      attestation.teamConfigFingerprint,
+    ],
+  ];
+  for (const [name, expected, actual] of comparisons) {
+    if (expected !== actual) {
+      return { activated: false, reason: `${name}Mismatch` };
+    }
+  }
+
+  const loadedProfiles = new Set(attestation.loadedProfiles);
+  const missingProfiles = state.requiredProfiles.filter(
+    (profile) => !loadedProfiles.has(profile),
+  );
+  if (missingProfiles.length > 0) {
+    return {
+      activated: false,
+      reason: "requiredProfilesMissing",
+      missingProfiles,
+    };
+  }
+
+  const activatedState = {
+    ...state,
+    activeSessions: {
+      ...(state.activeSessions ?? (state.activatedSessionId ? {[state.activatedSessionId]: {activatedAt: state.activatedAt}} : {})),
+      [requestedSession]: {activatedAt: new Date().toISOString(), doctorAttestedAt: attestation.verifiedAt, loadedProfiles: attestation.loadedProfiles},
+    },
+    activeVersion: requestedVersion,
+    activatedSessionId: requestedSession,
+    activatedAt: new Date().toISOString(),
+    doctorAttestedAt: attestation.verifiedAt,
+    attestedLoadedProfiles: attestation.loadedProfiles,
+    attestationSource: "parentScheduler",
+    status: "active",
+  };
+  await writeJsonAtomic(teamStatePath(options), activatedState);
+  return { activated: true };
+}
+
+function optionalFingerprint(value, label) {
+  if (value === undefined) return undefined;
+  return requireFingerprint(value, label);
+}
+
+function requestedBindings(options, state) {
+  // Prefer explicitly passed fingerprints; fall back to state file values.
+  const source = state ?? {};
+  return {
+    configFingerprint: requireFingerprint(
+      options["--config-fingerprint"] ?? source.configFingerprint,
+      "configFingerprint",
+    ),
+    profileFingerprint: requireFingerprint(
+      options["--profile-fingerprint"] ?? source.profileFingerprint,
+      "profileFingerprint",
+    ),
+    catalogFingerprint: requireFingerprint(
+      options["--catalog-fingerprint"] ?? source.catalogFingerprint,
+      "catalogFingerprint",
+    ),
+    teamConfigFingerprint: requireFingerprint(
+      options["--team-config-fingerprint"] ?? source.teamConfigFingerprint,
+      "teamConfigFingerprint",
+    ),
+  };
+}
+
+function bindingMismatch(expected, actual) {
+  for (const name of [
+    "configFingerprint",
+    "profileFingerprint",
+    "catalogFingerprint",
+    "teamConfigFingerprint",
+  ]) {
+    if (expected[name] !== actual[name]) return `${name}Mismatch`;
+  }
+  return undefined;
+}
+
+async function currentTeamConfigMismatch(state) {
+  const current = teamConfigFingerprint(
+    requireObject(
+      await readJson(state.teamConfigPath),
+      "team configuration",
+    ),
+  );
+  return current === state.teamConfigFingerprint
+    ? undefined
+    : "teamConfigFingerprintMismatch";
+}
+
+async function canRun(options, providedState) {
+  const state = providedState ?? (await readTeamState(options));
+  if (state.status !== "active") {
+    return { canRun: false, reason: "activationRequired" };
+  }
+  const requestedVersion = parseConfigVersion(
+    options["--config-version"] ?? String(state.activeVersion),
+  );
+  if (state.activeVersion !== requestedVersion) {
+    return { canRun: false, reason: "configVersionMismatch" };
+  }
+  if (!(state.activeSessions ? Object.hasOwn(state.activeSessions, options["--session"]) : state.activatedSessionId === options["--session"])) {
+    return { canRun: false, reason: "sessionMismatch" };
+  }
+  const mismatch = bindingMismatch(state, requestedBindings(options, state));
+  if (mismatch) return { canRun: false, reason: mismatch };
+  const teamConfigMismatch = await currentTeamConfigMismatch(state);
+  if (teamConfigMismatch) return { canRun: false, reason: teamConfigMismatch };
+
+  return { canRun: true };
+}
+
+async function initRun(options) {
+  requireNonEmptyString(options["--goal"], "--goal");
+  const runId = requireSafeSegment(options["--run-id"], "--run-id");
+  const team = requireSafeSegment(options["--team"], "--team");
+  const state = await readTeamState(options);
+  const permission = await canRun(options, state);
+  if (!permission.canRun) return { initialized: false, reason: permission.reason };
+
+  const runPath = runManifestPath(options, runId);
+  await requireNonSymlink(runPath, "run manifest", { allowMissing: true });
+  await requireNonSymlink(dirname(runPath), "run manifests directory", {
+    allowMissing: true,
+  });
+  try {
+    await lstat(runPath);
+    return { initialized: false, reason: "runExists" };
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
+  const repository = discoverWorkspace(options["--workspace"]);
+  const scopeId = options['--scope-id'] ?? null;
+  if (!await readBoard(repository)) await initBoard(repository, {title: options['--goal'], goal: options['--goal']});
+  const claimed = await mutateBoard(repository, 'scope.claim', {scopeId, sessionId: options['--session']}, {actor: 'agent', sessionId: options['--session']});
+  const scope = getScope(claimed, scopeId);
+  const manifest = {
+    repository,
+    scopeId,
+    scopeEpoch: scope.owner.epoch,
+    planRevision: scope.checkpoint?.seenPlanRevision ?? 0,
+    runId,
+    goal: options["--goal"],
+    status: "running",
+    tasks: [],
+    sessionId: options["--session"],
+    configVersion: state.configVersion,
+    configFingerprint: state.configFingerprint,
+    profileFingerprint: state.profileFingerprint,
+    catalogFingerprint: state.catalogFingerprint,
+    teamConfigFingerprint: state.teamConfigFingerprint,
+    teamConfigPath: state.teamConfigPath,
+    routes: state.routes,
+    createdAt: new Date().toISOString(),
+  };
+  await writeJsonAtomic(runPath, manifest);
+  const dashboard = await mirrorDashboard(manifest, async () => {
+    if (!await readBoard(manifest.repository)) {
+      await initBoard(manifest.repository, { title: manifest.goal, goal: manifest.goal, mode: "normal" });
+    }
+    return mutateBoard(manifest.repository, "note.add", { scopeId: manifest.scopeId, text: `开始任务 ${runId}: ${manifest.goal}` }, agentOptions(manifest));
+  });
+  return { initialized: true, runId, dashboard };
+}
+
+const allowedTaskStatuses = new Set([
+  "pending",
+  "running",
+  "completed",
+  "failed",
+  "blocked",
+  "cancelled",
+]);
+const terminalTaskStatuses = new Set(["completed", "cancelled"]);
+
+function requireAllowedTransition(fromStatus, toStatus) {
+  if (!allowedTaskStatuses.has(toStatus)) {
+    fail(`task status must be one of ${[...allowedTaskStatuses].join(", ")}`);
+  }
+  if (fromStatus === undefined || fromStatus === toStatus) return;
+  if (terminalTaskStatuses.has(fromStatus)) {
+    fail(`task status ${fromStatus} cannot transition to ${toStatus}`);
+  }
+}
+
+function requireEvidence(task, field, status) {
+  if (
+    task[field] === null ||
+    typeof task[field] !== "object" ||
+    Array.isArray(task[field])
+  ) {
+    fail(`completed task requires ${field} evidence`);
+  }
+  const evidence = task[field];
+  if (evidence.status !== status) {
+    fail(`completed task ${field} status must be ${status}`);
+  }
+  requireNonEmptyString(
+    evidence.evidence,
+    `completed task ${field} evidence`,
+  );
+}
+
+function requireTask(task) {
+  requireObject(task, "task file");
+  for (const field of ["taskId", "role", "profile", "status"]) {
+    requireNonEmptyString(task[field], `task field ${field}`);
+  }
+  if (!allowedTaskStatuses.has(task.status)) {
+    fail(`task status must be one of ${[...allowedTaskStatuses].join(", ")}`);
+  }
+  if ((['running', 'completed'].includes(task.status) || task.agentId != null) && !/^agent_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(task.agentId)) {
+    fail("task agentId must match agent_<uuid>");
+  }
+  if (task.status === "completed") {
+    if (task.result !== undefined) requireNonEmptyString(task.result, 'completed task result');
+    else if (task.summary !== undefined) requireNonEmptyString(task.summary, 'completed task summary');
+    requireEvidence(task, "verification", "passed");
+    requireEvidence(task, "review", "approved");
+    requireEvidence(task, "integration", "integrated");
+  }
+  if (task.resultEvidence !== undefined && (!Array.isArray(task.resultEvidence) || task.resultEvidence.length > 1000 || task.resultEvidence.some(item => typeof item !== 'string' || !item.trim() || item.length > 50000) || (task.status === 'completed' && !task.resultEvidence.length))) fail('resultEvidence must contain nonempty evidence entries');
+  return task;
+}
+
+function requireManifestBinding(options, manifest, state) {
+  if (manifest.sessionId !== options["--session"]) {
+    fail("session does not match run manifest");
+  }
+  const mismatch = bindingMismatch(manifest, requestedBindings(options, state));
+  if (mismatch) fail(`${mismatch} in run manifest`);
+}
+
+function agentOptions(manifest) {
+  return {actor: 'agent', sessionId: manifest.sessionId, ownerEpoch: manifest.scopeEpoch};
+}
+
+async function requireRunOwner(manifest) {
+  const board = await readBoard(manifest.repository);
+  if (!board) fail('project record missing; restore and reconcile before continuing');
+  assertScopeOwner(board, manifest.scopeId ?? null, manifest.sessionId, manifest.scopeEpoch);
+  return board;
+}
+
+function requireAllowedProfile(task, manifest, state) {
+  const manifestRoute = manifest.routes?.[task.role];
+  const teamRoute = state.routes?.[task.role];
+  if (
+    !Array.isArray(manifestRoute) ||
+    !manifestRoute.includes(task.profile) ||
+    !Array.isArray(teamRoute) ||
+    !teamRoute.includes(task.profile)
+  ) {
+    fail(`task profile is not allowed for role ${task.role}`);
+  }
+}
+
+async function updateTask(options) {
+  await validateStateDirectory(options);
+  requireAbsolutePath(options["--task-file"], "--task-file");
+  const team = requireSafeSegment(options["--team"], "--team");
+  const runId = requireSafeSegment(options["--run-id"], "--run-id");
+  const task = requireTask(await readJson(options["--task-file"]));
+  const path = runManifestPath(options, runId);
+  await requireAnchoredPath(path, await realpath(options["--state-dir"]), "run manifest");
+  const manifest = await readJson(path);
+  const state = await readTeamState(options);
+  requireManifestBinding(options, manifest, state);
+  const permission = await canRun(options, state);
+  if (!permission.canRun) fail(`cannot update task: ${permission.reason}`);
+  requireAllowedProfile(task, manifest, state);
+  if (!Array.isArray(manifest.tasks)) fail("run manifest tasks must be an array");
+  if (
+    manifest.status === "FAILED_EXHAUSTED" ||
+    ["CANCELLED", "completed", "cancelled"].includes(manifest.status)
+  ) {
+    fail("run manifest is terminal and no longer accepts task updates");
+  }
+
+  const taskIndex = manifest.tasks.findIndex(
+    (existingTask) => existingTask?.taskId === task.taskId,
+  );
+  const previous = manifest.tasks[taskIndex];
+  const newDispatch = ['pending', 'running'].includes(task.status) && (!previous || previous.status !== task.status || ['agentId','profile','attempt'].some(key => task[key] !== undefined && task[key] !== previous[key]));
+  if (newDispatch) {
+    if (!manifest.lastCheckpointAt || manifest.reconciliationRequired) fail('complete a reconciled checkpoint before dispatch');
+    const repaired = await projectRun(manifest);
+    if (!repaired.synced) fail('reconcile project records before dispatch: ' + repaired.warning);
+    const board = await requireRunOwner(manifest);
+    assertCanDispatch(board, {scopeId: manifest.scopeId ?? null, sessionId: manifest.sessionId, ownerEpoch: manifest.scopeEpoch, planRevision: manifest.planRevision});
+    const binding = task.nodeId ?? task.parentId;
+    if (binding && scopeForNode(board, binding) !== (manifest.scopeId ?? null)) fail('task belongs to another work scope');
+  } else {
+    // Returned evidence survives a temporarily unavailable projection; a visible stale owner is rejected.
+    let board;
+    try {board = await readBoard(manifest.repository);} catch {}
+    if (board) assertScopeOwner(board, manifest.scopeId ?? null, manifest.sessionId, manifest.scopeEpoch);
+  }
+  if (taskIndex === -1) {
+    manifest.tasks.push(task);
+  } else {
+    const existingTask = manifest.tasks[taskIndex];
+    const fromStatus =
+      typeof existingTask?.status === "string" ? existingTask.status : undefined;
+    requireAllowedTransition(fromStatus, task.status);
+    for (const field of ["worktreeOwnership", "worktree", "branch", "baseRevision", "nodeId", "parentId"]) {
+      if (existingTask[field] !== undefined && task[field] !== undefined &&
+          !isDeepStrictEqual(existingTask[field], task[field])) {
+        fail(`task update must preserve ${field}`);
+      }
+    }
+    if (terminalTaskStatuses.has(fromStatus) && !isDeepStrictEqual(existingTask, {...existingTask, ...task})) {
+      fail('terminal task history is immutable; only an identical retry is allowed');
+    }
+    if (["failed", "blocked"].includes(fromStatus) && task.status === "running" &&
+        (!Number.isSafeInteger(task.attempt) || task.attempt !== (existingTask.attempt ?? 1) + 1)) {
+      fail("recovery requires the next attempt number");
+    }
+    manifest.tasks[taskIndex] = { ...existingTask, ...task };
+  }
+  manifest.updatedAt = new Date().toISOString();
+  if (task.nodeId !== undefined || task.parentId !== undefined) {
+    try { validateTaskBinding(await readBoard(manifest.repository), manifest.tasks.find(entry => entry.taskId === task.taskId), manifest, {reconcile: !newDispatch}); }
+    catch (error) { fail(`task binding rejected: ${error.message}`); }
+  }
+  const accepted = requireTask(manifest.tasks.find(entry => entry.taskId === task.taskId));
+  await writeJsonAtomic(path, manifest);
+  const dashboard = await mirrorDashboard(manifest, () => syncTask(manifest.repository, accepted, manifest));
+  return { updated: true, taskId: task.taskId, dashboard };
+}
+
+async function mirrorDashboard(manifest, operation) {
+  // The accepted manifest is authoritative if its secondary projection fails.
+  try {
+    const board = await operation();
+    return { synced: true, revision: board.revision, warnings: board.storageWarnings ?? [] };
+  } catch (error) {
+    return { synced: false, warning: `项目看板记录失败: ${error.message}`, runId: manifest.runId };
+  }
+}
+
+async function finishRun(options) {
+  const runId = requireSafeSegment(options["--run-id"], "--run-id");
+  const summary = requireNonEmptyString(options["--summary"], "--summary");
+  const status = options["--status"] ?? "completed";
+  if (!["completed", "blocked", "cancelled"].includes(status)) fail("invalid finish status");
+  const state = await readTeamState(options);
+  const permission = await canRun(options, state);
+  if (!permission.canRun) fail(`cannot finish run: ${permission.reason}`);
+  const runPath = runManifestPath(options, runId);
+  await requireAnchoredPath(runPath, await realpath(options["--state-dir"]), "run manifest");
+  const manifest = await readJson(runPath);
+  requireManifestBinding(options, manifest, state);
+  if (["completed", "cancelled", "CANCELLED", "FAILED_EXHAUSTED"].includes(manifest.status)) {
+    if (manifest.status !== status || manifest.summary !== summary) fail('run is terminal; only an identical finish retry is allowed');
+    return {finished: true, runId, status, dashboard: await projectRun(manifest)};
+  }
+  if (!Array.isArray(manifest.tasks)) fail("run manifest tasks must be an array");
+  if (status === "completed" && (!manifest.tasks.length || manifest.tasks.some(task => !["completed", "cancelled"].includes(task.status)))) {
+    fail("all tasks must be completed or cancelled before finishing successfully");
+  }
+  if (manifest.tasks.some(task => task.status === "running")) fail("running tasks must reach a checkpoint before finishing");
+  const finished = { ...manifest, status, summary, finishedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  await writeJsonAtomic(runPath, finished);
+  const dashboard = await projectRun(finished);
+  return { finished: true, runId, status, dashboard };
+}
+
+async function projectRun(manifest) {
+  return mirrorDashboard(manifest, async () => {
+    if (!await readBoard(manifest.repository)) await initBoard(manifest.repository, {title: manifest.goal, goal: manifest.goal, mode: 'normal'});
+    for (const task of manifest.tasks) await syncTask(manifest.repository, task, manifest);
+    const note = `任务 ${manifest.runId} ${manifest.status}: ${manifest.summary}`;
+    let board = await readBoard(manifest.repository);
+    if (manifest.finishedAt && !board.events.some(e => e.type === 'note.add' && e.data.text === note)) {
+      board = await mutateBoard(manifest.repository, 'note.add', {scopeId: manifest.scopeId ?? null, text: note}, agentOptions(manifest));
+    }
+    return board;
+  });
+}
+
+async function syncRun(options) {
+  const state = await readTeamState(options), permission = await canRun(options, state);
+  if (!permission.canRun) fail(`cannot sync run: ${permission.reason}`);
+  const runId = requireSafeSegment(options['--run-id'], '--run-id');
+  const manifest = await readJson(runManifestPath(options, runId));
+  requireManifestBinding(options, manifest, state);
+  return {runId, dashboard: await projectRun(manifest)};
+}
+
+async function adoptRun(options) {
+  const reason = requireNonEmptyString(options['--reason'], '--reason');
+  const state = await readTeamState(options), permission = await canRun(options, state);
+  if (!permission.canRun) fail(`cannot adopt run: ${permission.reason}`);
+  const runId = requireSafeSegment(options['--run-id'], '--run-id'), file = runManifestPath(options, runId);
+  const manifest = await readJson(file);
+  const mismatch = bindingMismatch(manifest, requestedBindings(options, state));
+  if (mismatch || manifest.teamConfigPath !== state.teamConfigPath) fail(`cannot adopt incompatible configuration: ${mismatch ?? 'generationMismatch'}`);
+  const claimed = await mutateBoard(manifest.repository, 'scope.claim', {scopeId: manifest.scopeId ?? null, sessionId: options['--session'], takeover: true, reason}, {actor: 'agent', sessionId: options['--session']});
+  manifest.scopeEpoch = getScope(claimed, manifest.scopeId ?? null).owner.epoch;
+  if (manifest.sessionId !== options['--session']) {
+    manifest.originalSessionId ??= manifest.sessionId;
+    const at = new Date().toISOString();
+    manifest.adoptions = [...(manifest.adoptions ?? []), {from: manifest.sessionId, to: options['--session'], reason, at}];
+    manifest.sessionId = options['--session'];
+    manifest.lastCheckpointAt = null;
+    manifest.reconciliationRequired = true;
+    manifest.updatedAt = at;
+  }
+  await writeJsonAtomic(file, manifest);
+  return {adopted: true, runId, sessionId: manifest.sessionId, agentRecovery: false, dashboard: await projectRun(manifest)};
+}
+
+async function checkpoint(options) {
+  const state = await readTeamState(options), permission = await canRun(options, state);
+  if (!permission.canRun) fail(`cannot checkpoint: ${permission.reason}`);
+  const runId = requireSafeSegment(options['--run-id'], '--run-id');
+  const file = runManifestPath(options, runId), manifest = await readJson(file);
+  requireManifestBinding(options, manifest, state);
+  await requireRunOwner(manifest);
+  let input = {};
+  if (options['--file']) {
+    requireAbsolutePath(options['--file'], '--file');
+    await requireNonSymlink(options['--file'], 'checkpoint input');
+    if ((await lstat(options['--file'])).size > 256 * 1024) fail('checkpoint input exceeds 256 KiB');
+    input = requireObject(await readJson(options['--file']), 'checkpoint input');
+  }
+  for (const key of Object.keys(input)) if (!['seenPlanRevision','summary','decisionStatus','control'].includes(key)) fail(`unknown checkpoint field: ${key}`);
+  manifest.reconciliationRequired = true;
+  await writeJsonAtomic(file, manifest);
+  const inFlight = [], unknown = [];
+  const runsDirectory = dirname(file);
+  // Recover accepted facts for every related run before publishing a fresh checkpoint.
+  for (const entry of await readdir(runsDirectory, {withFileTypes: true})) {
+    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+    const candidate = entry.name === `${runId}.json` ? manifest : await readJson(join(runsDirectory, entry.name));
+    if (candidate.repository !== manifest.repository || (candidate.scopeId ?? null) !== (manifest.scopeId ?? null)) continue;
+    if (candidate.sessionId !== manifest.sessionId || candidate.scopeEpoch !== manifest.scopeEpoch) {
+      if (candidate.tasks?.some(task => ['pending','running'].includes(task.status))) unknown.push({runId: candidate.runId, reason: 'explicit-adoption-required'});
+      continue;
+    }
+    const projection = await projectRun(candidate);
+    if (!projection.synced) return {checkpoint: null, canDispatch: false, inFlight, unknown, dashboard: projection};
+    for (const task of candidate.tasks ?? []) if (task.status === 'running') inFlight.push({runId: candidate.runId, taskId: task.taskId, agentId: task.agentId ?? null, status: task.status});
+  }
+  let board = await requireRunOwner(manifest);
+  const view = boardView(board).scopes.find(scope => scope.id === (manifest.scopeId ?? null));
+  const changes = view?.changes ?? [];
+  if (input.control) {
+    const receipt = requireObject(input.control, 'control receipt');
+    const request = board.requests.find(item => item.id === receipt.requestId);
+    if (receipt.stage === 'completed' && ['pause','stop'].includes(request?.action) && (inFlight.length || unknown.length)) fail('in-flight or unknown tasks must reach a verified checkpoint before completing control');
+    board = await mutateBoard(manifest.repository, 'control.ack', receipt, agentOptions(manifest));
+  }
+  const {control, ...facts} = input;
+  board = await mutateBoard(manifest.repository, 'checkpoint', {scopeId: manifest.scopeId ?? null, ...facts}, agentOptions(manifest));
+  const scope = getScope(board, manifest.scopeId ?? null);
+  manifest.planRevision = scope.checkpoint?.seenPlanRevision ?? manifest.planRevision;
+  manifest.lastCheckpointAt = scope.checkpoint?.at;
+  manifest.reconciliationRequired = unknown.length > 0;
+  await writeJsonAtomic(file, manifest);
+  let canDispatch = unknown.length === 0, dispatchReason = unknown.length ? 'related-run-adoption-required' : null;
+  try {assertCanDispatch(board, {scopeId: manifest.scopeId ?? null, sessionId: manifest.sessionId, ownerEpoch: manifest.scopeEpoch, planRevision: manifest.planRevision});}
+  catch (error) {canDispatch = false; dispatchReason = error.code ?? error.message;}
+  return {checkpoint: scope.checkpoint, requests: board.requests.filter(request => request.scopeId === (manifest.scopeId ?? null) && ['pending','received'].includes(request.status)), changes, inFlight, unknown, canDispatch, dispatchReason, dashboard: {synced: true, revision: board.revision}};
+}
+
+async function reviseTask(options) {
+  const state = await readTeamState(options), permission = await canRun(options, state);
+  if (!permission.canRun) fail(`cannot revise task: ${permission.reason}`);
+  const reason = requireNonEmptyString(options['--reason'], '--reason');
+  const requestId = requireNonEmptyString(options['--request-id'], '--request-id');
+  const file = runManifestPath(options, requireSafeSegment(options['--run-id'], '--run-id'));
+  const manifest = await readJson(file);
+  requireManifestBinding(options, manifest, state);
+  const board = await requireRunOwner(manifest);
+  const request = board.requests.find(item => item.id === requestId);
+  if (!request || request.scopeId !== (manifest.scopeId ?? null) || !['correct','reopen'].includes(request.action)) fail('request must target a correction or reopening in this scope');
+  if (manifest.revisions?.some(item => item.requestId === requestId)) return {revised:true,requestId,dashboard:await projectRun(manifest)};
+  if (!['pending','received'].includes(request.status)) fail('request is no longer actionable');
+  const node = board.nodes.find(item => item.id === request.nodeId);
+  if (node?.execution?.runId !== manifest.runId) fail('request belongs to another execution run');
+  const task = manifest.tasks.find(item => item.taskId === node.execution.taskId);
+  if (!task) fail('execution task is missing');
+  if (task.status === 'running') fail('the running task must reach a verified checkpoint before revision');
+  const previous = structuredClone(task);
+  if (request.action === 'correct') {
+    for (const [key,value] of Object.entries(request.changes)) {
+      if (!['result','evidence','outcome','method','pitfalls','nextSteps'].includes(key)) fail('correction cannot change execution identity or status');
+      if (key === 'evidence') task.resultEvidence = value;
+      else {
+        if (typeof value !== 'string' || value.length > 50000) fail('correction field must be text');
+        if (key === 'outcome' && !['unknown','supported','rejected','inconclusive'].includes(value)) fail('invalid outcome');
+        if (key === 'result' && task.status === 'completed' && !value.trim()) fail('completed task requires a result');
+        task[key] = value;
+      }
+    }
+  } else {
+    if (!terminalTaskStatuses.has(task.status)) fail('only terminal tasks need reopening');
+    Object.assign(task,{status:'pending',attempt:(task.attempt ?? 1)+1,result:'',outcome:'unknown'});
+    for (const key of ['agentId','verification','review','integration','resultEvidence','failure','error']) delete task[key];
+    manifest.status = 'running';
+    delete manifest.finishedAt;
+  }
+  requireTask(task);
+  if (request.status === 'pending') await mutateBoard(manifest.repository, 'control.ack', {requestId,stage:'received',message:'Accepted for audited task revision'}, agentOptions(manifest));
+  manifest.revisions = [...(manifest.revisions ?? []),{requestId,action:request.action,reason,at:new Date().toISOString(),sessionId:manifest.sessionId,previous}];
+  manifest.updatedAt = new Date().toISOString();
+  await writeJsonAtomic(file,manifest);
+  return {revised:true,requestId,taskId:task.taskId,dashboard:await projectRun(manifest)};
+}
+
+async function main() {
+  const { command, options: rawOptions } = parseArguments(process.argv.slice(2));
+  const operations = {
+    setup,
+    activate,
+    "can-run": canRun,
+    "init-run": initRun,
+    "update-task": updateTask,
+    "finish-run": finishRun,
+    "sync-run": syncRun,
+    "adopt-run": adoptRun,
+    checkpoint,
+    "revise-task": reviseTask,
+  };
+  let options = rawOptions;
+  // Commands that need state-dir/team resolution can get it from conventions.
+  if (["activate", "can-run", "init-run", "update-task", "finish-run", "sync-run", "adopt-run", "checkpoint", "revise-task"].includes(command)) {
+    options = await resolveDefaults(command, rawOptions);
+  }
+  if (command === "setup" && rawOptions["--state-dir"] === undefined) {
+    const workspace = discoverWorkspace(rawOptions["--workspace"]);
+    options = { ...rawOptions, "--state-dir": defaultStateDir(workspace) };
+  }
+  const runCommands = ['init-run', 'update-task', 'finish-run', 'sync-run', 'adopt-run', 'checkpoint', 'revise-task'];
+  const output = runCommands.includes(command)
+    ? await withFileLock(runManifestPath(options, requireSafeSegment(options['--run-id'], '--run-id')), () => operations[command](options))
+    : ['activate','setup'].includes(command) ? await withFileLock(teamStatePath(options), () => operations[command](options)) : await operations[command](options);
+  process.stdout.write(`${JSON.stringify(output)}\n`);
+  if (
+    (command === "activate" && !output.activated) ||
+    (command === "can-run" && !output.canRun) ||
+    (command === "init-run" && !output.initialized)
+  ) {
+    process.exitCode = 1;
+  }
+}
+
+try {
+  await main();
+} catch (error) {
+  const message =
+    error instanceof CliError || error instanceof StateError || error.name === 'DashboardError' || error.code
+      ? error.message
+      : "state operation failed";
+  process.stderr.write(`${message}\n`);
+  process.exitCode = 1;
+}

@@ -1,0 +1,317 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "path": "SKILL.md",
+      "sha256": "fa73836f253b297deb4afb65bf030025a4785ebf5053bf2273bedc10d9adbece"
+    },
+    {
+      "path": "assets/agent-profile.md.tmpl",
+      "sha256": "78b4b460ef4a0be667ed3fad03c352840d2d067034ed3a897155d51357b349b1"
+    },
+    {
+      "path": "assets/stratified-results.json",
+      "sha256": "1f5bed4e8c09cfbb4927be0d6c696374e54f35e0978b32642727f5cd4d134a01"
+    },
+    {
+      "path": "assets/team-config.schema.json",
+      "sha256": "696258c9eb380cd7a895e6a21283d65763e8db8278235d974dfb54c5bfa2deb6"
+    },
+    {
+      "path": "dashboard/app.js",
+      "sha256": "58d26cdc03695545d567ece1c81670bc68b0b7d4359152c915ea81529527016d"
+    },
+    {
+      "path": "dashboard/index.html",
+      "sha256": "b0417ecede36ff43a53efb52ff5f1444a32cabe3e0d94d5c592027595e55b739"
+    },
+    {
+      "path": "dashboard/style.css",
+      "sha256": "7daf08bb9028430420fee752c21505d5e0da48098d1199a7adecceeb3a66c8ac"
+    },
+    {
+      "path": "dashboard/vendor/README.md",
+      "sha256": "e2031925c8679b8620527fe8332beb53bda24bcf7defe22500b72426d7be82f6"
+    },
+    {
+      "path": "dashboard/vendor/d3-hierarchy.LICENSE",
+      "sha256": "e008c5e25a6be382593089c29bfabbc553c6378eee02895aec46ce396cc404ee"
+    },
+    {
+      "path": "dashboard/vendor/d3-hierarchy.min.js",
+      "sha256": "a8771380454be89ec5ffe9a6396ba7c247081e348ae740dc9cb9629abd4c0e43"
+    },
+    {
+      "path": "dashboard/vendor/lucide.LICENSE",
+      "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+    },
+    {
+      "path": "dashboard/vendor/lucide.min.js",
+      "sha256": "ab85225ecc1daa2033607856f03dd2dabcbc08e2d260a5b97e17c690aa929766"
+    },
+    {
+      "path": "methods/contract.md",
+      "sha256": "923ed26750d5c599dafa72b8f61ad661f881e894dea0768bb2cd80c7903175d2"
+    },
+    {
+      "path": "methods/i-have-adhd.md",
+      "sha256": "034eb97c6e45ceeba141494d619c8199b2158dc22fe4831dd9d6a209b773247a"
+    },
+    {
+      "path": "methods/index.json",
+      "sha256": "3d76c4805bb9401e85ed1133efa6730e6ab99ec68160b6495198496e9fa9733f"
+    },
+    {
+      "path": "methods/ponytail.md",
+      "sha256": "7744632829ef5949298ef8c21c8b1792f327deb798a0ce506cfece63db7f886e"
+    },
+    {
+      "path": "methods/references/debugging-techniques.md",
+      "sha256": "46056009415c41e0ad99d480210cfc6f44f6095f4cea78c5128f64bf7efe5e7b"
+    },
+    {
+      "path": "methods/references/review-evidence.md",
+      "sha256": "9c6d2a51e78d9807ccc3d9ed073e168c28ff5fb05323577d38fc851573e8edcd"
+    },
+    {
+      "path": "methods/references/skill-scenarios.md",
+      "sha256": "cc65b5c738b334751639b017d913ad74379c7818487fb807f7b00d7230027eb2"
+    },
+    {
+      "path": "methods/references/writing-good-tests.md",
+      "sha256": "a649df0bc5bd2a8cfd76f159b2906d08469af8e7a36e6c6a9251d67be9771834"
+    },
+    {
+      "path": "methods/superpowers/brainstorming.md",
+      "sha256": "a3a24e22db3548a8b6e8f9fe1e258f7a955225450a555a121f98f0fbd851a742"
+    },
+    {
+      "path": "methods/superpowers/dispatching-parallel-agents.md",
+      "sha256": "ee01227c5e9154e73e11b67214824cb4b30fcc17e6676da5069b08d4d6f85b00"
+    },
+    {
+      "path": "methods/superpowers/executing-plans.md",
+      "sha256": "d4c92ccbf258b5b7c82a3ddbf62a830abb056449d119014e29186846a3f5a1d0"
+    },
+    {
+      "path": "methods/superpowers/finishing-a-development-branch.md",
+      "sha256": "2ad5dcab9482e7bdde1997ff8071fcf9425c6fbf76dd6187f387ec4ce47e97b9"
+    },
+    {
+      "path": "methods/superpowers/receiving-code-review.md",
+      "sha256": "53603467effc9a910978e125f4c93d8ce4db636bfa231466667474d189840607"
+    },
+    {
+      "path": "methods/superpowers/requesting-code-review.md",
+      "sha256": "d530fc3f79af7bcd75fb85d380142f8663b242be543aff4f07342f36bbb1f64b"
+    },
+    {
+      "path": "methods/superpowers/subagent-driven-development.md",
+      "sha256": "648e5211bfb20010df92ae267a0e51cb13c877cea087a948bf486529dd417b1f"
+    },
+    {
+      "path": "methods/superpowers/systematic-debugging.md",
+      "sha256": "a2a1d1bcc115db1bbd024531b0c7619e2bce9fdeeec7f3c7212bc7c163e7d1d2"
+    },
+    {
+      "path": "methods/superpowers/test-driven-development.md",
+      "sha256": "593f785a8462e2b95b7568bee4d93df8b05867f08a58ee7ffb060b802db98c05"
+    },
+    {
+      "path": "methods/superpowers/using-git-worktrees.md",
+      "sha256": "93ebbaf5e8aeefba26b1d7b9035d1c899fcd794007ebd81ed5b5d2005ce61a7a"
+    },
+    {
+      "path": "methods/superpowers/using-superpowers.md",
+      "sha256": "deb10c4db9ad49ce2773162eb87295ccb155190c4ce6d6c8703731494d185281"
+    },
+    {
+      "path": "methods/superpowers/verification-before-completion.md",
+      "sha256": "bae2822a557df0558518b2eb08aa5bdf6c92a98cf4c25e8a395e6ff97b8333e2"
+    },
+    {
+      "path": "methods/superpowers/writing-plans.md",
+      "sha256": "ad56ea38955c9944f10684effc10ca11c58ac513bf8b7c6b829db61bae8255a7"
+    },
+    {
+      "path": "methods/superpowers/writing-skills.md",
+      "sha256": "903ffcafe4c4da845a52df85b7abd510e65b139868e5baf75a65a8445d5cc714"
+    },
+    {
+      "path": "methods/templates/document-review.md",
+      "sha256": "f524b45d5aaf64cd8eae21803dd6481e11f8420b9235552eb5ffc8d5985a1f85"
+    },
+    {
+      "path": "methods/templates/re-review.md",
+      "sha256": "f7a8d8ce1b89d1c9b16055e987291e02c3224badb3ce0c11829ba14a27ffa15c"
+    },
+    {
+      "path": "methods/templates/task-brief.md",
+      "sha256": "711be95c3e5b009bbb07185c763a46e596871b803cd3415de646338bf7acca8e"
+    },
+    {
+      "path": "methods/templates/task-review.md",
+      "sha256": "2ee7bd46321a6bff9745de5822e0b84ee7297d054d414720d709773dbc03f46f"
+    },
+    {
+      "path": "references/configuration.md",
+      "sha256": "790a4c39f34fa2915c9520edde3e617581db97ce95c359084551fb8ead4b8a22"
+    },
+    {
+      "path": "references/dashboard-workflow.md",
+      "sha256": "52669e6626062395d8a4ec2bc83035bc51a7a1b05e7e2110ed8618fb85fc223b"
+    },
+    {
+      "path": "references/failure-policy.md",
+      "sha256": "bd10674dbf112ff962eaff14fc21fe3a3ebd6b456dc9c35267015c287a792b48"
+    },
+    {
+      "path": "references/methods.md",
+      "sha256": "e7dec3dab005118e37028fe4695922e8666c946fc2a3f36311598cdf50c366d9"
+    },
+    {
+      "path": "references/worktrees.md",
+      "sha256": "0ef6004a6f29d532c19823beeea620db4fe15a3c0af2aa214379bbc8e0650123"
+    },
+    {
+      "path": "references/初始化.md",
+      "sha256": "6dd6b26074fcfff31dbbcd824fcaa15b18a3583df90e38c1db5a3a61589739f2"
+    },
+    {
+      "path": "references/项目看板.md",
+      "sha256": "0855cc7bb9bdaa91bd466a51369bc4640c3b77e8df259f0fd7a7bc7831faae50"
+    },
+    {
+      "path": "scripts/dashboard",
+      "sha256": "72c7ed9d976f37f1750b438b85f1841937bc4ca0e001e173ea4d4c68005758c1"
+    },
+    {
+      "path": "scripts/dashboard-example",
+      "sha256": "45752aaed7adf24a9a5670dea1341fc1820be4c6ceaa4588fa5e1f7263969c7d"
+    },
+    {
+      "path": "scripts/discover-config",
+      "sha256": "db915534a6e177eb3d4176f787333e45127d8f54615e272a7224cff50df3a768"
+    },
+    {
+      "path": "scripts/doctor",
+      "sha256": "bddc7c184b7d7a4b6fcff37186fc2553c8fb5dbd0e9745d23d5a3750f3052eaa"
+    },
+    {
+      "path": "scripts/initialize",
+      "sha256": "87149a7d9018dc7f5df1ce002cd5293d41f8f5dcdf75bec216c3a3239ac7b17d"
+    },
+    {
+      "path": "scripts/lib/dashboard-artifacts.mjs",
+      "sha256": "4645d9fe399d01ef135b5686c783a7d38cdd6c7c40d015a323c36c1fd187c18c"
+    },
+    {
+      "path": "scripts/lib/dashboard-store.mjs",
+      "sha256": "47fa5f61da65f06c9ea01f1f955cf0bbf57b5ae12f838c606791e85d7f6aec50"
+    },
+    {
+      "path": "scripts/lib/methods.mjs",
+      "sha256": "1ed22ad4c12b274d37ff42d59412cc874033d0171ec8ecf5a6faf45501b158f3"
+    },
+    {
+      "path": "scripts/lib/model-ref.mjs",
+      "sha256": "c1556f5124c6940c2c447eefe0c8166cac084d284e32ccd37e76a3e0c60f278c"
+    },
+    {
+      "path": "scripts/lib/paths.mjs",
+      "sha256": "ae754d374d4deeede752c2631eaf3b071e047be02bb61ae1e1c97c516b057a17"
+    },
+    {
+      "path": "scripts/lib/state.mjs",
+      "sha256": "b9d8478b0b34ed833a95dcff8bff7a05a2d596838f0686c433ad2eca45e0cc6c"
+    },
+    {
+      "path": "scripts/lib/team-config.mjs",
+      "sha256": "047390c43ac2cbfbfdb71aaa870cbad750cbdc47e8e7bc9c2fd5badcf3bf2a0e"
+    },
+    {
+      "path": "scripts/lib/初始化.mjs",
+      "sha256": "805a21335f24f315ad02b95b9bfcb09ba59c2fe51d082b3e3f1c0e01dd25ee2e"
+    },
+    {
+      "path": "scripts/lib/存储位置.mjs",
+      "sha256": "139cb9aa86e2175de36f3cf076abb1d2e4e84fadf4cc269e88244d38b3c4f2fe"
+    },
+    {
+      "path": "scripts/lib/本机配置.mjs",
+      "sha256": "07185e412d799e0c4f46642195f1ec68b2ed06daf3ad364bf411b19415aa1459"
+    },
+    {
+      "path": "scripts/methods",
+      "sha256": "f2058576468c1713d5a1573c60cfd7c1850379906d92172a4ba64a4e39bc5b81"
+    },
+    {
+      "path": "scripts/render-agents",
+      "sha256": "19f50a76fa96b0f49c0e07f731f06f0f2574e28e2cc9cc348af1c6fa9407d990"
+    },
+    {
+      "path": "scripts/review-package",
+      "sha256": "89d0bb16c5a959933a6bdceafc32b0920f7de86e78b875ccd27244275056644b"
+    },
+    {
+      "path": "scripts/status",
+      "sha256": "159b9d84d4390911d025ffded5dd797008c2b824d41145e38820cdd0dfe65317"
+    },
+    {
+      "path": "scripts/team-state",
+      "sha256": "74f0a58b59e67bb648b2f4844e1f103d7dc22a9829e079d423f5e876ac68d288"
+    },
+    {
+      "path": "scripts/validate-team",
+      "sha256": "58e3c5f37cb136493b0c109f880f60d50906f1f8ee175850b612f3eb7023e4a4"
+    },
+    {
+      "path": "scripts/worktree",
+      "sha256": "e9896b5381cab103c61c2c83e961aecbd3b54b649ed639d00280af1ab03c1d3c"
+    },
+    {
+      "path": "vendor/NOTICE.md",
+      "sha256": "82268dbb788868491cd95bc2a9e139eac45174c08938aca0831e78edf59640ba"
+    },
+    {
+      "path": "vendor/i-have-adhd/LICENSE",
+      "sha256": "8acbb618089b738404f76ac60fca1aaa995d9a87995eddf95f0b777acd7f7d2c"
+    },
+    {
+      "path": "vendor/i-have-adhd/source-ctbz-1.2.1.tar.gz",
+      "sha256": "ca4ead9eac82021c912156be6fa7e95eac0ee184dbb199bf03155bedff8aef21"
+    },
+    {
+      "path": "vendor/i-have-adhd/source.json",
+      "sha256": "fd9bc4796325b87ac2d6c4d2f0d207d75a63b842bb685c6dba9cefbf448a7054"
+    },
+    {
+      "path": "vendor/ponytail/LICENSE",
+      "sha256": "fb1bc6909ac3ef82d5c22106e32ef682b0cff66788fa915fb9b53b15c9d2f3ab"
+    },
+    {
+      "path": "vendor/ponytail/source-ctbz-1.2.1.tar.gz",
+      "sha256": "caa2f76210be1c2d47d3e90f29cc60f959961fe735ebdcd4f4d0b21cbd1d7c47"
+    },
+    {
+      "path": "vendor/ponytail/source.json",
+      "sha256": "6c9fdcfaa87db5f7f82ab3b170e3f5d32d0dc60e2c83198a55595b9b03b9432b"
+    },
+    {
+      "path": "vendor/superpowers/LICENSE",
+      "sha256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400"
+    },
+    {
+      "path": "vendor/superpowers/source-6.3.0.tar.gz",
+      "sha256": "69faf7ea6dfac2ca1f2ae0f35263e19ba830638e2f39063057fa2102d9fc5358"
+    },
+    {
+      "path": "vendor/superpowers/source.json",
+      "sha256": "12e26da2b39354a8bcc2b65db97afd95e6dd7941bb6655558c53e160ff4001ea"
+    },
+    {
+      "path": "角色清单.json",
+      "sha256": "2674fe05b8590b548315ccd15edabccf460e71e09460ea437d2b475e1315d3cb"
+    }
+  ]
+}

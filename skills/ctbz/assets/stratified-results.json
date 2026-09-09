@@ -1,0 +1,19 @@
+{
+  "id": "stratified-results-v1",
+  "title": "分层结果",
+  "scopeId": null,
+  "nodeId": null,
+  "round": null,
+  "version": "v1",
+  "source": "填写实际数据与计算产物版本",
+  "methodology": "填写统计对象、时间范围、分母、分层规则及可比条件",
+  "baseline": "填写实际基准版本",
+  "columns": [
+    {"key": "layer", "label": "层级", "type": "text"},
+    {"key": "samples", "label": "样本量", "type": "number", "unit": "条"},
+    {"key": "baseline", "label": "基准值", "type": "number"},
+    {"key": "current", "label": "本版值", "type": "number"},
+    {"key": "delta", "label": "差异", "type": "number"}
+  ],
+  "rows": []
+}

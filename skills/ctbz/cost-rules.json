@@ -1,0 +1,174 @@
+{
+  "version": 3,
+  "_说明": "成本选型规则集（包工头——父会话派发前执行的资金池分配模块，不是 Agent 角色）。按 priority 从小到大首中即胜（同 priority 按文件序，调序即调语义）；命中仅表示『优先尝试方向』，尝试失败（断流/凭据缺失/限流/模型下架/套餐到期）即带 --exclude <规则id> 重跑选型器滑向下一条，任何情况下不得卡死任务。规则 id 为完整形式（口头简称 R1/R2/R3），语义以 type 字段为准；文档描述按 type 对应，勿硬绑编号。维护方式：用户口头说改哪条，Agent 编辑前先复述目标规则、直接编辑本文件并实跑一次 pick-profile 验证，同时在 _变更记录 留痕。",
+  "_维护示例": "口头修改规则后验证并记录；role_tier 为顶层唯一分档来源。历史变更追加到当前项目 .ctbz-record，不使用来源机器绝对路径。",
+  "_演进预留": "出现对应需求前不动结构。①多规则叠加：触发信号=需要『窗口内再按角色指定不同模型』；动法=每条规则加可选 role_tier 过滤+结果按 priority 分层合并；与现行关系=作为规则级开关（如 stack:true）逐步启用，未开关的规则维持首中即胜；联动重定义 --exclude/--exclude-profile/fallback_chain/superseded；不做=全局放弃首中即胜。②free_model 角色分档：触发信号=免费模型读写角色要用不同 profile；动法=action 扩展 tier_profile:{heavy,light} 二选一替代 try_profile，role_tier 复用 vendor_follow 形态；与现行关系=try_profile 语义并入 tier_profile（单档= heavy/light 同值即可），老字段保留读取兼容一个版本；不做=无 role_tier 的角色分档（无法判定档位归属）。③预算上限：触发信号=要求月度花费上限超限降档；动法=顶层可选 budget 字段+选型器入口预检+warning；前置依赖=花费账本（脚本无状态，须靠 cost-decision 落盘累计或用户月度回填 spent_usd，选型器自身无法读 provider 计费）；不做=自动读取 provider 计费数据库。",
+  "_变更记录": [
+    {
+      "date": "2026-09-04",
+      "who": "用户",
+      "change": "初版三规则：R1 免费窗口 glmf×3 汇总 / R2 免费模型留桩 / R3 同厂商跟随",
+      "before": "无"
+    },
+    {
+      "date": "2026-09-04",
+      "who": "反审",
+      "change": "第一轮：_说明/_维护示例 补首中即胜、补零日期、空集语义、演进预留；R1 note 同步写任务默认不冗余",
+      "before": "初版文案"
+    },
+    {
+      "date": "2026-09-04",
+      "who": "反审",
+      "change": "第二轮：新增 version 与 _演进预留（四要素重写）；_说明/_维护示例 补同 priority 文件序、起点≤终点、时间范围、20 条上限、who 约定、档位引用同步提醒",
+      "before": "v1 文案"
+    },
+    {
+      "date": "2026-09-04",
+      "who": "用户",
+      "change": "确认 R1 尾夜（2026-09-21 00:00-09:00）保守不属免费窗口（date_range 止于 09-20，宁少白嫖不误判付费）",
+      "before": "字面口径含尾夜"
+    },
+    {
+      "date": "2026-09-05",
+      "who": "用户",
+      "change": "确立『降档即冗余』口径：×3 仅对发生降档的高档角色（R1/R2 同理），原本低档 Flash 的角色维持单发；role_tier 提为顶层共享，R3 改引顶层，action 增 triple_scope:heavy_only",
+      "before": "R1 对全角色统一 parallel_multiplier:3；role_tier 内嵌于 R3"
+    },
+    {
+      "date": "2026-09-05",
+      "who": "Agent",
+      "change": "1.1.0：统一R2冗余、显式读写类型与可用并发额度；默认单发。"
+    },
+    {
+      "date": "2026-09-09",
+      "who": "用户",
+      "change": "1.6.0：规则集升级 v3——新增 R3 builtin_follow（主进程同源，尽力尝试级）与 R5 vendor_parallel（同厂商次级档）+ 顶层 rescue 跨渠道救生块；原 R3 平移为 R4；全部规则带 cost_class",
+      "before": "v2 三规则"
+    }
+  ],
+  "timezone": "Asia/Shanghai",
+  "rules": [
+    {
+      "id": "R1_free_glm_flash",
+      "priority": 1,
+      "enabled": true,
+      "type": "free_window",
+      "date_range": [
+        "2026-09-04",
+        "2026-09-20"
+      ],
+      "daily_window": [
+        "23:00",
+        "09:00"
+      ],
+      "action": {
+        "all_roles_profile": "glmf",
+        "parallel_multiplier": 3,
+        "aggregate": "summarize",
+        "triple_scope": "heavy_only"
+      },
+      "note": "GLM-5.3-Flash 限时免费时段：全角色直降 Flash 档。降档即冗余——原本高档(planner/reviewer/debugger)的角色并行×3、父会话汇总意见；原本就是低档 Flash 的角色档位未变，维持单发。冗余组失败处理见 failure-policy.md 冗余组小节。"
+    },
+    {
+      "id": "R2_free_model",
+      "priority": 2,
+      "enabled": true,
+      "type": "free_model",
+      "model": null,
+      "model_note": "用户需定义：候选如 OpenCode Zen 的 Nemotron 3.5 Lightning Free / Big Pickle；model 为 null 或模型未接入/不存在时，本条视为不可用，直接滑向下一条。接入后同 R1 逻辑：降档即冗余，heavy 角色×3、light 单发。",
+      "action": {
+        "try_profile": null,
+        "parallel_multiplier": 3,
+        "triple_scope": "heavy_only",
+        "aggregate": "summarize"
+      }
+    },
+    {
+      "id": "R4_vendor_follow",
+      "priority": 4,
+      "enabled": true,
+      "type": "vendor_follow",
+      "vendor_map": {
+        "glm": {
+          "heavy": "glm53",
+          "light": "glmf"
+        },
+        "ds": {
+          "heavy": "dsp",
+          "light": "dsf"
+        },
+        "gpt": {
+          "heavy": "sol",
+          "light": "terra"
+        },
+        "opds": {
+          "heavy": "odsp",
+          "light": "odsf"
+        }
+      },
+      "note": "兜底：子 Agent 跟随主进程厂商（哪家充了钱多用哪家），heavy/light 按顶层 role_tier 分档。需父会话以 --vendor 自报主进程厂商。",
+      "cost_class": "paid-heavy"
+    },
+    {
+      "id": "R3_builtin_follow",
+      "priority": 3,
+      "enabled": true,
+      "type": "builtin_follow",
+      "action": {
+        "parallel_multiplier": 1,
+        "aggregate": false
+      },
+      "cost_class": "paid-light",
+      "note": "尽力尝试级：主进程同源模型（omen-alpha）的受管 team profile；可用性随主进程账号配额，配额尽则同死；无对应受管 profile 即滑链；禁止通用 subagent 冒充。派发需父会话以 --main-profile 自报主进程模型档。"
+    },
+    {
+      "id": "R5_vendor_parallel",
+      "priority": 5,
+      "enabled": true,
+      "type": "vendor_parallel",
+      "vendor_map": {
+        "glm": {
+          "heavy": "glm53",
+          "light": "glmf"
+        },
+        "ds": {
+          "heavy": "dsp",
+          "light": "dsf"
+        },
+        "gpt": {
+          "heavy": "sol",
+          "light": "terra"
+        },
+        "opds": {
+          "heavy": "odsp",
+          "light": "odsf"
+        }
+      },
+      "selection": "light",
+      "cost_class": "paid-light",
+      "note": "同厂商次级档（selection=light 与 role_tier 解耦）：主档派发失败后由父会话 --exclude R4_vendor_follow / --exclude-profile <重档> 触发；同厂商次级档常与主档共享账号配额，账号级配额场景不保证可用。"
+    }
+  ],
+  "role_tier": {
+    "heavy": [
+      "planner",
+      "reviewer",
+      "debugger"
+    ],
+    "light": [
+      "implementer",
+      "explorer",
+      "researcher",
+      "tester"
+    ]
+  },
+  "rescue": {
+    "enabled": true,
+    "channel": "ds",
+    "profiles": {
+      "heavy": "dsp",
+      "light": "dsf"
+    },
+    "note": "跨渠道救生：渠道/账号间配额独立为实测经验（2026-09-09 glmf+builtin 死、DS 通），非结构性保证；命中时豁免渠道一致约束；由父会话实测可用后 pin 定，脚本不自发现。"
+  }
+}

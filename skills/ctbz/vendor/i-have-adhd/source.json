@@ -1,0 +1,12 @@
+{
+  "name": "i-have-adhd",
+  "repository": "https://github.com/ayghri/i-have-adhd",
+  "comparisonCommit": "58494af57962b2d7a996b4d419474380a299af5e",
+  "originalImportCommit": null,
+  "archive": "source-ctbz-1.2.1.tar.gz",
+  "sourceStatus": "import-snapshot-body-matched-to-upstream",
+  "license": "MIT",
+  "licenseStatus": "verified-upstream",
+  "retrievedAt": "2026-09-06",
+  "notes": "Body matches skills/i-have-adhd/SKILL.md at comparisonCommit. CTBZ import changes description and removes disable-model-invocation in frontmatter. Original acquisition revision unknown. Runtime is CTBZ adapted."
+}

@@ -1,0 +1,563 @@
+#!/usr/bin/env node
+
+import { randomUUID } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { lstat, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
+import {
+  readJson,
+  requireAbsolutePath,
+  requireNonSymlink,
+  rejectCredentialsBasename,
+  StateError,
+  writeJsonAtomic,
+  withFileLock,
+} from "./lib/state.mjs";
+import {
+  defaultWorktreeRoot,
+  defaultRunManifest,
+  discoverWorkspace,
+} from "./lib/paths.mjs";
+
+class CliError extends Error {}
+
+const commandOptions = {
+  create: new Set([
+    "--repo",
+    "--root",
+    "--manifest",
+    "--task-id",
+    "--base-ref",
+    "--workspace",
+  ]),
+  bind: new Set(["--manifest", "--task-id", "--path", "--workspace"]),
+  cleanup: new Set(["--manifest", "--task-id", "--workspace"]),
+};
+
+function fail(message) {
+  throw new CliError(message);
+}
+
+function parseArguments(arguments_) {
+  const [command, ...optionArguments] = arguments_;
+  if (!Object.hasOwn(commandOptions, command)) fail("unknown or missing command");
+  if (optionArguments.length % 2 !== 0) fail("invalid arguments");
+
+  const options = {};
+  for (let index = 0; index < optionArguments.length; index += 2) {
+    const option = optionArguments[index];
+    const value = optionArguments[index + 1];
+    if (!commandOptions[command].has(option)) fail(`invalid option: ${option}`);
+    if (value === undefined || value.startsWith("--")) {
+      fail(`a value is required for ${option}`);
+    }
+    if (Object.hasOwn(options, option)) fail(`${option} may only be provided once`);
+    options[option] = value;
+  }
+
+  // Apply convention defaults.
+  const workspace = discoverWorkspace(options["--workspace"]);
+  if (command === "create") {
+    if (options["--repo"] === undefined) options["--repo"] = workspace;
+    if (options["--root"] === undefined) options["--root"] = defaultWorktreeRoot(workspace);
+    if (options["--base-ref"] === undefined) options["--base-ref"] = "HEAD";
+  }
+
+  return { command, options };
+}
+
+function requireTaskId(value) {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value === "." ||
+    value === ".." ||
+    value.includes("/") ||
+    value.includes("\\")
+  ) {
+    fail("--task-id must be a single path segment");
+  }
+  return value;
+}
+
+function requireObject(value, label) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail(`${label} must be a JSON object`);
+  }
+  return value;
+}
+
+function minimalGitEnvironment() {
+  const env = { PATH: process.env.PATH };
+  if (process.env.HOME !== undefined) env.HOME = process.env.HOME;
+  for (const [name, value] of Object.entries(process.env)) {
+    if (
+      (name.startsWith("GIT_CONFIG_") || name === "GIT_TERMINAL_PROMPT") &&
+      !Object.hasOwn(env, name)
+    ) {
+      env[name] = value;
+    }
+  }
+  return env;
+}
+
+function git(path, arguments_, { allowFailure = false } = {}) {
+  const result = spawnSync("git", ["-C", path, ...arguments_], {
+    encoding: "utf8",
+    env: minimalGitEnvironment(),
+  });
+  if (result.error) fail("unable to execute git");
+  if (!allowFailure && result.status !== 0) {
+    fail(result.stderr.trim() || "git operation failed");
+  }
+  return result;
+}
+
+async function requireDirectory(path, label, { allowMissing = false } = {}) {
+  requireAbsolutePath(path, label);
+  let stats;
+  try {
+    stats = await lstat(path);
+  } catch (error) {
+    if (allowMissing && error?.code === "ENOENT") return false;
+    if (error?.code === "ENOENT") fail(`${label} must exist`);
+    throw error;
+  }
+  if (stats.isSymbolicLink()) fail(`${label} must not be a symlink`);
+  if (!stats.isDirectory()) fail(`${label} must be a directory`);
+  return true;
+}
+
+async function requireRegularFile(path, label) {
+  await requireNonSymlink(path, label);
+  const stats = await lstat(path);
+  if (!stats.isFile()) fail(`${label} must be a regular file`);
+}
+
+async function requireRepository(repository, label = "--repo") {
+  await requireDirectory(repository, label);
+  const result = git(repository, ["rev-parse", "--show-toplevel"], {
+    allowFailure: true,
+  });
+  if (result.status !== 0) fail(`${label} must be a Git repository`);
+  if ((await realpath(result.stdout.trim())) !== (await realpath(repository))) {
+    fail(`${label} must be the repository root`);
+  }
+  return repository;
+}
+
+function taskSlug(taskId) {
+  const slug = taskId
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9._-]+/g, "-")
+    .replaceAll(/^-+|-+$/g, "");
+  return slug || "task";
+}
+
+function parseWorktreeList(output) {
+  const worktrees = [];
+  let current;
+  for (const field of output.split("\0")) {
+    if (field === "") {
+      if (current !== undefined) worktrees.push(current);
+      current = undefined;
+      continue;
+    }
+    const separator = field.indexOf(" ");
+    const key = separator === -1 ? field : field.slice(0, separator);
+    const value = separator === -1 ? true : field.slice(separator + 1);
+    if (key === "worktree") current = { path: value };
+    else if (current !== undefined) current[key] = value;
+  }
+  if (current !== undefined) worktrees.push(current);
+  return worktrees;
+}
+
+function registeredWorktrees(repository) {
+  return parseWorktreeList(
+    git(repository, ["worktree", "list", "--porcelain", "-z"]).stdout,
+  );
+}
+
+async function requireLinkedWorktree(repository, path) {
+  await requireDirectory(path, "--path");
+  const realPath = await realpath(path);
+  let worktree;
+  for (const candidate of registeredWorktrees(repository)) {
+    if ((await realpath(candidate.path)) === realPath) {
+      worktree = candidate;
+      break;
+    }
+  }
+  if (worktree === undefined) {
+    fail("worktree does not belong to manifest repository");
+  }
+
+  let gitFile;
+  try {
+    gitFile = await lstat(join(path, ".git"));
+  } catch {
+    fail("path must be a linked worktree");
+  }
+  if (!gitFile.isFile() || gitFile.isSymbolicLink()) {
+    fail("path must be a linked worktree");
+  }
+  return worktree;
+}
+
+function branchName(worktree) {
+  const prefix = "refs/heads/";
+  return typeof worktree.branch === "string" && worktree.branch.startsWith(prefix)
+    ? worktree.branch.slice(prefix.length)
+    : null;
+}
+
+async function readManifest(options, expectedRepository) {
+  const path = options["--manifest"];
+  requireAbsolutePath(path, "--manifest");
+  try {
+    rejectCredentialsBasename(path, "--manifest");
+  } catch (error) {
+    if (error instanceof StateError) {
+      fail("--manifest must not target credentials.json");
+    }
+    throw error;
+  }
+  await requireRegularFile(path, "--manifest");
+  let manifest;
+  try {
+    manifest = requireObject(await readJson(path), "manifest");
+  } catch (error) {
+    if (error instanceof CliError) throw error;
+    fail("manifest must be valid JSON");
+  }
+
+  const repository = manifest.repo ?? manifest.repository ?? manifest.repositoryPath;
+  if (typeof repository !== "string") {
+    fail("manifest repository is required");
+  }
+  requireAbsolutePath(repository, "manifest repository");
+  await requireRepository(repository, "manifest repository");
+  if (
+    expectedRepository !== undefined &&
+    (await realpath(repository)) !== (await realpath(expectedRepository))
+  ) {
+    fail("--repo does not match manifest repository");
+  }
+  if (!Array.isArray(manifest.tasks)) fail("manifest tasks must be an array");
+
+  const taskId = requireTaskId(options["--task-id"]);
+  const task = manifest.tasks.find((candidate) => candidate?.taskId === taskId);
+  if (task === undefined) fail(`task not found: ${taskId}`);
+  requireObject(task, "manifest task");
+  return { path, manifest, repository, taskId, task };
+}
+
+async function referencedByAnotherTask(state, worktree) {
+  const worktreeRealPath = await realpath(worktree);
+  for (const candidate of state.manifest.tasks) {
+    if (
+      candidate?.taskId === state.taskId ||
+      typeof candidate?.worktree !== "string"
+    ) {
+      continue;
+    }
+    if (candidate.worktree === worktree) return candidate;
+    try {
+      if ((await realpath(candidate.worktree)) === worktreeRealPath) return candidate;
+    } catch {
+      // A stale task path cannot reference this existing worktree.
+    }
+  }
+  return undefined;
+}
+
+function requireOwnership(state, worktree) {
+  const ownership = state.task.worktreeOwnership;
+  if (
+    ownership === null ||
+    typeof ownership !== "object" ||
+    Array.isArray(ownership) ||
+    ownership.createdBy !== "zcode-agent-team" ||
+    typeof ownership.ownerToken !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      ownership.ownerToken,
+    ) ||
+    ownership.taskId !== state.taskId ||
+    ownership.repository !== state.repository ||
+    ownership.worktree !== worktree ||
+    ownership.branch !== state.task.branch ||
+    ownership.baseRevision !== state.task.baseRevision ||
+    typeof ownership.head !== "string" ||
+    ownership.head.length === 0
+  ) {
+    fail("task requires complete worktree ownership");
+  }
+  return ownership;
+}
+
+const JOURNAL_VERSION = 1;
+
+function pendingJournalPath(state) {
+  return join(
+    dirname(state.path),
+    `.${basename(state.path)}.${state.taskId}.worktree-journal.json`,
+  );
+}
+
+async function writePendingJournal(journalPath, journal) {
+  await writeFile(journalPath, `${JSON.stringify(journal)}\n`, {
+    encoding: "utf8",
+    flag: "wx",
+    mode: 0o600,
+  });
+}
+
+async function recoverPendingJournal(state) {
+  const journalPath = pendingJournalPath(state);
+  let stats;
+  try {
+    stats = await lstat(journalPath);
+  } catch (error) {
+    if (error?.code === "ENOENT") return;
+    throw error;
+  }
+  if (stats.isSymbolicLink() || !stats.isFile()) {
+    fail("pending worktree journal is not a regular file");
+  }
+  let journal;
+  try {
+    journal = JSON.parse(await readFile(journalPath, "utf8"));
+  } catch {
+    fail("pending worktree journal is invalid");
+  }
+  if (
+    journal === null ||
+    typeof journal !== "object" ||
+    Array.isArray(journal) ||
+    journal.version !== JOURNAL_VERSION ||
+    typeof journal.taskId !== "string" ||
+    typeof journal.branch !== "string" ||
+    typeof journal.worktree !== "string" ||
+    typeof journal.baseRevision !== "string"
+  ) {
+    fail("pending worktree journal is invalid");
+  }
+  if (journal.taskId !== state.taskId) {
+    fail("pending worktree journal belongs to another task");
+  }
+  fail(
+    `pending worktree journal exists for task ${state.taskId}; resolve the orphaned worktree ${journal.worktree} and remove the journal`,
+  );
+}
+
+async function create(options) {
+  const repository = options["--repo"];
+  const root = options["--root"];
+  requireAbsolutePath(repository, "--repo");
+  requireAbsolutePath(root, "--root");
+  await requireRepository(repository);
+  const state = await readManifest(options, repository);
+  if (
+    typeof state.task.worktree === "string" ||
+    state.task.worktreeOwnership !== undefined
+  ) {
+    fail("task already has worktree ownership");
+  }
+  await recoverPendingJournal(state);
+
+  const rootExists = await requireDirectory(root, "--root", {
+    allowMissing: true,
+  });
+  if (!rootExists) {
+    await mkdir(root, { recursive: true });
+    await requireDirectory(root, "--root");
+  }
+
+  const taskId = state.taskId;
+  const baseRef = options["--base-ref"];
+  if (baseRef.length === 0) fail("--base-ref must not be empty");
+  const revisionResult = git(
+    repository,
+    ["rev-parse", "--verify", "--end-of-options", `${baseRef}^{commit}`],
+    { allowFailure: true },
+  );
+  if (revisionResult.status !== 0) fail("--base-ref must resolve to a commit");
+  const baseRevision = revisionResult.stdout.trim();
+
+  const identifier = randomUUID();
+  const slug = taskSlug(taskId);
+  const branch = `zcode/${slug}-${identifier}`;
+  const worktree = join(root, `${slug}-${identifier}`);
+  const journalPath = pendingJournalPath(state);
+  await writePendingJournal(journalPath, {
+    version: JOURNAL_VERSION,
+    taskId,
+    branch,
+    worktree,
+    baseRevision,
+  });
+  const result = git(
+    repository,
+    ["worktree", "add", "-b", branch, worktree, baseRevision],
+    { allowFailure: true },
+  );
+  if (result.status !== 0) {
+    await rm(worktree, { force: true, recursive: true });
+    await rm(journalPath, { force: true });
+    fail(result.stderr.trim() || "unable to create worktree");
+  }
+
+  const head = git(worktree, ["rev-parse", "HEAD"]).stdout.trim();
+  const ownership = {
+    worktree,
+    branch,
+    baseRevision,
+    head,
+    repository: state.repository,
+    taskId,
+    ownerToken: randomUUID(),
+    createdBy: "zcode-agent-team",
+  };
+  Object.assign(state.task, {
+    worktree,
+    branch,
+    baseRevision,
+    head,
+    worktreeOwnership: ownership,
+  });
+  try {
+    await writeJsonAtomic(state.path, state.manifest);
+  } catch (error) {
+    git(repository, ["worktree", "remove", "--force", worktree], {
+      allowFailure: true,
+    });
+    git(repository, ["branch", "-D", branch], { allowFailure: true });
+    await rm(journalPath, { force: true }).catch(() => {});
+    throw error;
+  }
+  await rm(journalPath, { force: true });
+  return { created: true, taskId, worktree, branch, baseRevision, head, ownership };
+}
+
+async function bind(options) {
+  requireAbsolutePath(options["--path"], "--path");
+  const state = await readManifest(options);
+  const worktree = await requireLinkedWorktree(
+    state.repository,
+    options["--path"],
+  );
+  const duplicate = await referencedByAnotherTask(state, options["--path"]);
+  if (duplicate !== undefined) {
+    fail(`worktree is already referenced by task ${duplicate.taskId}`);
+  }
+  if (
+    typeof state.task.worktree === "string" &&
+    state.task.worktree !== options["--path"]
+  ) {
+    fail("task is already bound to another worktree");
+  }
+  requireOwnership(state, options["--path"]);
+
+  const head = git(options["--path"], ["rev-parse", "HEAD"]).stdout.trim();
+  const branch = branchName(worktree);
+  if (state.task.branch !== branch) {
+    fail("manifest branch does not match worktree");
+  }
+  state.task.head = head;
+  state.task.worktreeOwnership.head = head;
+  await writeJsonAtomic(state.path, state.manifest);
+  return {
+    bound: true,
+    taskId: state.taskId,
+    worktree: options["--path"],
+    branch,
+    baseRevision: state.task.baseRevision,
+    head,
+  };
+}
+
+async function cleanup(options) {
+  const state = await readManifest(options);
+  if (state.task.status !== "completed" || state.task.integration?.status !== "integrated") {
+    fail("task must be completed with integrated evidence");
+  }
+  if (state.task.verification?.status !== "passed") {
+    fail("task verification status must be passed");
+  }
+  if (typeof state.task.worktree !== "string") {
+    fail("task has no bound worktree");
+  }
+  requireAbsolutePath(state.task.worktree, "manifest worktree");
+  requireOwnership(state, state.task.worktree);
+  const worktree = await requireLinkedWorktree(
+    state.repository,
+    state.task.worktree,
+  );
+  const duplicate = await referencedByAnotherTask(state, state.task.worktree);
+  if (duplicate !== undefined) {
+    fail(`worktree is also referenced by task ${duplicate.taskId}`);
+  }
+  const actualBranch = branchName(worktree);
+  if (state.task.branch !== actualBranch) {
+    fail("manifest branch does not match worktree");
+  }
+
+  const conflicts = git(state.task.worktree, [
+    "diff",
+    "--name-only",
+    "--diff-filter=U",
+  ]).stdout.trim();
+  if (conflicts !== "") fail("worktree has merge conflicts");
+
+  const status = git(state.task.worktree, ["status", "--porcelain"]).stdout;
+  if (status !== "") fail("worktree is dirty");
+
+  state.task.cleanup = {
+    status: "cleaning",
+    branchPreserved: true,
+    startedAt: new Date().toISOString(),
+  };
+  await writeJsonAtomic(state.path, state.manifest);
+
+  const removeResult = git(
+    state.repository,
+    ["worktree", "remove", state.task.worktree],
+    { allowFailure: true },
+  );
+  if (removeResult.status !== 0) {
+    fail(removeResult.stderr.trim() || "unable to remove worktree");
+  }
+
+  state.task.cleanup = {
+    status: "cleaned",
+    branchPreserved: true,
+    cleanedAt: new Date().toISOString(),
+  };
+  await writeJsonAtomic(state.path, state.manifest);
+  return {
+    cleaned: true,
+    taskId: state.taskId,
+    worktree: state.task.worktree,
+    branch: state.task.branch,
+    branchPreserved: true,
+  };
+}
+
+async function main() {
+  const { command, options } = parseArguments(process.argv.slice(2));
+  const operations = { create, bind, cleanup };
+  const output = await withFileLock(options['--manifest'], () => operations[command](options));
+  process.stdout.write(`${JSON.stringify(output)}\n`);
+}
+
+try {
+  await main();
+} catch (error) {
+  const message =
+    error instanceof CliError || error instanceof StateError
+      ? error.message
+      : "worktree operation failed";
+  process.stderr.write(`${message}\n`);
+  process.exitCode = 1;
+}

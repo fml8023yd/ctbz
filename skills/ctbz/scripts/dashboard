@@ -1,0 +1,290 @@
+#!/usr/bin/env node
+
+import { timingSafeEqual } from 'node:crypto';
+import { createServer } from 'node:http';
+import { lstat, readFile, realpath } from 'node:fs/promises';
+import { dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { DashboardError, boardView, exportBoard, initBoard, mutateBoard, readBoard, viewBoard } from './lib/dashboard-store.mjs';
+import {addArtifact, listArtifacts, readArtifact, tableCsv} from './lib/dashboard-artifacts.mjs';
+
+const staticRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../dashboard');
+const BODY_LIMIT = 256 * 1024;
+const help = {
+  usage: 'node skills/ctbz/scripts/dashboard <command> --workspace <absolute-project-path> [options]',
+  commands: {
+    serve: '--workspace <root> (repeatable) --port 18921 --host 127.0.0.1 [--read-only] [--token-env CTBZ_DASHBOARD_TOKEN]',
+    init: '--title <title> --goal <goal> --mode normal|loop [--example]',
+    show: 'Print the current dashboard view',
+    apply: '--action <action> --file <absolute-json-path> [--actor agent|user --session <id> --epoch <n> --expected-revision <n>]',
+    export: '--format markdown|json --audience owner|leader [--section all|rounds --scope-id <id>]',
+    'artifact-add': '--file <absolute-file> --format table|file [--title <title> --scope-id <id> --node-id <id> --round <n> --version <version>]',
+  },
+  actor: 'Use --actor user only when recording an explicit human-confirmed action. Agent operations must retain the default actor agent.',
+  remote: 'Non-loopback binding requires --token-env. Use read-only mode behind authenticated HTTPS/FRP. Tokens are accepted only in Authorization: Bearer headers, never URLs.',
+};
+function fail(message, status = 400, code = 'INVALID_REQUEST') { throw new DashboardError(message, status, code); }
+function parse(arguments_) {
+  if (!arguments_.length || arguments_.includes('--help') || arguments_.includes('-h')) return { command: 'help', options: {} };
+  const [command, ...args] = arguments_;
+  const allowed = {
+    serve: ['workspace', 'port', 'host', 'read-only', 'token-env'],
+    init: ['workspace', 'title', 'goal', 'mode', 'example'],
+    show: ['workspace'], apply: ['workspace', 'action', 'file', 'actor', 'session', 'epoch', 'expected-revision'],
+    export: ['workspace', 'format', 'audience', 'section', 'scope-id'],
+    'artifact-add': ['workspace', 'file', 'title', 'scope-id', 'node-id', 'round', 'version', 'format'],
+  };
+  if (!allowed[command]) fail('Unknown command; use --help');
+  const options = {};
+  for (let index = 0; index < args.length; index++) {
+    const option = args[index];
+    if (!option.startsWith('--') || !allowed[command].includes(option.slice(2))) fail(`Unknown option: ${option}`);
+    const key = option.slice(2);
+    if (Object.hasOwn(options, key) && !(command === 'serve' && key === 'workspace')) fail(`Option --${key} may only be provided once`);
+    let value = true;
+    if (!['read-only', 'example'].includes(key)) {
+      value = args[++index];
+      if (value === undefined || value.startsWith('--')) fail(`Missing value for --${key}`);
+    }
+    if (command === 'serve' && key === 'workspace') (options.workspace ??= []).push(value);
+    else options[key] = value;
+  }
+  if (!options.workspace) fail('--workspace is required');
+  return { command, options };
+}
+
+const headers = {
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+  'X-Frame-Options': 'DENY',
+  'Cache-Control': 'no-store',
+};
+function json(response, status, value) {
+  response.writeHead(status, { ...headers, 'Content-Type': 'application/json; charset=utf-8' });
+  response.end(`${JSON.stringify(value)}\n`);
+}
+function publicError(error) {
+  if (error instanceof DashboardError) {
+    const output = { error: error.message, code: error.code };
+    if (error.committed) Object.assign(output, { committed: true, revision: error.revision });
+    return { status: error.status, output };
+  }
+  return { status: 500, output: { error: 'Dashboard storage or server operation failed', code: 'INTERNAL_ERROR' } };
+}
+function authenticated(request, token) {
+  if (!token) return false;
+  const supplied = request.headers.authorization;
+  if (typeof supplied !== 'string' || !supplied.startsWith('Bearer ')) return false;
+  const actual = Buffer.from(supplied.slice(7));
+  const expected = Buffer.from(token);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+async function requestBody(request) {
+  if (request.headers['content-type']?.split(';')[0].trim().toLowerCase() !== 'application/json') fail('Mutations require application/json', 415, 'CONTENT_TYPE_REQUIRED');
+  if (Number(request.headers['content-length']) > BODY_LIMIT) {
+    request.resume();
+    fail('Request body exceeds 256 KiB', 413, 'PAYLOAD_TOO_LARGE');
+  }
+  let bytes = 0;
+  const chunks = [];
+  for await (const chunk of request) {
+    bytes += chunk.length;
+    if (bytes > BODY_LIMIT) fail('Request body exceeds 256 KiB', 413, 'PAYLOAD_TOO_LARGE');
+    chunks.push(chunk);
+  }
+  let value;
+  try { value = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { fail('Request body must be valid JSON'); }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('Request body must be an object');
+  if (Object.keys(value).some(key => !['action', 'payload', 'expectedRevision'].includes(key))) fail('Unsupported action request field');
+  if (typeof value.action !== 'string') fail('action must be a string');
+  return value;
+}
+
+async function staticFile(pathname, request, response) {
+  let decoded;
+  try { decoded = decodeURIComponent(pathname); } catch { fail('Invalid URL encoding'); }
+  if (decoded.includes('\0') || decoded.includes('\\') || decoded.split('/').includes('..') || decoded.split('/').some(part => part.startsWith('.'))) fail('Static file not found', 404, 'NOT_FOUND');
+  const relative = decoded === '/' ? 'index.html' : decoded.slice(1);
+  const extension = extname(relative);
+  const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2' };
+  if (!types[extension]) fail('Static file not found', 404, 'NOT_FOUND');
+  const candidate = resolve(staticRoot, relative);
+  if (!candidate.startsWith(`${staticRoot}${sep}`)) fail('Static file not found', 404, 'NOT_FOUND');
+  let stats;
+  let actual;
+  try {
+    let current = staticRoot;
+    for (const segment of relative.split('/')) {
+      current = join(current, segment);
+      if ((await lstat(current)).isSymbolicLink()) fail('Static file not found', 404, 'NOT_FOUND');
+    }
+    stats = await lstat(candidate);
+    actual = await realpath(candidate);
+  } catch (error) {
+    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') fail('Static file not found', 404, 'NOT_FOUND');
+    throw error;
+  }
+  if (!stats.isFile() || !actual.startsWith(`${await realpath(staticRoot)}${sep}`) || stats.size > 8 * 1024 * 1024) fail('Static file not found', 404, 'NOT_FOUND');
+  response.writeHead(200, { ...headers, 'Content-Type': types[extension] });
+  response.end(request.method === 'HEAD' ? undefined : await readFile(actual));
+}
+
+async function serve(options) {
+  const host = options.host ?? '127.0.0.1';
+  if (!/^[a-zA-Z0-9.:-]+$/.test(host)) fail('Invalid server host');
+  const loopback = ['127.0.0.1', '::1', 'localhost'].includes(host);
+  const requestedPort = options.port ?? '18921';
+  if (!/^\d+$/.test(requestedPort) || Number(requestedPort) < 1 || Number(requestedPort) > 65535) fail('--port must be an integer from 1 to 65535');
+  const port = Number(requestedPort);
+  let token;
+  if (options['token-env']) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(options['token-env'])) fail('--token-env must name an environment variable');
+    token = process.env[options['token-env']];
+    if (typeof token !== 'string' || token.length < 16) fail('The dashboard token environment variable must contain at least 16 characters');
+  }
+  if (!loopback && !token) fail('Non-loopback binding requires --token-env', 400, 'TOKEN_REQUIRED');
+  const projects = new Map();
+  const roots = new Set();
+  for (const workspace of options.workspace) {
+    if (!isAbsolute(workspace)) fail('--workspace must be absolute');
+    const root = await realpath(workspace);
+    if (roots.has(root)) fail('Each workspace may only be served once');
+    roots.add(root);
+    let board = await readBoard(workspace);
+    if (!board) board = await initBoard(workspace);
+    if (projects.has(board.project.id)) fail('Workspace project IDs must be unique');
+    projects.set(board.project.id, workspace);
+  }
+  const readOnly = Boolean(options['read-only']);
+  const localHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]);
+  const server = createServer(async (request, response) => {
+    try {
+      const authorized = authenticated(request, token);
+      const hostHeader = request.headers.host;
+      if (!hostHeader || (loopback && !localHosts.has(hostHeader) && !authorized && !token)) fail('Unrecognized request host', 403, 'HOST_REJECTED');
+      let url;
+      try { url = new URL(request.url, `http://${hostHeader}`); } catch { fail('Invalid request URL'); }
+      if (url.searchParams.has('token') || url.searchParams.has('access_token')) fail('Tokens must be sent in Authorization headers', 400, 'TOKEN_IN_URL');
+      const api = url.pathname.startsWith('/api/');
+      if (api && token && !authorized) fail('Dashboard authentication required', 401, 'UNAUTHORIZED');
+      if (request.method === 'GET' && url.pathname === '/api/health') return json(response, 200, { ok: true });
+      if (request.method === 'GET' && url.pathname === '/api/projects') {
+        const items = [];
+        for (const workspace of projects.values()) {
+          const board = await readBoard(workspace);
+          if (!board) fail('A registered project record is missing', 404, 'NOT_INITIALIZED');
+          const { id, title, goal, mode, status, isExample, updatedAt } = board.project;
+          items.push({ id, title, goal, mode, status, isExample, updatedAt });
+        }
+        return json(response, 200, { projects: items, readOnly });
+      }
+      const artifactRoute = /^\/api\/projects\/([a-zA-Z0-9_-]+)\/artifacts(?:\/([a-zA-Z0-9_-]+)(\/download)?)?$/.exec(url.pathname);
+      if (artifactRoute) {
+        const workspace = projects.get(artifactRoute[1]);
+        if (!workspace) fail('Project not found', 404, 'NOT_FOUND');
+        if (request.method !== 'GET') fail('Method not allowed', 405, 'METHOD_NOT_ALLOWED');
+        if (!artifactRoute[2]) return json(response, 200, {artifacts: await listArtifacts(workspace)});
+        const {metadata, bytes, table} = await readArtifact(workspace, artifactRoute[2]);
+        if (!artifactRoute[3]) return json(response, 200, {...metadata, ...(table ? {table} : {})});
+        const format = url.searchParams.get('format');
+        if (format !== null && !['json', 'csv'].includes(format)) fail('Unsupported artifact download format');
+        if (format && !table) fail('Format conversion requires a table');
+        const csv = format === 'csv';
+        if (csv && !table) fail('CSV export requires a table');
+        const output = csv ? Buffer.from(tableCsv(table)) : bytes;
+        const filename = csv ? `${metadata.id}.csv` : metadata.filename;
+        response.writeHead(200, {...headers, 'Content-Type': csv ? 'text/csv; charset=utf-8' : table ? 'application/json; charset=utf-8' : 'application/octet-stream', 'Content-Disposition': `attachment; filename="${metadata.id}${csv ? '.csv' : table ? '.json' : '.bin'}"; filename*=UTF-8''${encodeURIComponent(filename)}`, 'Content-Length': output.length});
+        response.end(output);
+        return;
+      }
+      const match = /^\/api\/projects\/([a-zA-Z0-9_-]+)(?:\/(actions|export))?$/.exec(url.pathname);
+      if (match) {
+        const workspace = projects.get(match[1]);
+        if (!workspace) fail('Project not found', 404, 'NOT_FOUND');
+        if (request.method === 'GET' && !match[2]) {
+          const board = await viewBoard(workspace);
+          board.server = { readOnly };
+          return json(response, 200, board);
+        }
+        if (request.method === 'POST' && match[2] === 'actions') {
+          if (readOnly) fail('Dashboard is read-only', 403, 'READ_ONLY');
+          const expectedOrigin = `http://${hostHeader}`;
+          if (!authorized && request.headers.origin !== expectedOrigin) fail('Mutations require a same-origin request or valid bearer token', 403, 'ORIGIN_REQUIRED');
+          const body = await requestBody(request);
+          const board = await mutateBoard(workspace, body.action, body.payload ?? {}, { actor: 'user', expectedRevision: body.expectedRevision });
+          return json(response, 200, { ...boardView(board), server: { readOnly } });
+        }
+        if (request.method === 'GET' && match[2] === 'export') {
+          const format = url.searchParams.get('format') ?? 'markdown';
+          const audience = url.searchParams.get('audience') ?? 'owner';
+          const board = await readBoard(workspace);
+          if (!board) fail('Project not initialized', 404, 'NOT_INITIALIZED');
+          const output = exportBoard(board, format, audience, {section: url.searchParams.get('section') ?? 'all', ...(url.searchParams.has('scopeId') ? {scopeId: url.searchParams.get('scopeId') || null} : {})});
+          response.writeHead(200, { ...headers, 'Content-Type': format === 'json' ? 'application/json; charset=utf-8' : 'text/markdown; charset=utf-8', 'Content-Disposition': `attachment; filename="${board.project.id}-${audience}.${format === 'json' ? 'json' : 'md'}"` });
+          response.end(output);
+          return;
+        }
+        fail('Method not allowed', 405, 'METHOD_NOT_ALLOWED');
+      }
+      if (api) fail('API route not found', 404, 'NOT_FOUND');
+      if (!['GET', 'HEAD'].includes(request.method)) fail('Method not allowed', 405, 'METHOD_NOT_ALLOWED');
+      await staticFile(url.pathname, request, response);
+    } catch (error) {
+      const { status, output } = publicError(error);
+      if (!response.headersSent) json(response, status, output);
+      else response.end();
+    }
+  });
+  server.requestTimeout = 15000;
+  server.headersTimeout = 10000;
+  server.keepAliveTimeout = 5000;
+  server.maxHeadersCount = 50;
+  await new Promise((resolve, reject) => {
+    server.once('error', error => reject(error.code === 'EADDRINUSE' ? new DashboardError(`Port ${port} is already in use; choose another --port`, 409, 'PORT_IN_USE') : error));
+    server.listen(port, host, resolve);
+  });
+  process.stdout.write(`${JSON.stringify({ serving: true, url: `http://${host.includes(':') ? `[${host}]` : host}:${port}`, readOnly, authenticated: Boolean(token), projects: [...projects.keys()] })}\n`);
+  const close = () => {
+    server.close(() => process.exit(0));
+    server.closeIdleConnections();
+    const timer = setTimeout(() => { server.closeAllConnections(); process.exit(0); }, 2000);
+    timer.unref();
+  };
+  process.once('SIGTERM', close);
+  process.once('SIGINT', close);
+}
+
+async function main() {
+  const { command, options } = parse(process.argv.slice(2));
+  let result;
+  if (command === 'help') result = help;
+  else if (command === 'serve') return serve(options);
+  else if (command === 'init') result = await initBoard(options.workspace, { ...(options.title !== undefined ? { title: options.title } : {}), ...(options.goal !== undefined ? { goal: options.goal } : {}), mode: options.mode ?? 'normal', isExample: Boolean(options.example) });
+  else if (command === 'show') result = await viewBoard(options.workspace);
+  else if (command === 'apply') {
+    if (!options.action || !options.file || !isAbsolute(options.file)) fail('apply requires --action and an absolute --file');
+    const stats = await lstat(options.file);
+    if (!stats.isFile() || stats.isSymbolicLink() || stats.size > BODY_LIMIT) fail('Action file must be a regular JSON file under 256 KiB');
+    let payload;
+    try { payload = JSON.parse(await readFile(options.file, 'utf8')); } catch { fail('Action file must contain valid JSON'); }
+    for (const key of ['epoch','expected-revision']) if (options[key] !== undefined && (!/^\d+$/.test(options[key]) || !Number.isSafeInteger(Number(options[key])))) fail(`Invalid --${key}`);
+    result = await mutateBoard(options.workspace, options.action, payload, { actor: options.actor ?? 'agent', sessionId: options.session, ownerEpoch: options.epoch === undefined ? undefined : Number(options.epoch), expectedRevision: options['expected-revision'] === undefined ? undefined : Number(options['expected-revision']) });
+  } else if (command === 'artifact-add') {
+    if (!options.file) fail('--file is required');
+    if (options.round !== undefined && !/^\d+$/.test(options.round)) fail('--round must be a nonnegative integer');
+    result = await addArtifact(options.workspace, options.file, {title: options.title, scopeId: options['scope-id'], nodeId: options['node-id'], round: options.round === undefined ? undefined : Number(options.round), version: options.version, format: options.format});
+  } else if (command === 'export') {
+    const board = await readBoard(options.workspace);
+    if (!board) fail('Dashboard is not initialized', 404, 'NOT_INITIALIZED');
+    process.stdout.write(exportBoard(board, options.format ?? 'markdown', options.audience ?? 'owner', {section: options.section ?? 'all', ...(options['scope-id'] === undefined ? {} : {scopeId: options['scope-id']})}));
+    return;
+  }
+  process.stdout.write(`${JSON.stringify(result)}\n`);
+}
+
+try { await main(); } catch (error) {
+  const { output } = publicError(error);
+  process.stderr.write(`${JSON.stringify(output)}\n`);
+  process.exitCode = 1;
+}

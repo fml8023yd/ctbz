@@ -1,0 +1,556 @@
+#!/usr/bin/env node
+
+import { randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
+import {
+  lstat,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { basename, dirname, isAbsolute, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  CliError,
+  fingerprint,
+  parseProfileFrontmatter,
+  readJson,
+  teamConfigFingerprint,
+  validateTeamConfiguration,
+} from "./lib/team-config.mjs";
+import { rejectCredentialsBasename, StateError } from "./lib/state.mjs";
+import { modelProvider } from "./lib/model-ref.mjs";
+import {
+  DEFAULT_CONFIG,
+  DEFAULT_AGENTS,
+  defaultTeamConfig,
+  defaultStateDir,
+  defaultAttestationOutput,
+  discoverWorkspace,
+} from "./lib/paths.mjs";
+
+const fingerprintPattern = /^sha256:[a-f0-9]{64}$/;
+const requiredOptions = ["--session"];
+const valueOptions = new Set([
+  "--config",
+  "--agents",
+  "--team-config",
+  "--session",
+  "--state-dir",
+  "--attestation-output",
+  "--workspace",
+]);
+
+function fail(message) {
+  throw new CliError(message);
+}
+
+function parseArguments(arguments_) {
+  const options = { activate: false };
+  for (let index = 0; index < arguments_.length; index += 1) {
+    const argument = arguments_[index];
+    if (argument === "--activate") {
+      if (options.activate) fail("--activate may only be provided once");
+      options.activate = true;
+      continue;
+    }
+    if (!valueOptions.has(argument)) fail(`invalid option: ${argument}`);
+    const value = arguments_[index + 1];
+    if (value === undefined || value.startsWith("--")) {
+      fail(`a value is required for ${argument}`);
+    }
+    if (options[argument] !== undefined) {
+      fail(`${argument} may only be provided once`);
+    }
+    options[argument] = value;
+    index += 1;
+  }
+
+  for (const option of requiredOptions) {
+    if (options[option] === undefined) fail(`${option} is required`);
+  }
+  for (const option of [
+    "--config",
+    "--agents",
+    "--team-config",
+    "--state-dir",
+    "--attestation-output",
+    "--workspace",
+  ]) {
+    if (options[option] !== undefined && !isAbsolute(options[option])) {
+      fail(`${option} must be absolute`);
+    }
+  }
+  if (options["--session"].length === 0) fail("--session must not be empty");
+
+  // Apply convention defaults for unspecified paths.
+  const workspace = discoverWorkspace(options["--workspace"]);
+  if (options["--config"] === undefined) options["--config"] = DEFAULT_CONFIG;
+  if (options["--agents"] === undefined) options["--agents"] = DEFAULT_AGENTS;
+  if (options["--team-config"] === undefined) {
+    options["--team-config"] = defaultTeamConfig(workspace);
+  }
+  if (options.activate) {
+    if (options["--state-dir"] === undefined) {
+      options["--state-dir"] = defaultStateDir(workspace);
+    }
+  } else {
+    if (options["--state-dir"] !== undefined) {
+      fail("--state-dir requires --activate");
+    }
+    if (options["--attestation-output"] !== undefined) {
+      fail("--attestation-output requires --activate");
+    }
+  }
+  return options;
+}
+
+async function requireRegularFile(path, label) {
+  let stats;
+  try {
+    stats = await lstat(path);
+  } catch {
+    fail(`${label} must be a readable regular file`);
+  }
+  if (stats.isSymbolicLink() || !stats.isFile()) {
+    fail(`${label} must be a regular file and not a symlink`);
+  }
+}
+
+async function requireDirectory(path, label) {
+  let stats;
+  try {
+    stats = await lstat(path);
+  } catch {
+    fail(`${label} must be a readable directory`);
+  }
+  if (stats.isSymbolicLink() || !stats.isDirectory()) {
+    fail(`${label} must be a directory and not a symlink`);
+  }
+}
+
+function runJson(script, arguments_) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [script, ...arguments_], {
+      env: { PATH: process.env.PATH },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      let output;
+      try {
+        output = stdout === "" ? undefined : JSON.parse(stdout);
+      } catch {
+        reject(new CliError(`${basename(script)} returned invalid JSON`));
+        return;
+      }
+      resolve({ code, output, stderr: stderr.trim() });
+    });
+  });
+}
+
+function addIssue(issues, code, path, message) {
+  issues.push({ code, path, message });
+}
+
+function sameList(actual, expected) {
+  return (
+    Array.isArray(actual) &&
+    actual.length === expected.length &&
+    actual.every((value, index) => value === expected[index])
+  );
+}
+
+async function validateProfiles(agentsPath, expectedProfiles, team, issues) {
+  await requireDirectory(agentsPath, "--agents");
+  let entries;
+  try {
+    entries = await readdir(agentsPath, { withFileTypes: true });
+  } catch {
+    fail("unable to read --agents");
+  }
+
+  const expectedFiles = new Set(expectedProfiles.map(({ file }) => file));
+  const managedPrefix = `team-${team.team}-`;
+  for (const entry of entries) {
+    if (
+      entry.name.startsWith(managedPrefix) &&
+      entry.name.endsWith(".md") &&
+      !expectedFiles.has(entry.name)
+    ) {
+      addIssue(
+        issues,
+        "unexpected-profile",
+        `profiles/${entry.name}`,
+        "managed profile is not declared by team configuration",
+      );
+    }
+  }
+
+  const fingerprintEntries = [];
+  for (const expected of [...expectedProfiles].sort((left, right) =>
+    left.file.localeCompare(right.file),
+  )) {
+    const path = join(agentsPath, expected.file);
+    let markdown;
+    try {
+      await requireRegularFile(path, `profile ${expected.file}`);
+      markdown = await readFile(path, "utf8");
+    } catch (error) {
+      if (!(error instanceof CliError)) throw error;
+      addIssue(
+        issues,
+        "missing-profile",
+        `profiles/${expected.file}`,
+        "expected profile is missing, unreadable, or unsafe",
+      );
+      continue;
+    }
+    fingerprintEntries.push({ file: expected.file, content: markdown });
+
+    const parsed = parseProfileFrontmatter(markdown);
+    if (parsed === undefined) {
+      addIssue(
+        issues,
+        "invalid-profile-frontmatter",
+        `profiles/${expected.file}`,
+        "profile must contain frontmatter",
+      );
+      continue;
+    }
+    for (const field of parsed.unknownFields) {
+      addIssue(
+        issues,
+        "unsupported-profile-field",
+        `profiles/${expected.file}#${field}`,
+        "profile frontmatter contains an unsupported field",
+      );
+    }
+    for (const field of parsed.duplicateFields) {
+      addIssue(
+        issues,
+        "duplicate-profile-field",
+        `profiles/${expected.file}#${field}`,
+        "profile frontmatter contains a duplicate field",
+      );
+    }
+    const actual = parsed.fields;
+    const comparisons = [
+      ["name", actual.name === expected.name],
+      ["model", actual.model === expected.modelRef],
+      ["thought-level", actual.thoughtLevel === expected.thoughtLevel],
+      ["tools", sameList(actual.tools, expected.tools)],
+      ["permission-mode", actual.permissionMode === expected.permissionMode],
+      ["max-turns", actual.maxTurns === expected.maxTurns],
+      ["background", actual.background === expected.background],
+      ["inject-agents-md", actual.injectAgentsMd === expected.injectAgentsMd],
+    ];
+    for (const [field, matches] of comparisons) {
+      if (!matches) {
+        addIssue(
+          issues,
+          `profile-${field}-drift`,
+          `profiles/${expected.file}`,
+          `profile ${field} differs from team configuration`,
+        );
+      }
+    }
+  }
+
+  return fingerprint(fingerprintEntries);
+}
+
+function routedProfiles(team) {
+  if (team?.roles === null || typeof team?.roles !== "object") return [];
+  return [
+    ...new Set(
+      Object.values(team.roles).flatMap((role) =>
+        Array.isArray(role?.route) ? role.route : [],
+      ),
+    ),
+  ];
+}
+
+async function writeJsonAtomic(path, value) {
+  try {
+    rejectCredentialsBasename(path, "--attestation-output");
+  } catch (error) {
+    if (error instanceof StateError) {
+      fail("--attestation-output must not target credentials.json");
+    }
+    throw error;
+  }
+  await requireDirectory(dirname(path), "attestation output parent");
+  try {
+    const existing = await lstat(path);
+    if (existing.isSymbolicLink() || !existing.isFile()) {
+      fail("--attestation-output must be a regular file and not a symlink");
+    }
+  } catch (error) {
+    if (error instanceof CliError) throw error;
+    if (error?.code !== "ENOENT") fail("unable to inspect --attestation-output");
+  }
+
+  const temporaryPath = join(
+    dirname(path),
+    `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`,
+  );
+  try {
+    await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, {
+      encoding: "utf8",
+      flag: "wx",
+      mode: 0o600,
+    });
+    await rename(temporaryPath, path);
+  } catch {
+    await rm(temporaryPath, { force: true }).catch(() => {});
+    fail("unable to write --attestation-output");
+  }
+}
+
+async function doctor(options) {
+  const scriptDirectory = dirname(fileURLToPath(import.meta.url));
+  const discovery = await runJson(join(scriptDirectory, "discover-config"), [
+    "--config",
+    options["--config"],
+    "--agents",
+    options["--agents"],
+  ]);
+  if (discovery.code !== 0 || discovery.output === undefined) {
+    fail("config discovery failed");
+  }
+
+  await requireRegularFile(options["--team-config"], "--team-config");
+  const team = await readJson(options["--team-config"], "team configuration");
+  const actualTeamConfigFingerprint = teamConfigFingerprint(team);
+  const validation = validateTeamConfiguration(team, discovery.output);
+  const issues = [...validation.errors];
+
+  if (team.activationRequired !== true) {
+    addIssue(
+      issues,
+      "activation-required-drift",
+      "$.activationRequired",
+      "activationRequired must be true",
+    );
+  }
+  for (const field of ["catalogFingerprint", "profileFingerprint"]) {
+    if (!fingerprintPattern.test(team[field] ?? "")) {
+      addIssue(
+        issues,
+        `invalid-${field}`,
+        `$.${field}`,
+        `${field} must be a lowercase SHA-256 fingerprint`,
+      );
+    }
+  }
+
+  const actualProfileFingerprint = await validateProfiles(
+    options["--agents"],
+    validation.profiles,
+    team,
+    issues,
+  );
+  const actualCatalogFingerprint = fingerprint({
+    providers: (discovery.output.providers ?? []).map(
+      ({ credentialPresent: _c, ...rest }) => rest,
+    ),
+    candidates: discovery.output.candidates,
+  });
+
+  // Credential verification: if --config points to a file with provider
+  // entries (not a bare catalog), check that every provider referenced by a
+  // routed variant has an apiKey. A provider present and enabled in the
+  // catalog but without an apiKey will pass structural validation yet fail
+  // at runtime with "Model provider is not configured: <id>".
+  const providersById = new Map(
+    (discovery.output.providers ?? []).map((p) => [p.id, p]),
+  );
+  const credentialsVerifiable = discovery.output.credentialsVerifiable === true;
+  const checkedProviderIds = new Set();
+  for (const profile of validation.profiles) {
+    let providerId;
+    try { providerId = modelProvider(profile.modelRef); }
+    catch { continue; } // Invalid references already have a validation issue.
+    if (checkedProviderIds.has(providerId)) continue;
+    checkedProviderIds.add(providerId);
+
+    if (!credentialsVerifiable) {
+      addIssue(
+        issues,
+        "credentials-unverified",
+        `$.roles[${profile.role}].variants[${profile.index}].modelRef`,
+        "config file lacks provider entries with options.apiKey; point --config at the real ZCode config.json (e.g. ~/.zcode/v2/config.json) so credentials can be verified before activation",
+      );
+      continue;
+    }
+
+    const provider = providersById.get(providerId);
+    if (provider === undefined) {
+      addIssue(
+        issues,
+        "provider-not-found",
+        `$.roles[${profile.role}].variants[${profile.index}].modelRef`,
+        "referenced provider is absent from discovered configuration",
+      );
+      continue;
+    }
+    if (!provider.credentialPresent) {
+      addIssue(
+        issues,
+        "provider-missing-credential",
+        `$.roles[${profile.role}].variants[${profile.index}].modelRef`,
+        `provider "${provider.name ?? providerId}" is enabled but has no credential in config; Agent runtime will report "Model provider is not configured: ${providerId}" — add credentials in ZCode provider settings before activating`,
+      );
+    }
+  }
+
+  if (
+    fingerprintPattern.test(team.catalogFingerprint ?? "") &&
+    team.catalogFingerprint !== actualCatalogFingerprint
+  ) {
+    addIssue(
+      issues,
+      "catalog-fingerprint-drift",
+      "$.catalogFingerprint",
+      "catalog fingerprint differs from discovered configuration",
+    );
+  }
+  if (
+    fingerprintPattern.test(team.profileFingerprint ?? "") &&
+    team.profileFingerprint !== actualProfileFingerprint
+  ) {
+    addIssue(
+      issues,
+      "profile-fingerprint-drift",
+      "$.profileFingerprint",
+      "profile fingerprint differs from the explicit agents directory",
+    );
+  }
+
+  const discoveredNames = new Set(
+    (discovery.output.agents ?? []).map(({ name }) => name),
+  );
+  const requiredProfiles = routedProfiles(team);
+  for (const profile of requiredProfiles) {
+    if (!discoveredNames.has(profile)) {
+      addIssue(
+        issues,
+        "required-profile-not-loaded",
+        "$.roles",
+        "required profile was not loaded from the explicit agents directory",
+      );
+    }
+  }
+
+  if (options.activate && typeof team.team === "string") {
+    const state = await readJson(
+      join(options["--state-dir"], team.team, "team-state.json"),
+      "team state",
+    );
+    if (state.teamConfigFingerprint !== actualTeamConfigFingerprint) {
+      addIssue(
+        issues,
+        "team-config-fingerprint-drift",
+        "$",
+        "team configuration differs from setup; run setup again",
+      );
+    }
+  }
+
+  if (issues.length > 0) return { status: "DRIFT", issues };
+  if (!options.activate) {
+    return {
+      status: "OK",
+      issues: [],
+      activation: "not-requested",
+      agentToolListInternallyVerified: false,
+    };
+  }
+
+  const attestation = {
+    sessionId: options["--session"],
+    configVersion: team.version,
+    teamConfigPath: options["--team-config"],
+    catalogFingerprint: actualCatalogFingerprint,
+    profileFingerprint: actualProfileFingerprint,
+    teamConfigFingerprint: actualTeamConfigFingerprint,
+    loadedProfiles: requiredProfiles,
+    verifiedAt: new Date().toISOString(),
+    profileEvidence: "explicit-agents-directory",
+    agentToolListInternallyVerified: false,
+  };
+  const attestationOutput =
+    options["--attestation-output"] ??
+    defaultAttestationOutput(options["--state-dir"], team.team);
+  await writeJsonAtomic(attestationOutput, attestation);
+  const activation = await runJson(join(scriptDirectory, "team-state"), [
+    "activate",
+    "--state-dir",
+    options["--state-dir"],
+    "--team",
+    team.team,
+    "--config-version",
+    String(team.version),
+    "--session",
+    options["--session"],
+    "--doctor-attestation",
+    JSON.stringify(attestation),
+  ]);
+  if (activation.code !== 0 || activation.output?.activated !== true) {
+    return {
+      status: "BLOCKED",
+      issues: [
+        {
+          code: "activation-blocked",
+          path: "$",
+          message: activation.output?.reason ?? "activation failed",
+          stderrPresent: activation.stderr !== "",
+        },
+      ],
+      attestationOutput,
+    };
+  }
+  return {
+    status: "OK",
+    issues: [],
+    activated: true,
+    attestationOutput,
+    agentToolListInternallyVerified: false,
+  };
+}
+
+async function main() {
+  try {
+    const output = await doctor(parseArguments(process.argv.slice(2)));
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    if (output.status !== "OK") process.exitCode = 1;
+  } catch (error) {
+    const message = error instanceof CliError ? error.message : "doctor failed";
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          status: "BLOCKED",
+          issues: [{ code: "cli-error", path: "$", message }],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    process.exitCode = 1;
+  }
+}
+
+await main();

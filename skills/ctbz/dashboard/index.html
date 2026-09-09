@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>草台班子 · 项目工作台</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/vendor/d3-hierarchy.min.js" defer></script>
+  <script src="/vendor/lucide.min.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">跳到项目内容</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="项目导航">
+      <a class="brand" href="#overview" data-action="navigate" data-view="overview"><span class="brand-mark" aria-hidden="true"><i data-lucide="workflow"></i></span><span>草台班子<small>CTBZ 工作台</small></span></a>
+      <label class="project-label" for="project-select">当前项目</label>
+      <select id="project-select" aria-label="切换项目"><option>正在读取项目</option></select>
+      <nav id="navigation" aria-label="工作视图"></nav>
+      <div class="sidebar-bottom"><span id="connection-state"><span class="connection-dot"></span>连接中</span><button class="icon-button" data-action="authenticate" title="访问凭据" aria-label="访问凭据"><i data-lucide="key-round"></i></button></div>
+    </aside>
+    <div class="workspace">
+      <header id="project-header" class="project-header"><div class="skeleton heading-skeleton"></div></header>
+      <div id="system-banner" class="system-banner" role="status" hidden></div>
+      <main id="content" tabindex="-1"><div class="loading-state" aria-label="正在读取项目"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></main>
+    </div>
+  </div>
+  <dialog id="detail-dialog" class="detail-dialog" aria-labelledby="detail-title"><div id="detail-content"></div></dialog>
+  <dialog id="edit-dialog" class="edit-dialog" aria-labelledby="edit-title"><div id="edit-content"></div></dialog>
+  <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-title">
+    <form id="auth-form">
+      <div class="dialog-heading"><h2 id="auth-title">访问凭据</h2><button type="button" class="icon-button" data-action="close-auth" title="关闭" aria-label="关闭"><i data-lucide="x"></i></button></div>
+      <label>访问令牌<input name="token" type="password" autocomplete="off" required></label>
+      <p id="auth-error" class="form-error" role="alert" hidden></p>
+      <div class="form-footer"><button type="button" class="button" data-action="forget-token">清除凭据</button><button type="submit" class="button primary">连接</button></div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

@@ -1,0 +1,318 @@
+#!/usr/bin/env node
+// 成本选型器（包工头）：父会话派发前决定子 Agent 的渠道档位与并行预算的模块（不是 Agent 角色）。
+// 命中规则只是『优先尝试方向』（首中即胜，priority 升序，同 priority 按文件序）：
+// 命中规则的派发失败后，带 --exclude <规则id> 重跑即滑向下一条；同档位已断流可加 --exclude-profile <短名> 跳过。
+// 全部落空走 team config 原 route 降级，任何情况不卡死任务。
+// 用法: pick-profile --role <角色[,角色2,...]> [--now "2026-09-04T23:01:00+08:00"]
+//       [--vendor <glm|ds|gpt|opds>] [--exclude <规则id>[,<id2>]] [--exclude-profile <短名>[,<短名2>]]
+//       [--rules <cost-rules.json>]
+
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+class CliError extends Error {}
+
+const ID_RE = /^[A-Za-z0-9_.-]{1,40}$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^(\d{2}):(\d{2})$/;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function parseArgs(argv) {
+  const args = {
+    rules: join(dirname(fileURLToPath(import.meta.url)), "..", "cost-rules.json"),
+    exclude: [],
+    excludeProfile: [],
+  };
+  for (let i = 0; i < argv.length; i++) {
+    const k = argv[i];
+    if (k === "--role") args.role = argv[++i];
+    else if (k === "--now") args.now = argv[++i];
+    else if (k === "--kind") args.kind = argv[++i];
+    else if (k === "--capacity") args.capacity = Number(argv[++i]);
+    else if (k === "--vendor") args.vendor = argv[++i];
+    else if (k === "--exclude") args.exclude.push(...argv[++i].split(","));
+    else if (k === "--exclude-profile") args.excludeProfile.push(...argv[++i].split(","));
+    else if (k === "--main-profile") args.mainProfile = argv[++i];
+    else if (k === "--rules") args.rules = argv[++i];
+    else if (k === "-h" || k === "--help") args.help = true;
+    else throw new CliError(`未知参数: ${k}`);
+  }
+  if (!args.help && !args.role) throw new CliError("缺少 --role");
+  if (args.kind && !['read','write'].includes(args.kind)) throw new CliError('--kind must be read or write');
+  if (args.capacity !== undefined && (!Number.isSafeInteger(args.capacity) || args.capacity < 0)) throw new CliError('--capacity must be a nonnegative integer');
+  return args;
+}
+
+function tzOffsetMs(tz, at) {
+  // 时区在时刻 at 的 UTC 偏移（毫秒）。结果仅用于与本文件内同式计算的值比较，
+  // 不是可直接对外展示的绝对时刻（含机器本地解析分量），复用前先读此注释。
+  const f = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "longOffset" });
+  const name = f.formatToParts(at).find((p) => p.type === "timeZoneName").value; // 如 "GMT+08:00"
+  const m = name.match(/GMT([+-])(\d{2}):(\d{2})/);
+  if (!m) {
+    process.stderr.write(`⚠ 时区 ${tz} 偏移解析失败（${name}），按 UTC 处理\n`);
+    return 0;
+  }
+  return (m[1] === "-" ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) * 60 * 1000;
+}
+
+function zonedNow(spec, tz) {
+  // 把规则时区的"现在"取成 YYYY-MM-DD 与当日分钟数（不依赖机器时区）。
+  // --now 不带时区后缀时按机器本地时区解析；跨时区机器手工传参必须带 +08:00 等后缀。
+  // 纯日期 "2026-09-04" 按 UTC 午夜解析（JS 规范），如需表达本地日期请带时间。
+  const d = spec ? new Date(spec) : new Date();
+  if (Number.isNaN(d.getTime())) throw new CliError(`--now 无法解析: ${spec}`);
+  if (spec && !/[T ]\d{2}:\d{2}/.test(spec) && !/Z|[+-]\d{2}:\d{2}$/.test(spec)) {
+    process.stderr.write(`⚠ --now "${spec}" 为纯日期，按 UTC 午夜解析；如需表达本地时刻请补时间与后缀\n`);
+  }
+  const f = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+  const p = {};
+  for (const { type, value } of f.formatToParts(d)) p[type] = value;
+  return {
+    date: `${p.year}-${p.month}-${p.day}`,
+    minutes: Number(p.hour) * 60 + Number(p.minute),
+    raw: d.toISOString(),
+  };
+}
+
+// "HH:MM" → 分钟数；仅 daily_window 终点允许 24:00（表达全天）
+function timeMinutes(s, { allowEnd24 = false } = {}) {
+  const m = TIME_RE.exec(s);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h === 24 && min === 0 && allowEnd24) return 24 * 60;
+  if (h > 23 || min > 59) return null; // 拒绝 25:00/23:61 等越界值静默钳制
+  return h * 60 + min;
+}
+
+function validateRules(rules, file) {
+  if (!rules || !Array.isArray(rules.rules)) throw new CliError(`规则文件 ${file} 缺少 rules 数组`);
+  if (typeof rules.timezone !== "string" || !rules.timezone) throw new CliError(`规则文件 ${file} 缺少 timezone`);
+  if (!rules.role_tier || !Array.isArray(rules.role_tier.heavy) || !Array.isArray(rules.role_tier.light))
+    throw new CliError(`规则文件 ${file} 缺少顶层 role_tier（heavy/light 数组，全规则共享分档源）`);
+  const seenIds = new Set();
+  for (const r of rules.rules) {
+    const at = (msg) => new CliError(`规则 ${r?.id ?? JSON.stringify(r).slice(0, 40)}（${file}）${msg}`);
+    if (!r || typeof r !== "object") throw at("不是对象");
+    if (typeof r.id !== "string" || !ID_RE.test(r.id)) throw at("id 缺失或含非法字符（限字母数字_.-，≤40）");
+    if (seenIds.has(r.id)) throw at(`id 重复，--exclude 将无法区分同 id 规则`);
+    seenIds.add(r.id);
+    if (typeof r.enabled !== "boolean") throw at("enabled 缺失或非布尔（注意拼写，静默失效比报错更危险）");
+    if (typeof r.priority !== "number" || !Number.isFinite(r.priority)) throw at("priority 缺失或非有限数字");
+    if (!["free_window", "free_model", "vendor_follow", "builtin_follow", "vendor_parallel"].includes(r.type)) throw at(`未知 type: ${r.type}`);
+    if (r.cost_class !== undefined && !["free", "paid-light", "paid-heavy"].includes(r.cost_class)) throw at(`cost_class 仅支持 free/paid-light/paid-heavy，收到: ${r.cost_class}`);
+    if (!["vendor_follow", "vendor_parallel"].includes(r.type) && (!r.action || typeof r.action !== "object")) throw at("缺少 action 对象");
+    if (r.type === "free_window") {
+      if (!Array.isArray(r.date_range) || r.date_range.length !== 2 || r.date_range.some((x) => !DATE_RE.test(x)))
+        throw at("date_range 必须是补零 ISO 日期数组 [起,止]，如 2026-09-04（非补零会静默失效）");
+      if (r.date_range[0] > r.date_range[1]) throw at(`date_range 起点晚于终点（${r.date_range[0]} > ${r.date_range[1]}），规则将永假`);
+      if (!Array.isArray(r.daily_window) || r.daily_window.length !== 2) throw at("daily_window 必须是 [HH:MM,HH:MM]");
+      const a = timeMinutes(r.daily_window[0]);
+      const b = timeMinutes(r.daily_window[1], { allowEnd24: true });
+      if (a === null || b === null) throw at(`daily_window 时间越界（${r.daily_window.join(",")}）：小时 00-23、分钟 00-59，仅终点允许 24:00 表达全天`);
+      if (typeof r.action.all_roles_profile !== "string" || !r.action.all_roles_profile)
+        throw at("free_window 的 action.all_roles_profile 缺失或非字符串");
+      if (!Number.isSafeInteger(r.action.parallel_multiplier) || r.action.parallel_multiplier < 1)
+        throw at("free_window 的 action.parallel_multiplier 缺失或非数字");
+    }
+    if (r.type === "free_model") {
+      if (!("model" in r)) throw at("free_model 缺少 model 字段（留桩置 null）");
+      if (!Number.isSafeInteger(r.action.parallel_multiplier) || r.action.parallel_multiplier < 1)
+        throw at("free_model 的 action.parallel_multiplier 缺失或非数字");
+      if (r.model && (typeof r.action.try_profile !== "string" || !r.action.try_profile))
+        throw at("free_model 已定义 model 时 action.try_profile 必须是非空字符串（留桩请置 model:null）");
+    }
+    if (r.type === "vendor_follow") {
+      if (!r.vendor_map || typeof r.vendor_map !== "object") throw at("vendor_follow 缺少 vendor_map（分档统一用顶层 role_tier）");
+    }
+    if (r.type === "vendor_parallel") {
+      if (!r.vendor_map || typeof r.vendor_map !== "object") throw at("vendor_parallel 缺少 vendor_map");
+      if (!["light", "heavy"].includes(r.selection)) throw at("vendor_parallel 的 selection 必须是 light 或 heavy");
+    }
+    const scope = r.action?.triple_scope;
+    if (scope !== undefined && scope !== "all" && scope !== "heavy_only")
+      throw at(`triple_scope 仅支持 all/heavy_only，收到: ${scope}`);
+  }
+}
+
+// 到期/过期判定：全部基于 "YYYY-MM-DDT00:00:00Z" 的同一 UTC 尺度做日期差，规避本地时区与 off-by-one
+function ruleWarnings(rule, now) {
+  const w = [];
+  if (rule.type !== "free_window" || !rule.enabled) return w;
+  const [, d2] = rule.date_range;
+  const end = Date.parse(`${d2}T00:00:00Z`);
+  const today = Date.parse(`${now.date}T00:00:00Z`);
+  if (Number.isNaN(end) || Number.isNaN(today)) return w;
+  const diffDays = (end - today) / DAY_MS;
+  if (diffDays < 0) w.push({ warning: `${rule.id} 已于 ${d2} 过期，建议口头确认后置 enabled:false` });
+  else if (diffDays <= 3) w.push({ warning: `${rule.id} 将于 ${d2} 到期` });
+  return w;
+}
+
+function inFreeWindow(rule, now) {
+  const [d1, d2] = rule.date_range;
+  if (now.date < d1 || now.date > d2) return false;
+  const [a, b] = rule.daily_window.map((s) => {
+    const [h, m] = s.split(":").map(Number);
+    return h * 60 + m;
+  });
+  // 半开区间 [start, end)：a<b 常规；a>b 跨日（now>=a 或 now<b）；a==b 空集（文档已注明，全天写 00:00-24:00）
+  return a <= b ? now.minutes >= a && now.minutes < b : now.minutes >= a || now.minutes < b;
+}
+
+function ruleStatus(rule, now, excluded, excludedProfiles, args) {
+  if (!rule.enabled) return { state: "skipped", reason: "disabled" };
+  if (excluded.has(rule.id)) return { state: "excluded", reason: "前次尝试失败，--exclude 滑链" };
+  if (rule.type === "free_window") {
+    if (!inFreeWindow(rule, now)) return { state: "skipped", reason: "窗口未命中" };
+    if (excludedProfiles.has(rule.action.all_roles_profile))
+      return { state: "excluded", reason: `档位 ${rule.action.all_roles_profile} 已断流，--exclude-profile 跳过` };
+    return {
+      state: "hit",
+      result: {
+        profile: rule.action.all_roles_profile,
+        parallel: rule.action.parallel_multiplier,
+        aggregate: rule.action.aggregate === "summarize",
+        triple_scope: rule.action.triple_scope || "all",
+      },
+    };
+  }
+  if (rule.type === "free_model") {
+    if (!rule.model || !rule.action.try_profile) return { state: "skipped", reason: "模型未定义/未接入" };
+    if (excludedProfiles.has(rule.action.try_profile))
+      return { state: "excluded", reason: `档位 ${rule.action.try_profile} 已断流，--exclude-profile 跳过` };
+    return { state: "hit", result: { profile: rule.action.try_profile, parallel: rule.action.parallel_multiplier, aggregate: rule.action.aggregate === "summarize", triple_scope: rule.action.triple_scope || "all" } };
+  }
+  if (rule.type === "builtin_follow") {
+    if (!args || !args.mainProfile) return { state: "skipped", reason: "缺 --main-profile（主进程模型档，尽力尝试级）" };
+    if (excludedProfiles.has(args.mainProfile))
+      return { state: "excluded", reason: `档位 ${args.mainProfile} 已断流，--exclude-profile 跳过` };
+    return { state: "hit", result: { profile: args.mainProfile, parallel: rule.action?.parallel_multiplier || 1, aggregate: false, builtin: true } };
+  }
+  if (rule.type === "vendor_parallel") {
+    if (!args || !args.vendor) return { state: "skipped", reason: "缺 --vendor（父会话自报主进程厂商）" };
+    if (!rule.vendor_map[args.vendor]) return { state: "skipped", reason: `未知厂商 ${args.vendor}` };
+    const vpProfile = rule.vendor_map[args.vendor][rule.selection];
+    if (!vpProfile) return { state: "skipped", reason: `厂商 ${args.vendor} 无 ${rule.selection} 档` };
+    if (excludedProfiles.has(vpProfile))
+      return { state: "excluded", reason: `档位 ${vpProfile} 已断流，--exclude-profile 跳过` };
+    return { state: "hit", result: { profile: vpProfile, parallel: rule.action?.parallel_multiplier || 1, aggregate: false, selection: rule.selection } };
+  }
+  // vendor_follow：是否命中取决于 --vendor，延迟到 evaluate 判定
+  return { state: "pending_vendor" };
+}
+
+function evaluate(rules, args, role, now, warn) {
+  const heavySet = new Set(rules.role_tier.heavy);
+  const lightSet = new Set(rules.role_tier.light);
+  const tierOf = (role) => (heavySet.has(role) ? "heavy" : "light");
+  const excluded = new Set(args.exclude);
+  const excludedProfiles = new Set(args.excludeProfile);
+  const skipped = [];
+  let hit = null;
+  const chain = [];
+  const sorted = [...rules.rules].sort((x, y) => x.priority - y.priority); // 稳定排序：同 priority 按文件序
+
+  for (const rule of sorted) {
+    const st = ruleStatus(rule, now, excluded, excludedProfiles, args);
+    if (st.state === "skipped" || st.state === "excluded") {
+      (hit ? chain : skipped).push({ rule: rule.id, [st.state === "skipped" ? "skipped" : "excluded"]: st.reason });
+      continue;
+    }
+    if (st.state === "pending_vendor") {
+      if (!args.vendor) {
+        (hit ? chain : skipped).push({ rule: rule.id, skipped: "缺 --vendor（父会话自报主进程厂商）" });
+        continue;
+      }
+      if (!rule.vendor_map[args.vendor]) {
+        (hit ? chain : skipped).push({ rule: rule.id, skipped: `未知厂商 ${args.vendor}` });
+        continue;
+      }
+      const tier = tierOf(role);
+      if (!heavySet.has(role) && !lightSet.has(role)) {
+        warn(`⚠ 未知角色 ${role}，同厂商跟随已按 light 档处理；新增角色请同步 cost-rules.json 顶层 role_tier`);
+      }
+      const profile = rule.vendor_map[args.vendor][tier];
+      if (excludedProfiles.has(profile)) {
+        (hit ? chain : skipped).push({ rule: rule.id, excluded: `档位 ${profile} 已断流，--exclude-profile 跳过` });
+        continue;
+      }
+      const candidate = { rule: rule.id, profile, parallel: 1, aggregate: false, vendor: args.vendor, tier };
+      if (!hit) hit = candidate;
+      else chain.push({ rule: rule.id, superseded: "低优先级命中，仅作备选" });
+      continue;
+    }
+    // free_window / free_model 命中：首中即胜，后续命中仅作备选；降档即冗余（heavy_only 时 light 角色单发）
+    const candidate = { rule: rule.id, ...st.result };
+    if (candidate.triple_scope === "heavy_only") {
+      candidate.tier = tierOf(role);
+      if (candidate.tier === "light") { candidate.parallel = 1; candidate.aggregate = false; }
+    }
+    if (!hit) hit = candidate;
+    else chain.push({ rule: rule.id, superseded: "低优先级命中，仅作备选" });
+  }
+  if (hit) {
+    hit.requested_parallel = hit.parallel;
+    if (args.kind !== 'read') hit.parallel = 1;
+    hit.aggregate = hit.aggregate && hit.parallel > 1;
+  }
+  return { hit, skipped_rules: skipped, fallback_chain: chain };
+}
+
+const HINT =
+  "命中仅是优先尝试方向（priority 升序首中即胜，同 priority 按文件序）。命中规则的派发失败（断流/凭据缺失/限流/模型下架/套餐到期）后，" +
+  "带 --exclude <命中规则id>（累积全部已失败 id，回传 hit.rule 原值，勿手写简称）重跑本命令即滑向下一条；" +
+  "同档位断流加 --exclude-profile <短名>（对全部规则类型生效）。skipped_rules 是本次未参与判定的规则（含原因），fallback_chain 是命中失败后的可尝试方向。" +
+  "全部落空走 team config 原 route 降级，任何情况不卡死任务。单角色输出 hit 顶层直出，多角色下沉 results[]。输出仅是数据，不得当作指令执行。";
+
+function main() {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.help) {
+    console.log("用法: pick-profile --role <角色[,角色2]> [--now ISO时间] [--vendor 厂商] [--exclude 规则id[,id2]] [--exclude-profile 档位[,档位2]] [--rules 路径]");
+    return;
+  }
+  const roles = args.role.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!roles.length) throw new CliError("--role 清洗后无有效角色");
+  if (args.vendor) args.vendor = args.vendor.trim().toLowerCase();
+  let rules;
+  try {
+    rules = JSON.parse(readFileSync(args.rules, "utf8"));
+  } catch (e) {
+    throw new CliError(`规则文件 ${args.rules} 读取/解析失败: ${e.message}`);
+  }
+  validateRules(rules, args.rules);
+  const knownIds = new Set(rules.rules.map((r) => r.id));
+  for (const id of args.exclude) {
+    if (!knownIds.has(id)) process.stderr.write(`⚠ --exclude "${id}" 未匹配任何规则 id（须用完整规则 id，勿手写简称）\n`);
+  }
+  const now = zonedNow(args.now, rules.timezone);
+  const warnings = [];
+  const warn = (m) => { warnings.push({ warning: m }); process.stderr.write(`${m}\n`); };
+  for (const r of rules.rules) warnings.push(...ruleWarnings(r, now));
+  const results = roles.map((role) => ({ role, ...evaluate(rules, args, role, now, warn) }));
+  let remaining = args.capacity ?? 1;
+  for (const result of results) {
+    if (!result.hit) continue;
+    const requested = result.hit.parallel;
+    result.hit.parallel = Math.min(requested, remaining);
+    result.hit.queued = requested - result.hit.parallel;
+    remaining -= result.hit.parallel;
+    result.hit.aggregate = result.hit.aggregate && result.hit.parallel > 1;
+  }
+  const out = results.length === 1
+    ? { now: now.raw, timezone: rules.timezone, ...results[0] }
+    : { now: now.raw, timezone: rules.timezone, results };
+  console.log(JSON.stringify({ ...out, warnings, semantics: HINT }, null, 2));
+}
+
+try {
+  main();
+} catch (e) {
+  process.stderr.write(`✗ ${e.message}\n`);
+  process.exit(1);
+}

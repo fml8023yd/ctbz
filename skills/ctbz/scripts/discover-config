@@ -1,0 +1,398 @@
+#!/usr/bin/env node
+
+import { basename, extname, isAbsolute, join } from "node:path";
+import { constants } from "node:fs";
+import { lstat, open, readdir, realpath } from "node:fs/promises";
+import { DEFAULT_CONFIG, DEFAULT_AGENTS } from "./lib/paths.mjs";
+
+class CliError extends Error {}
+
+const agentFields = new Set([
+  "name",
+  "description",
+  "model",
+  "thoughtLevel",
+  "tools",
+  "permissionMode",
+  "maxTurns",
+  "background",
+  "injectAgentsMd",
+]);
+
+function fail(message) {
+  throw new CliError(message);
+}
+
+function parseArguments(arguments_) {
+  let configPath;
+  let agentsPath;
+
+  for (let index = 0; index < arguments_.length; index += 1) {
+    const argument = arguments_[index];
+    if (argument !== "--config" && argument !== "--agents") {
+      fail("invalid arguments");
+    }
+
+    const value = arguments_[index + 1];
+    if (value === undefined || value.startsWith("--")) {
+      fail(`a value is required for ${argument}`);
+    }
+
+    if (argument === "--config") {
+      if (configPath !== undefined) fail("--config may only be provided once");
+      configPath = value;
+    } else {
+      if (agentsPath !== undefined) fail("--agents may only be provided once");
+      agentsPath = value;
+    }
+    index += 1;
+  }
+
+  if (configPath === undefined) configPath = DEFAULT_CONFIG;
+  if (!isAbsolute(configPath)) fail("config path must be an absolute path");
+  if (agentsPath === undefined) agentsPath = DEFAULT_AGENTS;
+  if (!isAbsolute(agentsPath)) {
+    fail("agents path must be an absolute path");
+  }
+  return { configPath, agentsPath };
+}
+
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function entriesById(value) {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) =>
+      isRecord(item) && typeof item.id === "string" ? [[item.id, item]] : [],
+    );
+  }
+
+  if (isRecord(value)) return Object.entries(value);
+  return [];
+}
+
+function addString(target, source, key) {
+  if (typeof source[key] === "string") target[key] = source[key];
+}
+
+function addNumber(target, source, key) {
+  if (typeof source[key] === "number" && Number.isFinite(source[key])) {
+    target[key] = source[key];
+  }
+}
+
+function allowlistReasoning(value) {
+  if (!isRecord(value)) return undefined;
+
+  const reasoning = {};
+  if (typeof value.enabled === "boolean") reasoning.enabled = value.enabled;
+  const variants = Array.isArray(value.variants)
+    ? value.variants
+    : Array.isArray(value.levels)
+      ? value.levels
+      : undefined;
+  if (variants !== undefined) {
+    reasoning.variants = variants.filter(
+      (variant) => typeof variant === "string",
+    );
+  }
+  const defaultVariant =
+    value.defaultVariant !== undefined
+      ? value.defaultVariant
+      : value.defaultLevel;
+  if (typeof defaultVariant === "string" || defaultVariant === null) {
+    reasoning.defaultVariant = defaultVariant;
+  }
+  return reasoning;
+}
+
+function allowlistModalities(value) {
+  if (Array.isArray(value)) {
+    return value.filter((modality) => typeof modality === "string");
+  }
+  if (!isRecord(value)) return undefined;
+
+  const modalities = {};
+  for (const key of ["input", "output"]) {
+    if (Array.isArray(value[key])) {
+      modalities[key] = value[key].filter(
+        (modality) => typeof modality === "string",
+      );
+    }
+  }
+  return modalities;
+}
+
+function allowlistModel(id, value) {
+  if (!isRecord(value)) return undefined;
+
+  const model = { id };
+  addNumber(model, value, "contextLimit");
+  addNumber(model, value, "outputLimit");
+  if (isRecord(value.limit)) {
+    if (
+      model.contextLimit === undefined &&
+      typeof value.limit.context === "number" &&
+      Number.isFinite(value.limit.context)
+    ) {
+      model.contextLimit = value.limit.context;
+    }
+    if (
+      model.outputLimit === undefined &&
+      typeof value.limit.output === "number" &&
+      Number.isFinite(value.limit.output)
+    ) {
+      model.outputLimit = value.limit.output;
+    }
+  }
+
+  const modalities = allowlistModalities(value.modalities);
+  if (modalities !== undefined) model.modalities = modalities;
+
+  const reasoning = allowlistReasoning(value.reasoning);
+  if (reasoning !== undefined) model.reasoning = reasoning;
+  return model;
+}
+
+function hasCredential(value) {
+  const options = isRecord(value) ? value.options : undefined;
+  if (!isRecord(options)) return false;
+  if (typeof options.apiKey === "string" && options.apiKey.length > 0) return true;
+  if (typeof options.apiKeyEnv === "string" && options.apiKeyEnv.length > 0) return true;
+  return false;
+}
+
+function allowlistProvider(id, value) {
+  if (!isRecord(value)) return undefined;
+
+  const provider = { id };
+  addString(provider, value, "name");
+  addString(provider, value, "kind");
+  provider.enabled = value.enabled !== false;
+  addString(provider, value, "source");
+  provider.credentialPresent = hasCredential(value);
+  provider.models = entriesById(value.models).flatMap(([modelId, model]) => {
+    const allowed = allowlistModel(modelId, model);
+    return allowed === undefined ? [] : [allowed];
+  });
+  return provider;
+}
+
+function discoverProviders(config) {
+  if (!isRecord(config)) fail("config must contain a JSON object");
+
+  const providerConfig = config.provider ?? config.providers;
+  const providers = entriesById(providerConfig).flatMap(([id, provider]) => {
+    const allowed = allowlistProvider(id, provider);
+    return allowed === undefined ? [] : [allowed];
+  });
+
+  const candidates = providers.flatMap((provider) => {
+    if (!provider.enabled || provider.models.length === 0) return [];
+
+    return provider.models.map((model) => ({
+      key: `custom:${provider.id}:${model.id}`,
+      providerId: provider.id,
+      modelId: model.id,
+      reasoningVariants: model.reasoning?.variants ?? [],
+    }));
+  });
+
+  // Fallback: when provider/providers is absent, derive candidates from
+  // modelCatalog.overrides (used by ZCode configs that store reasoning
+  // separately from provider definitions). Override keys are
+  // "<providerId>/<modelId>" and each value carries reasoning.levels.
+  // In this mode credential status cannot be determined from the overrides
+  // file alone — the provider entries (with options.apiKey) live elsewhere.
+  let credentialsVerifiable = providers.length > 0;
+  if (providers.length === 0 && isRecord(config.modelCatalog)) {
+    const overrides = config.modelCatalog.overrides;
+    if (isRecord(overrides)) {
+      for (const [key, entry] of Object.entries(overrides)) {
+        const slashIndex = key.lastIndexOf("/");
+        if (slashIndex === -1) continue;
+        const providerId = key.slice(0, slashIndex);
+        const modelId = key.slice(slashIndex + 1);
+        const reasoning = allowlistReasoning(entry?.reasoning);
+        candidates.push({
+          key: `custom:${providerId}:${modelId}`,
+          providerId,
+          modelId,
+          reasoningVariants: reasoning?.variants ?? [],
+        });
+      }
+    }
+  }
+
+  return { providers, candidates, credentialsVerifiable };
+}
+
+function parseFrontmatterScalar(value) {
+  const trimmed = value.trim();
+  if (trimmed === "true") return true;
+  if (trimmed === "false") return false;
+  if (/^-?\d+$/.test(trimmed)) return Number.parseInt(trimmed, 10);
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    const body = trimmed.slice(1, -1).trim();
+    if (body === "") return [];
+    return body.split(",").map((item) => parseFrontmatterScalar(item));
+  }
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed.slice(1, -1);
+    }
+  }
+  if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1).replaceAll("''", "'");
+  }
+  return trimmed;
+}
+
+function allowlistAgent(markdown) {
+  const lines = markdown.split(/\r?\n/);
+  if (lines[0]?.trim() !== "---") return undefined;
+
+  const closingIndex = lines.findIndex(
+    (line, index) => index > 0 && line.trim() === "---",
+  );
+  if (closingIndex === -1) return undefined;
+
+  const agent = {};
+  for (let index = 1; index < closingIndex; index += 1) {
+    const match = /^([A-Za-z][A-Za-z0-9]*):(?:\s*(.*))?$/.exec(lines[index]);
+    if (match === null || !agentFields.has(match[1])) continue;
+
+    const [, key, rawValue = ""] = match;
+    if (rawValue !== "") {
+      agent[key] = parseFrontmatterScalar(rawValue);
+      continue;
+    }
+
+    const items = [];
+    while (index + 1 < closingIndex) {
+      const itemMatch = /^\s+-\s+(.+)$/.exec(lines[index + 1]);
+      if (itemMatch === null) break;
+      items.push(parseFrontmatterScalar(itemMatch[1]));
+      index += 1;
+    }
+    agent[key] = items;
+  }
+
+  return typeof agent.name === "string" ? agent : undefined;
+}
+
+async function inspectPath(path, label) {
+  if (!isAbsolute(path)) fail(`${label} path must be an absolute path`);
+
+  let resolvedPath;
+  try {
+    resolvedPath = await realpath(path);
+  } catch {
+    fail(`unable to read ${label} path`);
+  }
+
+  if (
+    label === "config" &&
+    basename(resolvedPath).toLowerCase() === "credentials.json"
+  ) {
+    fail("config file is not allowed");
+  }
+
+  let pathStat;
+  try {
+    pathStat = await lstat(path);
+  } catch {
+    fail(`unable to read ${label} path`);
+  }
+
+  if (pathStat.isSymbolicLink()) {
+    fail(`${label} path must not be a symbolic link`);
+  }
+  return pathStat;
+}
+
+async function readRegularFile(path, errorMessage) {
+  let file;
+  try {
+    file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    if (!(await file.stat()).isFile()) fail(errorMessage);
+    return await file.readFile("utf8");
+  } catch (error) {
+    if (error instanceof CliError) throw error;
+    fail(errorMessage);
+  } finally {
+    await file?.close();
+  }
+}
+
+async function agentFiles(path) {
+  const pathStat = await inspectPath(path, "agents");
+
+  if (pathStat.isFile()) {
+    if (![".md", ".markdown"].includes(extname(path))) {
+      fail("agents file must be a Markdown file");
+    }
+    return [path];
+  }
+  if (!pathStat.isDirectory()) fail("agents path must be a file or directory");
+
+  let entries;
+  try {
+    entries = await readdir(path, { withFileTypes: true });
+  } catch {
+    fail("unable to read agents path");
+  }
+
+  return entries
+    .filter(
+      (entry) =>
+        entry.isFile() && [".md", ".markdown"].includes(extname(entry.name)),
+    )
+    .map((entry) => join(path, entry.name))
+    .sort();
+}
+
+async function discoverAgents(path) {
+  const agents = [];
+  for (const file of await agentFiles(path)) {
+    const markdown = await readRegularFile(
+      file,
+      "unable to read regular agent profile",
+    );
+
+    const agent = allowlistAgent(markdown);
+    if (agent !== undefined) agents.push(agent);
+  }
+  return agents;
+}
+
+async function readConfig(path) {
+  const pathStat = await inspectPath(path, "config");
+  if (!pathStat.isFile()) fail("config path must be a regular file");
+
+  const text = await readRegularFile(path, "unable to read config");
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    fail("config must be valid JSON");
+  }
+}
+
+async function main() {
+  const { configPath, agentsPath } = parseArguments(process.argv.slice(2));
+  const output = discoverProviders(await readConfig(configPath));
+  if (agentsPath !== undefined) output.agents = await discoverAgents(agentsPath);
+  process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+}
+
+try {
+  await main();
+} catch (error) {
+  const message = error instanceof CliError ? error.message : "discovery failed";
+  process.stderr.write(`${message}\n`);
+  process.exitCode = 1;
+}

@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zcode.local/schemas/agent-team-v1.json",
+  "title": "ZCode Agent Team Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "team", "roles"],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "team": {
+      "$ref": "#/$defs/kebabName"
+    },
+    "activationRequired": {
+      "type": "boolean",
+      "default": false
+    },
+    "profileFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "catalogFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "maxParallel": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "maxParallelWriters": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "roles": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/kebabName"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/role"
+      }
+    },
+    "retry": {
+      "$ref": "#/$defs/retry"
+    },
+    "worktree": {
+      "$ref": "#/$defs/worktree"
+    }
+  },
+  "$defs": {
+    "kebabName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "modelRef": {
+      "type": "string",
+      "pattern": "^custom:[^:\\s]+:[^:\\s]+$"
+    },
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variants", "route"],
+      "properties": {
+        "variants": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/variant"
+          }
+        },
+        "route": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/kebabName"
+          }
+        }
+      }
+    },
+    "variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "modelRef", "modelShort", "tools"],
+      "properties": {
+        "profile": {
+          "$ref": "#/$defs/kebabName"
+        },
+        "modelRef": {
+          "$ref": "#/$defs/modelRef"
+        },
+        "modelShort": {
+          "$ref": "#/$defs/kebabName"
+        },
+        "thoughtLevel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reasoningShort": {
+          "$ref": "#/$defs/kebabName",
+          "default": "std"
+        },
+        "description": {
+          "type": "string"
+        },
+        "tools": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "permissionMode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "maxTurns": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "background": {
+          "type": "boolean"
+        },
+        "injectAgentsMd": {
+          "type": "boolean"
+        },
+        "instructions": {
+          "type": "string"
+        }
+      }
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskLevelRetries", "circuitThreshold"],
+      "properties": {
+        "taskLevelRetries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "circuitThreshold": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "worktree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabledForWriters", "root", "cleanup"],
+      "properties": {
+        "enabledForWriters": {
+          "type": "boolean"
+        },
+        "root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cleanup": {
+          "type": "string",
+          "enum": ["after-integrated-and-clean", "manual"]
+        }
+      }
+    }
+  }
+}
