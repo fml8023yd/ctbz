@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "fa73836f253b297deb4afb65bf030025a4785ebf5053bf2273bedc10d9adbece"
+      "sha256": "b631156b92b24189a3c14bb52ef625666d1135a4ab0a588cdfa15478ccf0d838"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -16,6 +16,10 @@
     {
       "path": "assets/team-config.schema.json",
       "sha256": "696258c9eb380cd7a895e6a21283d65763e8db8278235d974dfb54c5bfa2deb6"
+    },
+    {
+      "path": "cost-rules.json",
+      "sha256": "42dcd10c96501377ae916ac8d0e55dfbea9ae9503bce9b6c09d21bae8355ef0d"
     },
     {
       "path": "dashboard/app.js",
@@ -51,7 +55,7 @@
     },
     {
       "path": "methods/contract.md",
-      "sha256": "923ed26750d5c599dafa72b8f61ad661f881e894dea0768bb2cd80c7903175d2"
+      "sha256": "1bff8e3e4954afaf4598afa02cd0ef5b37083b0948271b055da5e4e8ca1b440c"
     },
     {
       "path": "methods/i-have-adhd.md",
@@ -60,6 +64,10 @@
     {
       "path": "methods/index.json",
       "sha256": "3d76c4805bb9401e85ed1133efa6730e6ab99ec68160b6495198496e9fa9733f"
+    },
+    {
+      "path": "methods/matt/recommended.md",
+      "sha256": "8ee964a20a3e57eefc46dc43917b109e8b2028d86695bc0954791df6b77c9d28"
     },
     {
       "path": "methods/ponytail.md",
@@ -170,6 +178,14 @@
       "sha256": "e7dec3dab005118e37028fe4695922e8666c946fc2a3f36311598cdf50c366d9"
     },
     {
+      "path": "references/recommended-workflow.md",
+      "sha256": "1987f01adc1c8ecc4066a8024f4562df7e2836f44fa26a14b272506ade2ecc14"
+    },
+    {
+      "path": "references/upstream-updates.md",
+      "sha256": "650947a7d8ce1346f497e811097075292cd0ab7d7e1be72fb95d98c736e1f6fa"
+    },
+    {
       "path": "references/worktrees.md",
       "sha256": "0ef6004a6f29d532c19823beeea620db4fe15a3c0af2aa214379bbc8e0650123"
     },
@@ -184,10 +200,6 @@
     {
       "path": "scripts/dashboard",
       "sha256": "72c7ed9d976f37f1750b438b85f1841937bc4ca0e001e173ea4d4c68005758c1"
-    },
-    {
-      "path": "scripts/dashboard-example",
-      "sha256": "45752aaed7adf24a9a5670dea1341fc1820be4c6ceaa4588fa5e1f7263969c7d"
     },
     {
       "path": "scripts/discover-config",
@@ -231,7 +243,7 @@
     },
     {
       "path": "scripts/lib/初始化.mjs",
-      "sha256": "805a21335f24f315ad02b95b9bfcb09ba59c2fe51d082b3e3f1c0e01dd25ee2e"
+      "sha256": "0e5af5e31407a852e257abe8b4c2e7e96f792c3e3059f91e55fdcf37aa75664e"
     },
     {
       "path": "scripts/lib/存储位置.mjs",
@@ -244,6 +256,10 @@
     {
       "path": "scripts/methods",
       "sha256": "f2058576468c1713d5a1573c60cfd7c1850379906d92172a4ba64a4e39bc5b81"
+    },
+    {
+      "path": "scripts/pick-profile",
+      "sha256": "fb5516600e58f4913ca641845f47997c449a92612efe5bbe8f7f6efdb46ea2f7"
     },
     {
       "path": "scripts/render-agents",
@@ -262,6 +278,10 @@
       "sha256": "74f0a58b59e67bb648b2f4844e1f103d7dc22a9829e079d423f5e876ac68d288"
     },
     {
+      "path": "scripts/upstream",
+      "sha256": "7ac832da42e1c1f14a5422ede63ede6a015d62bf9cbb41aea3642d6d51ee1f43"
+    },
+    {
       "path": "scripts/validate-team",
       "sha256": "58e3c5f37cb136493b0c109f880f60d50906f1f8ee175850b612f3eb7023e4a4"
     },
@@ -270,8 +290,16 @@
       "sha256": "e9896b5381cab103c61c2c83e961aecbd3b54b649ed639d00280af1ab03c1d3c"
     },
     {
+      "path": "scripts/意见箱.js",
+      "sha256": "94fa2aca20e5fd5f31ae3db9f9ceeee072349cc12afb36f64e0fe9c5c83a5f31"
+    },
+    {
+      "path": "scripts/知识库.js",
+      "sha256": "9c1d255096c5e49b639ba9d0c92cddec5e2f40dbc724481a9d7c0e8a519ed88c"
+    },
+    {
       "path": "vendor/NOTICE.md",
-      "sha256": "82268dbb788868491cd95bc2a9e139eac45174c08938aca0831e78edf59640ba"
+      "sha256": "04d886c2551c7c12c9a6bc04254bf109cd86e41c0fa5d1ec30cdd6edb2219534"
     },
     {
       "path": "vendor/i-have-adhd/LICENSE",
@@ -284,6 +312,18 @@
     {
       "path": "vendor/i-have-adhd/source.json",
       "sha256": "fd9bc4796325b87ac2d6c4d2f0d207d75a63b842bb685c6dba9cefbf448a7054"
+    },
+    {
+      "path": "vendor/matt-pocock/LICENSE",
+      "sha256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5"
+    },
+    {
+      "path": "vendor/matt-pocock/source-3cca18b368ae95cdbdebbff572ccafa662551015.tar.gz",
+      "sha256": "47650b9424a4156417f35985c7439b2d05a8968b29cd8b2d4006dd3bee01cdcb"
+    },
+    {
+      "path": "vendor/matt-pocock/source.json",
+      "sha256": "85647fd38d3dd83e849d103132f71975d2cafbe2713f21fb38aed4789fdb76cb"
     },
     {
       "path": "vendor/ponytail/LICENSE",

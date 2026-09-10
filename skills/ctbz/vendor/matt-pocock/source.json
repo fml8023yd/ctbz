@@ -1,0 +1,12 @@
+{
+  "name": "matt-pocock",
+  "repository": "https://github.com/mattpocock/skills",
+  "commit": "3cca18b368ae95cdbdebbff572ccafa662551015",
+  "archive": "source-3cca18b368ae95cdbdebbff572ccafa662551015.tar.gz",
+  "sourceStatus": "verified-pinned-archive",
+  "license": "MIT",
+  "licenseStatus": "verified-upstream",
+  "retrievedAt": "2026-09-10",
+  "runtime": "../../methods/matt/recommended.md",
+  "notes": "Complete repository including ask-matt, source-only. CTBZ adaptations are separately maintained; no upstream hooks or installers run."
+}

@@ -4,6 +4,7 @@
 
 | 来源 | 固定依据 | 原始版权与许可 | CTBZ 适配 |
 | --- | --- | --- | --- |
+| mattpocock/skills（含 ask-matt） | 3cca18b368ae95cdbdebbff572ccafa662551015，完整仓库归档 | 2026 Matt Pocock / MIT，见 matt-pocock/LICENSE | 推荐流程使用 methods/matt/recommended.md 的 CTBZ 适配，不自动运行上游路由、安装或发布 |
 | obra/superpowers | 6.3.0 / b36e0829c6d0140e93cfef2ca599b1b07d4a7797，完整仓库归档 | 2025 Jesse Vincent / MIT，见 superpowers/LICENSE | 保留全部 14 项方法；调度、提问、模型选择、记录、评审与清理按 CTBZ 协议调整 |
 | DietrichGebert/ponytail | 1.2.1 导入快照与 974d940a1c5344210874150b98ff0d2c861fab6a 的技能字节一致 | 2026 DietrichGebert / MIT，见 ponytail/LICENSE | 保留按需简化与根因检查，输出服从 CTBZ 和用户需求 |
 | ayghri/i-have-adhd | 1.2.1 导入快照正文与 58494af57962b2d7a996b4d419474380a299af5e 一致，触发 frontmatter 有 CTBZ 改动 | 2026 Ayoub Ghriss / MIT，见 i-have-adhd/LICENSE | 在 CTBZ 汇报内按需应用，不替用户作健康判断，不跨任务强制持久化 |

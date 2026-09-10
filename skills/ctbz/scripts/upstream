@@ -1,0 +1,46 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import {fileURLToPath} from 'node:url';
+import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+
+const root = fileURLToPath(new URL('../', import.meta.url));
+const sources = {superpowers: 'obra/superpowers', 'matt-pocock': 'mattpocock/skills'};
+const [command, name, ref = 'HEAD'] = process.argv.slice(2);
+const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+try {
+  if (!['check', 'stage'].includes(command) || !Object.hasOwn(sources, name)) throw Error('Usage: node scripts/upstream check|stage superpowers|matt-pocock [ref]');
+  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(ref) || ref.includes('..')) throw Error('Invalid ref');
+  const repository = `https://github.com/${sources[name]}`;
+  let commit = ref;
+  if (!/^[a-f0-9]{40}$/.test(ref)) {
+    const output = execFileSync('git', ['ls-remote', repository, ref, `refs/heads/${ref}`, `refs/tags/${ref}`, `refs/tags/${ref}^{}`], {encoding: 'utf8', timeout: 60000});
+    const rows = output.trim().split('\n').filter(Boolean).map(row => row.split(/\s+/));
+    const preferred = rows.filter(row => row[1].endsWith('^{}'));
+    const commits = [...new Set((preferred.length ? preferred : rows).map(row => row[0]))];
+    if (commits.length !== 1 || !/^[a-f0-9]{40}$/.test(commits[0])) throw Error('Ref missing or ambiguous; use a full commit');
+    commit = commits[0];
+  }
+  const installed = JSON.parse(fs.readFileSync(path.join(root, 'vendor', name, 'source.json'), 'utf8'));
+  if (command === 'check') {
+    console.log(JSON.stringify({name, repository, current: installed.commit, candidate: commit, changed: installed.commit !== commit}, null, 2));
+  } else {
+    const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-upstream-'));
+    const archive = path.join(temporary, `source-${commit}.tar.gz`);
+    execFileSync('curl', ['-fL', '--max-time', '120', `https://codeload.github.com/${sources[name]}/tar.gz/${commit}`, '-o', archive], {stdio: 'pipe', timeout: 135000});
+    const entries = execFileSync('tar', ['-tzf', archive], {encoding: 'utf8', maxBuffer: 16 * 1024 * 1024});
+    const prefix = `${sources[name].split('/')[1]}-${commit}/`;
+    if (entries.trim().split('\n').some(entry => !entry.startsWith(prefix) || entry.split('/').includes('..'))) throw Error('Unexpected archive paths');
+    const license = execFileSync('tar', ['-xOf', archive, `${prefix}LICENSE`], {maxBuffer: 1024 * 1024});
+    const licensePath = path.join(temporary, 'LICENSE');
+    fs.writeFileSync(licensePath, license, {flag: 'wx'});
+    const metadata = {name, repository, commit, archive: path.basename(archive), sha256: hash(fs.readFileSync(archive)), licenseSha256: hash(license), sourceStatus: 'staged-unreviewed', retrievedAt: new Date().toISOString()};
+    fs.writeFileSync(path.join(temporary, 'source.json'), JSON.stringify(metadata, null, 2) + '\n', {flag: 'wx'});
+    console.log(JSON.stringify({staged: temporary, ...metadata, next: 'Review source/license and CTBZ adaptations before importing. Runtime and dependency lock are unchanged.'}, null, 2));
+  }
+} catch (error) {
+  console.error(error.message);
+  process.exitCode = 1;
+}

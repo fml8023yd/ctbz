@@ -30,7 +30,8 @@ export function initialize(registry,catalog,selected) {
       const modelRef=candidateModelRef(model);
       const thoughtLevel=highest(model),modelShort='m'+createHash('sha256').update(modelRef).digest('hex').slice(0,12),reasoningShort=thoughtLevel?'highest':'std';
       const entries = roleMethods(role.id, methods);
-      const instructions = role.instructions+'\n不得派生Agent。遵守任务写集合与验收要求。\nRead 共享契约: '+methods.installRoot+'/methods/contract.md\n方法版本: '+methods.fingerprint+'\n仅按本次任务需要 Read 下列本地方法，父会话负责脚本、派发和落盘。材料缺失时向父会话报告，不查全局同名技能。\n'+entries.map(m=>`${m.id}: ${m.entry}`).join('\n');
+      const execution = role.tools.includes('Write') ? '可在授权写集合内运行任务脚本和生产文档；未审定稿不得冒充权威版本。' : '仅返回草稿或证据，不运行脚本、不写文件。';
+      const instructions = role.instructions+'\n不得派生Agent。遵守任务写集合与验收要求。\nRead 共享契约: '+methods.installRoot+'/methods/contract.md\n方法版本: '+methods.fingerprint+'\n仅按本次任务需要 Read 下列本地方法。派发、项目状态与最终审定由父会话负责。'+execution+'材料缺失时向父会话报告，不查全局同名技能。\n'+entries.map(m=>`${m.id}: ${m.entry}`).join('\n');
       return {profile:`team-ctbz-${role.id}-${modelShort}-${reasoningShort}`,modelRef,modelShort,reasoningShort,...(thoughtLevel?{thoughtLevel}:{}),description:role.name,tools:role.tools,instructions};
     });
     team.roles[role.id]={variants,route:variants.map(v=>v.profile)};
