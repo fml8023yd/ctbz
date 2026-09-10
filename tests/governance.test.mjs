@@ -52,6 +52,9 @@ test('prepare carries activated sessions across generations with unchanged profi
   assert.equal(prepared.status, 0, prepared.stderr);
   assert.equal(JSON.parse(prepared.stdout).carriedSessions, 1);
   assert.equal(JSON.parse(prepared.stdout).phase, 'initialized');
+  assert.ok(fs.existsSync(path.join(home, '已初始化.txt')), 'carry must rewrite the initialization marker');
+  const statusAfterCarry = cli(['status', ...base]);
+  assert.equal(JSON.parse(statusAfterCarry.stdout).initialized, true);
   const selected = cli(['select', ...base, '--session', 'work-session', '--loaded', loaded, '--role', 'tester', '--parent-model', 'custom:test:economy']);
   assert.equal(selected.status, 0, selected.stderr);
   assert.ok(JSON.parse(selected.stdout).profile.startsWith('team-ctbz-tester-'));
