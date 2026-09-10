@@ -150,7 +150,7 @@ select返回team=ctbz与stateDir，父会话使用同一team-state init-run/upda
 
 派发前记录任务契约、目标、输入、write-set、验收和必要背景；并行代码写任务使用worktree，各自隔离。未初始化父会话任务仅记录本地任务文档，不伪造旧team-state记录。
 
-失败分类按references/failure-policy.md：断流预算内用SendMessage恢复原Agent，再排除失败profile重选；权限拒绝与代码错误不靠切模型绕过。重试、总并发、写并发仍需父会话按team配置核对，本版不宣称宿主强制调度隔离。
+失败分类按references/failure-policy.md：断流预算内用SendMessage恢复原Agent，再排除失败profile重选；权限拒绝与代码错误不靠切模型绕过。重试、总并发、写并发仍需父会话按team配置核对，本版不宣称宿主强制调度隔离。维护批次重prepare在profile名称集合不变时自动携带已激活会话；旧generation悬挂的run用 `adopt-run --state-dir <旧代state> --adopter-state-dir <当前state>` 跨代接管（旧manifest冻结为cancelled，续跑manifest重绑当前代并留溯源），终态run不可再接管。
 
 完成前检查测试、评审与集成证据，使用team-state完成记录；worktree按references/worktrees.md清理，未确认集成或dirty时保留。team-state 接受任务变更后投影到项目看板；若返回 dashboard.synced=false，原任务记录已保存，但看板未更新，须报告并在修复记录问题后重试同步，不能把旧看板当最新状态。
 

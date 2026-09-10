@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "b631156b92b24189a3c14bb52ef625666d1135a4ab0a588cdfa15478ccf0d838"
+      "sha256": "f1ef7d47eb1e6409b71bc0972ccf20f6cc3cc0ac084286066fb21b1e388d5a93"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -191,11 +191,11 @@
     },
     {
       "path": "references/初始化.md",
-      "sha256": "6dd6b26074fcfff31dbbcd824fcaa15b18a3583df90e38c1db5a3a61589739f2"
+      "sha256": "1235b62b51e55ef0c8eb847ce2ca2d7b63ca704490dd21cfe147dbdd016bd297"
     },
     {
       "path": "references/项目看板.md",
-      "sha256": "0855cc7bb9bdaa91bd466a51369bc4640c3b77e8df259f0fd7a7bc7831faae50"
+      "sha256": "a893758de9280e672ccff19f6cc86ea7751477f95095ea3c91da34f10de757ef"
     },
     {
       "path": "scripts/dashboard",
@@ -211,7 +211,7 @@
     },
     {
       "path": "scripts/initialize",
-      "sha256": "87149a7d9018dc7f5df1ce002cd5293d41f8f5dcdf75bec216c3a3239ac7b17d"
+      "sha256": "cdbf4c18ddef8f9558526a18ee786853fe12a14eb7839829dc833cc50509de67"
     },
     {
       "path": "scripts/lib/dashboard-artifacts.mjs",
@@ -219,7 +219,7 @@
     },
     {
       "path": "scripts/lib/dashboard-store.mjs",
-      "sha256": "47fa5f61da65f06c9ea01f1f955cf0bbf57b5ae12f838c606791e85d7f6aec50"
+      "sha256": "89a3b633e8e7f6b9143ad0c6aa5d8e1f89d8117912b61fb1b4bb2f369159f776"
     },
     {
       "path": "scripts/lib/methods.mjs",
@@ -275,7 +275,7 @@
     },
     {
       "path": "scripts/team-state",
-      "sha256": "74f0a58b59e67bb648b2f4844e1f103d7dc22a9829e079d423f5e876ac68d288"
+      "sha256": "9bed767d85266c035278e62b3e30985524ce3d05cf0c63b145dedcab6512c66b"
     },
     {
       "path": "scripts/upstream",

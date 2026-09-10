@@ -76,13 +76,31 @@ try{
       const teamPath=path.join(generation,'team.json');atomic(teamPath,team);
       for(const p of bundle.profiles){const target=path.join(agents,p.name+'.md');if(fs.existsSync(target))atomic(path.join(generation,'backup',p.name+'.md'),fs.readFileSync(target,'utf8'));replace(target,p.markdown);}
       for(const p of retired)retire(p.target,path.join(generation,'backup','retired',p.name+'.md'));
-      const setupFile=path.join(generation,'setup.json');atomic(setupFile,{teamConfigPath:teamPath,configFingerprint:team.catalogFingerprint,profileFingerprint:team.profileFingerprint,catalogFingerprint:team.catalogFingerprint});
-      const stateDir=path.join(generation,'state');
-      run('team-state',['setup','--state-dir',stateDir,'--team','ctbz','--config-version','1','--session',a['--session'],'--setup-file',setupFile]);
-      if(!fs.existsSync(rulesPath))replace(rulesPath,defaultRules());
-      if(fs.existsSync(safe(marker,true)))retire(marker,path.join(generation,'旧初始化标记.txt'));
-      replace(statePath,{version:registry.version,phase:'awaiting-new-session',bundle,teamPath,stateDir,agents,generatedInSession:a['--session']});
-      result={phase:'awaiting-new-session',profiles:bundle.profiles.length,retired:retired.length,home};
+        const setupFile=path.join(generation,'setup.json');atomic(setupFile,{teamConfigPath:teamPath,configFingerprint:team.catalogFingerprint,profileFingerprint:team.profileFingerprint,catalogFingerprint:team.catalogFingerprint});
+        const stateDir=path.join(generation,'state');
+        run('team-state',['setup','--state-dir',stateDir,'--team','ctbz','--config-version','1','--session',a['--session'],'--setup-file',setupFile]);
+        // 同名 profile 集合未变时，把已激活会话携带进新 generation（每个会话的 loaded
+        // 证明覆盖的是名称集合，select 每次调用仍按当前 bundle 复验内容），避免维护
+        // 批次把正在使用的会话踢出激活列表。
+        const sameNames=old&&JSON.stringify((old.bundle.profiles??[]).map(p=>p.name).sort())===JSON.stringify(bundle.profiles.map(p=>p.name).sort());
+        const carried=old&&old.phase==='initialized'&&sameNames&&old.activeSessions&&Object.keys(old.activeSessions).length?old.activeSessions:null;
+        if(carried){
+          const newTsPath=path.join(stateDir,'ctbz','team-state.json');
+          const newTs=read(newTsPath);
+          const oldTsPath=old.stateDir&&path.join(old.stateDir,'ctbz','team-state.json');
+          const oldTs=oldTsPath&&fs.existsSync(safe(oldTsPath,true))?read(oldTsPath):null;
+          newTs.activeSessions=oldTs?.activeSessions??Object.fromEntries(Object.entries(carried).map(([k,v])=>[k,{activatedAt:typeof v==='string'?v:v?.activatedAt}]));
+          newTs.status='active';
+          newTs.activeVersion=newTs.activeVersion??newTs.configVersion??1;
+          newTs.activatedSessionId=old.activatedSessionId??Object.keys(carried).at(-1);
+          newTs.activatedAt=old.activatedAt??new Date().toISOString();
+          newTs.attestationSource='carried-from:'+old.stateDir;
+          atomic(newTsPath,newTs);
+        }
+        if(!fs.existsSync(rulesPath))replace(rulesPath,defaultRules());
+        if(fs.existsSync(safe(marker,true)))retire(marker,path.join(generation,'旧初始化标记.txt'));
+        replace(statePath,{version:registry.version,phase:carried?'initialized':'awaiting-new-session',bundle,teamPath,stateDir,agents,generatedInSession:a['--session'],...(carried?{activeSessions:carried,activatedSession:old.activatedSession,activatedAt:old.activatedAt}:{})});
+        result={phase:carried?'initialized':'awaiting-new-session',profiles:bundle.profiles.length,retired:retired.length,carriedSessions:carried?Object.keys(carried).length:0,home};
       }
       if(a['--storage']&&!a['--home'])replace(storageLocation(),{schemaVersion:1,root:home});
       console.log(JSON.stringify(result));

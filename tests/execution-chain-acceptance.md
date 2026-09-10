@@ -31,6 +31,16 @@
 
 证据：/Volumes/数据盘/网站/agent军团/.ctbz-acceptance/（checkpoint、任务 JSON、excluded 列表）；run manifest：~/Documents/.ctbz/generations/d22eaa51-2602-463e-924c-73270cc7e269/state/ctbz/runs/acceptance-dispatch-20260910.json；项目看板：.agents/skills/ctbz/.ctbz-record/。
 
+## 维护批次 maintenance-governance-20260910（16:07，generation ebf93b62）
+
+用户批准"修吧"后实施三项治理修复（真实 CLI 隔离夹具验证 + 12/12 测试绿）：
+
+1. **prepare 携带激活**：profile 名称集合不变时 activeSessions 自动进新代（team-state 同步 `carried-from` 标记），维护批次不再踢出在用会话；名称集合变化时按设计不携带。夹具实测：换代后 select 免重激活通过。
+2. **adopt-run 跨代接管**：`--adopter-state-dir` 分离权限代与归属代；旧 manifest 冻结 cancelled 注明去向、新 manifest 重绑当前代并留 adoptions 溯源；终态拒绝再接管（实测）。819bfc01 下午撞到的"跨代 sessionMismatch + work.create 不存在"两个缺口就此关闭。
+3. **dashboard work.create**：建组入口 + 重复拒绝（WORK_EXISTS）+ 未知 action 报错附合法清单；项目看板.md 补"先 create 后 claim"顺序。
+
+当日实测补充：用户已清理失效 deepseek-V4.1-flash、新增 deepseek-flash（m76e85086f8d8）并同步调用规则；15:39 f9f0d0d5 代换装新模型集（旧 m1c697a56125f×5 退役），本批次叠加。**因模型集合变化，本批不携带激活，机器处于 awaiting-new-session——需新开会话说"草台班子初始化"一步激活（快路径）**；819bfc01 全天 13 次真实派发（12 完成 1 停止）验证了硬条款与团队链路，其历史工作完好，但该会话在新激活完成前不能再 select。
+
 ## 维护批次 maintenance-dispatch-clause-20260910（同日 10:29–10:35）
 
 用户批准后执行：①SKILL.md 写入团队派发硬约束（所有权节）、收窄「小修复直接执行」边界、新增初始化快路径与 drift 双因甄别；②重生成 dependencies.lock.json（88 文件，新指纹 a4b5d285…），methods check 通过、9/9 测试绿；③同 5 模型 prepare（generation 58d1481a）+ 本会话 activate 一次通过零重试；④全局 ~/.agents/skills/ctbz 换软链指向仓库安装根（旧副本备份 ctbz.backup-20260910-103003），经全局路径回归验证 installRoot 归一、drift=null——副本劫持类 drift 结构性根治；⑤新 generation 真实派发冒烟（explorer 只读核实硬条款在 SKILL.md:126 生效，零写入）。
