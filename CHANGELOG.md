@@ -81,3 +81,14 @@
 
 ### Bug 修复
 • 修复 settings 嵌套 YAML 解析与 env 继承结构（实测 serverchan_key_env 双保险生效）。
+
+## [1.8.1] - 2026-09-10
+
+发布流程根治 + 倒计时接线（问题报告：另一个 Agent 排查 ctbz1.8.0 初始化依赖检查失败）。
+
+### 新增功能
+• 发布前置钩子 scripts/发布检查.js：打 tag 前强制 lock 全量重算 + verifyBundle 自测 + initialize 冒烟，杜绝幽灵哈希再发布。
+• 倒计时接线：settings"计划超时自动执行">0 即倒计时默认档——计划给出后自动启动限时授权（到点 ServerChan 提醒、回滚锚点先行），显式口令可覆盖，档位 0 恢复显式触发。
+
+### Bug 修复
+• 修复 dependencies.lock.json 幽灵哈希（fa73836…四代未重算）+ 虚挂 dashboard-example 条目——该缺陷导致 v1.6.0~v1.8.0 全新安装必在 verifyBundle 拦截。lock 改为按实际文件集合全量重算（84 文件）。
