@@ -199,7 +199,7 @@
     },
     {
       "path": "scripts/initialize",
-      "sha256": "87149a7d9018dc7f5df1ce002cd5293d41f8f5dcdf75bec216c3a3239ac7b17d"
+      "sha256": "3280310708233f76e74a0752fd5f073b764a4a6e1955dd2e3ee54f7d54b08489"
     },
     {
       "path": "scripts/lib/dashboard-artifacts.mjs",
@@ -239,7 +239,7 @@
     },
     {
       "path": "scripts/lib/本机配置.mjs",
-      "sha256": "07185e412d799e0c4f46642195f1ec68b2ed06daf3ad364bf411b19415aa1459"
+      "sha256": "3894b106f277a8cbaaa440a3329b6b2b416eddf7683440c62ded31f14c25afc9"
     },
     {
       "path": "scripts/methods",
