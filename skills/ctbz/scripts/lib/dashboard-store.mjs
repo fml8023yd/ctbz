@@ -598,12 +598,14 @@ function applyMutation(board, action, payload, actor, options = {}) {
       summary = `Updated project: ${board.project.title}`;
       break;
     }
+    case 'work.create':
     case 'work.upsert': {
       fields(payload, ['node', 'work'], 'payload');
       fields(payload.node, ['id', 'title', 'description'], 'node');
       fields(payload.work, ['mode', 'goal', 'budget', 'phase', 'status'], 'work');
       id(payload.node.id);
       const previous = board.nodes.find(node => node.id === payload.node.id);
+      if (action === 'work.create' && previous) fail('Independent work already exists; use work.upsert to update it', 409, 'WORK_EXISTS');
       if (previous && !previous.work) fail('An existing ordinary node cannot become an independent scope', 409, 'INVALID_SCOPE');
       const next = previous ? { ...previous, ...payload.node, updatedAt: at, work: structuredClone(previous.work) } : newNode({ ...payload.node, kind: 'group', work: { mode: 'normal', goal: '', phase: 'discussion', status: 'active', budget: { maxRounds: null, minutes: null }, round: 0, ...scopeDefaults() } });
       scopeId = next.id;
@@ -900,7 +902,7 @@ function applyMutation(board, action, payload, actor, options = {}) {
       getScope(board, scopeId).lastHeartbeat = at;
       summary = 'Agent heartbeat';
       break;
-    default: fail('Unknown dashboard action', 400, 'UNKNOWN_ACTION');
+    default: fail(`Unknown dashboard action '${action}'; valid actions: project.update, work.create, work.upsert, scope.claim, node.upsert, question.upsert, question.resolve, question.void, knowledge.upsert, knowledge.confirm, knowledge.reject, round.start, round.finish, note.add, control.request, control.withdraw, control.ack, checkpoint, heartbeat`, 400, 'UNKNOWN_ACTION');
   }
   for (const key of planScopes) getScope(board, key).planRevision++;
   recordEvent(board, action, actor, { ...payload, scopeId, ...(planScopes.size ? { planRevision: getScope(board, scopeId).planRevision } : {}) }, summary);

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { lstat, realpath, readdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { lstat, realpath, readdir, mkdir } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { teamConfigFingerprint } from "./lib/team-config.mjs";
 import { initBoard, mutateBoard, readBoard, syncTask, validateTaskBinding, getScope, scopeForNode, assertScopeOwner, assertCanDispatch, boardView } from "./lib/dashboard-store.mjs";
@@ -79,7 +79,7 @@ const commandOptions = {
     "--status", ...fingerprintOptions, "--workspace",
   ]),
   "sync-run": new Set(["--state-dir", "--team", "--run-id", "--session", ...fingerprintOptions, "--workspace"]),
-  "adopt-run": new Set(["--state-dir", "--team", "--run-id", "--session", "--reason", ...fingerprintOptions, "--workspace"]),
+  "adopt-run": new Set(["--state-dir", "--team", "--run-id", "--session", "--reason", "--adopter-state-dir", ...fingerprintOptions, "--workspace"]),
   "checkpoint": new Set(["--state-dir", "--team", "--run-id", "--session", "--file", ...fingerprintOptions, "--workspace"]),
   "revise-task": new Set(["--state-dir", "--team", "--run-id", "--session", "--request-id", "--reason", ...fingerprintOptions, "--workspace"]),
 };
@@ -847,10 +847,47 @@ async function syncRun(options) {
 
 async function adoptRun(options) {
   const reason = requireNonEmptyString(options['--reason'], '--reason');
-  const state = await readTeamState(options), permission = await canRun(options, state);
+  const runState = await readTeamState(options);
+  const adopterDir = options['--adopter-state-dir'] ? resolve(requireAbsolutePath(options['--adopter-state-dir'], '--adopter-state-dir')) : null;
+  if (adopterDir && adopterDir === resolve(options['--state-dir'])) fail('--adopter-state-dir must differ from --state-dir');
+  // Cross-generation adoption: permission comes from the adopter's current
+  // generation (where the session is activated); --state-dir still points at
+  // the generation that owns the run manifest and validates its provenance.
+  const state = adopterDir ? await readTeamState({...options, '--state-dir': adopterDir}) : runState;
+  const permission = await canRun(options, state);
   if (!permission.canRun) fail(`cannot adopt run: ${permission.reason}`);
   const runId = requireSafeSegment(options['--run-id'], '--run-id'), file = runManifestPath(options, runId);
   const manifest = await readJson(file);
+  if (["CANCELLED", "FAILED_EXHAUSTED", "completed", "cancelled"].includes(manifest.status)) fail('run is terminal and can no longer be adopted');
+  if (adopterDir) {
+    const ownerMismatch = bindingMismatch(manifest, requestedBindings(options, runState));
+    if (ownerMismatch || manifest.teamConfigPath !== runState.teamConfigPath) fail(`cannot adopt incompatible run: ${ownerMismatch ?? 'generationMismatch'}`);
+    const original = JSON.parse(JSON.stringify(manifest));
+    const claimed = await mutateBoard(manifest.repository, 'scope.claim', {scopeId: manifest.scopeId ?? null, sessionId: options['--session'], takeover: true, reason}, {actor: 'agent', sessionId: options['--session']});
+    const at = new Date().toISOString();
+    manifest.originalSessionId ??= manifest.sessionId;
+    manifest.adoptions = [...(manifest.adoptions ?? []), {from: manifest.sessionId, to: options['--session'], reason, at, fromStateDir: resolve(options['--state-dir']), toStateDir: adopterDir}];
+    manifest.sessionId = options['--session'];
+    manifest.scopeEpoch = getScope(claimed, manifest.scopeId ?? null).owner.epoch;
+    manifest.configVersion = state.configVersion;
+    manifest.configFingerprint = state.configFingerprint;
+    manifest.profileFingerprint = state.profileFingerprint;
+    manifest.catalogFingerprint = state.catalogFingerprint;
+    manifest.teamConfigFingerprint = state.teamConfigFingerprint;
+    manifest.teamConfigPath = state.teamConfigPath;
+    manifest.routes = state.routes;
+    manifest.lastCheckpointAt = null;
+    manifest.reconciliationRequired = true;
+    manifest.updatedAt = at;
+    const targetFile = runManifestPath({...options, '--state-dir': adopterDir}, runId);
+    await requireNonSymlink(targetFile, 'run manifest', {allowMissing: true});
+    await mkdir(dirname(targetFile), {recursive: true});
+    await requirePathWithinRoot(dirname(targetFile), adopterDir, 'run manifests directory', '--adopter-state-dir');
+    try { await lstat(targetFile); fail('adopter generation already has a run with this id'); } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    await writeJsonAtomic(targetFile, manifest);
+    await writeJsonAtomic(file, {...original, status: 'cancelled', finishedAt: at, updatedAt: at, summary: `superseded: adopted into ${adopterDir} by ${options['--session']}; continuing manifest written there`});
+    return {adopted: true, crossGeneration: true, runId, sessionId: manifest.sessionId, manifestPath: targetFile, supersededManifestPath: file, agentRecovery: false, dashboard: await projectRun(manifest)};
+  }
   const mismatch = bindingMismatch(manifest, requestedBindings(options, state));
   if (mismatch || manifest.teamConfigPath !== state.teamConfigPath) fail(`cannot adopt incompatible configuration: ${mismatch ?? 'generationMismatch'}`);
   const claimed = await mutateBoard(manifest.repository, 'scope.claim', {scopeId: manifest.scopeId ?? null, sessionId: options['--session'], takeover: true, reason}, {actor: 'agent', sessionId: options['--session']});

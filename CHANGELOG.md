@@ -1,5 +1,16 @@
 # Changelog
 
+## [未发布] - 2026-09-10
+
+### 变更
+- **团队派发硬约束（所有权）**：快捷初始化并激活后，执行类工作（写文件、改代码、跑验证命令，含小修复）默认派发 ctbz 团队 profile；general-purpose、Explore 等宿主通用 agent 不得替代或混用。主会话直做仅限纯讨论问答、用户明确免派、以及未激活/select 拒绝时的阻塞报告（不得降级用通用 agent）。
+- **收窄主会话直做边界**：「普通已授权小修复直接执行」改为「已激活会话中的执行类工作（含小修复）按所有权约束派发团队」。
+- **初始化快路径**：已 prepare 的机器新会话只需写 loaded JSON + activate 一步激活，不得重复 prepare；status 报 drift 时先核对 installRoot 区分副本劫持与宿主刚重写配置的瞬时漂移。
+- **prepare 携带已激活会话**：新旧 bundle 的 profile 名称集合一致时，自动把 activeSessions 携带进新 generation（状态文件与 team-state 同步标记 `carried-from:<旧代state>`），维护批次不再踢出在用会话；名称集合变化时不携带，按原流程要求新会话激活。
+- **adopt-run 跨代接管**：新增 `--adopter-state-dir`。权限按当前代会话校验，`--state-dir` 指向旧代并核验 manifest 溯源；接管后旧 manifest 冻结为 cancelled 并注明去向，续跑 manifest 重绑当前代（指纹/团队配置/路由）并记录 adoptions 溯源；终态 run 不可再接管。
+- **dashboard work.create**：独立 work 组登记新增 `work.create`（已存在则拒绝 WORK_EXISTS，更新用 work.upsert）；未知 action 的报错列出全部合法 action 清单。项目看板.md 补登记顺序：先 work.create 后 scope.claim。
+- 新增 tests/governance.test.mjs（携带激活、跨代接管、work.create 三组回归，隔离夹具真实 CLI）。
+
 ## [1.6.0] - 2026-09-09
 
 > ⚠ 已知缺陷补记（2026-09-10）：本版本随附的 dependencies.lock.json 含幽灵哈希（SKILL.md 条目四代未重算、虚挂 dashboard-example），全新安装会在 verifyBundle 拦截——已在 v1.8.1 根治（发布前置钩子 + lock 全量重算）。
