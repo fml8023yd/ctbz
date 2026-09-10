@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "f1ef7d47eb1e6409b71bc0972ccf20f6cc3cc0ac084286066fb21b1e388d5a93"
+      "sha256": "d006b05329e2a46849eb9f8c7a3a96fe9102e1599152f3505b51704635b30f90"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -270,6 +270,10 @@
       "sha256": "89d0bb16c5a959933a6bdceafc32b0920f7de86e78b875ccd27244275056644b"
     },
     {
+      "path": "scripts/settings.js",
+      "sha256": "7e651c821add96c10fb28ba3667d260369571f3d64d2db57f5649dee30efe2c4"
+    },
+    {
       "path": "scripts/status",
       "sha256": "159b9d84d4390911d025ffded5dd797008c2b824d41145e38820cdd0dfe65317"
     },
@@ -290,12 +294,28 @@
       "sha256": "e9896b5381cab103c61c2c83e961aecbd3b54b649ed639d00280af1ab03c1d3c"
     },
     {
+      "path": "scripts/发布检查.js",
+      "sha256": "c976b03aa298b50ea693206f6a30bf30a441ef23b5319daa59c7d4768c4b1ac1"
+    },
+    {
+      "path": "scripts/发版.sh",
+      "sha256": "cd85581e2975a8c4d40eb891d03597e7b9a204735318c2f9bcb7f3f656dbd35a"
+    },
+    {
       "path": "scripts/意见箱.js",
       "sha256": "94fa2aca20e5fd5f31ae3db9f9ceeee072349cc12afb36f64e0fe9c5c83a5f31"
     },
     {
+      "path": "scripts/模型健康.js",
+      "sha256": "13e8d4b4a639c5bec90ac229e14be0aebb6ff5b70b4a28b0d0e796b756c41908"
+    },
+    {
       "path": "scripts/知识库.js",
       "sha256": "9c1d255096c5e49b639ba9d0c92cddec5e2f40dbc724481a9d7c0e8a519ed88c"
+    },
+    {
+      "path": "scripts/部署.js",
+      "sha256": "6ffb266112ff4813c097a2500cc1cd92229f1965d3307e4879e061195b167ea8"
     },
     {
       "path": "vendor/NOTICE.md",
