@@ -98,3 +98,16 @@
 
 ### Bug 修复
 • 修复 dependencies.lock.json 幽灵哈希（fa73836…四代未重算）+ 虚挂 dashboard-example 条目——该缺陷导致 v1.6.0~v1.8.0 全新安装必在 verifyBundle 拦截。lock 改为按实际文件集合全量重算（84 文件）。
+
+## [1.8.2] - 2026-09-10
+
+草台班子安家：开发工作区正式迁入 Betty 树，开发/运行分离。
+
+### 新增功能
+• 仓库安家 /Users/maolong/Betty/草台班子/源码/（git 历史连续并入，无分叉）；确立"唯一源"原则：源码目录=唯一改动点，安装目录只被部署写入。
+• scripts/部署.js：源→安装目录 rsync 镜像 + 发布检查一条命令；部署前拦截未提交改动。
+• SKILL.md 新增"开发工作区"章节（1.8.2 起生效）。
+
+### Bug 修复
+• 修复部署脚本 ROOT 层级计算（脚本位于 skills/ctbz/scripts 需上四级）。
+• 清理迁移期散落的根级 SKILL.md/scripts 残留。
