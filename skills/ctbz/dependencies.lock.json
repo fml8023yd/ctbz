@@ -190,10 +190,6 @@
       "sha256": "72c7ed9d976f37f1750b438b85f1841937bc4ca0e001e173ea4d4c68005758c1"
     },
     {
-      "path": "scripts/dashboard-example",
-      "sha256": "45752aaed7adf24a9a5670dea1341fc1820be4c6ceaa4588fa5e1f7263969c7d"
-    },
-    {
       "path": "scripts/discover-config",
       "sha256": "db915534a6e177eb3d4176f787333e45127d8f54615e272a7224cff50df3a768"
     },
