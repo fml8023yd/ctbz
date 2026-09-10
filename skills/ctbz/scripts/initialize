@@ -79,7 +79,7 @@ try{
       const setupFile=path.join(generation,'setup.json');atomic(setupFile,{teamConfigPath:teamPath,configFingerprint:team.catalogFingerprint,profileFingerprint:team.profileFingerprint,catalogFingerprint:team.catalogFingerprint});
       const stateDir=path.join(generation,'state');
       run('team-state',['setup','--state-dir',stateDir,'--team','ctbz','--config-version','1','--session',a['--session'],'--setup-file',setupFile]);
-      if(!fs.existsSync(rulesPath))replace(rulesPath,defaultRules());
+      if(!fs.existsSync(rulesPath))replace(rulesPath,defaultRules(catalog.candidates));
       if(fs.existsSync(safe(marker,true)))retire(marker,path.join(generation,'旧初始化标记.txt'));
       replace(statePath,{version:registry.version,phase:'awaiting-new-session',bundle,teamPath,stateDir,agents,generatedInSession:a['--session']});
       result={phase:'awaiting-new-session',profiles:bundle.profiles.length,retired:retired.length,home};
