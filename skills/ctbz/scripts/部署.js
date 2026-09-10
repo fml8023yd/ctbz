@@ -10,7 +10,7 @@ import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ROOT = dirname(dirname(dirname(fileURLToPath(import.meta.url)))); // 仓库根（scripts/ctbz 上三级）
+const ROOT = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))); // 仓库根（scripts/ctbz 上四级）
 const SRC = join(ROOT, "skills", "ctbz");
 const DST = join(homedir(), ".agents", "skills", "ctbz");
 const CHECK_ONLY = process.argv.includes("--check-only");
