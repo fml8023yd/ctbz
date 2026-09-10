@@ -2,6 +2,8 @@
 
 ## [1.6.0] - 2026-09-09
 
+> ⚠ 已知缺陷补记（2026-09-10）：本版本随附的 dependencies.lock.json 含幽灵哈希（SKILL.md 条目四代未重算、虚挂 dashboard-example），全新安装会在 verifyBundle 拦截——已在 v1.8.1 根治（发布前置钩子 + lock 全量重算）。
+
 首个以 git 为版本权威的正式发布（tag v1.6.0）。
 
 ### 新增功能
@@ -32,6 +34,8 @@
 
 ## [1.7.0] - 2026-09-09
 
+> ⚠ 已知缺陷补记（2026-09-10）：本版本随附的 dependencies.lock.json 含幽灵哈希（SKILL.md 条目四代未重算、虚挂 dashboard-example），全新安装会在 verifyBundle 拦截——已在 v1.8.1 根治（发布前置钩子 + lock 全量重算）。
+
 知识库体系正式版 + 治理闭环（6 路反审 14 阻塞全裁）。
 
 ### 新增功能
@@ -54,6 +58,8 @@
 • 修复意见箱 js/py 引用漂移与技术栈分裂。
 
 ## [1.7.1] - 2026-09-09
+
+> ⚠ 已知缺陷补记（2026-09-10）：本版本随附的 dependencies.lock.json 含幽灵哈希（SKILL.md 条目四代未重算、虚挂 dashboard-example），全新安装会在 verifyBundle 拦截——已在 v1.8.1 根治（发布前置钩子 + lock 全量重算）。
 
 人设 description + 调度健壮性（采纳另一个 Agent 的实战复盘）。
 
