@@ -14,7 +14,7 @@ const scripts=path.dirname(fileURLToPath(import.meta.url)),root=path.resolve(scr
 function run(name,args){const r=spawnSync(process.execPath,[path.join(scripts,name),...args],{encoding:'utf8'});if(r.status!==0)throw Error(`${name}: ${r.stderr||r.stdout}`);return JSON.parse(r.stdout);}
 try{
   const [cmd,...argv]=process.argv.slice(2),a={};
-  const allowed=['--home','--storage','--agents','--config','--catalog','--selection','--session','--loaded','--role','--parent-model','--excluded','--now'];
+  const allowed=['--home','--storage','--agents','--config','--catalog','--selection','--allow-all-candidates','--session','--loaded','--role','--parent-model','--excluded','--now'];
   for(let i=0;i<argv.length;i+=2){if(!allowed.includes(argv[i])||!argv[i+1]||Object.hasOwn(a,argv[i]))throw Error('参数无效');a[argv[i]]=argv[i+1];}
   for(const flag of ['--config','--catalog','--selection','--loaded','--excluded'])if(a[flag])safe(a[flag],false,flag);
   const home=a['--home']?safe(a['--home'],true,'--home'):storageRoot(a['--storage'],homedir());
@@ -31,7 +31,13 @@ try{
     if(!a['--session'])throw Error('缺少--session');
     ensureStorage(agents);
     const catalog=a['--catalog']?read(a['--catalog'],'--catalog'):run('discover-config',['--config',a['--config']??path.join(homedir(),'.zcode/v2/config.json'),'--agents',agents]);
-    const selected=a['--selection']?read(a['--selection'],'--selection'):catalog.candidates.map(x=>x.key);
+    let selected;
+    if(a['--selection'])selected=read(a['--selection'],'--selection');
+    else{
+      const count=catalog.candidates.length;
+      if(count>12&&!a['--allow-all-candidates'])throw Error(`未指定 --selection 而本机有 ${count} 个候选模型(将生成 ${count}×每角色数 个 profile,并清空已激活会话)。请提供 --selection JSON(推荐从 初始化状态.json 的 bundle 提取现行 modelRef);确认知情后可加 --allow-all-candidates`);
+      selected=catalog.candidates.map(x=>x.key);
+    }
     const bundle=initialize(registry,catalog,selected);
     const team=bundle.team;
     team.catalogFingerprint=fingerprint({providers:(catalog.providers??[]).map(({credentialPresent,...p})=>p),candidates:catalog.candidates});
@@ -122,7 +128,7 @@ try{
     const cached=rulesFile(rulesPath);
     if(cmd==='reload')console.log(JSON.stringify({reloaded:true,hash:cached.hash,rules:cached.rules}));
     else{
-      const s=read(statePath);if(s.phase!=='initialized'||!(s.activeSessions?Object.hasOwn(s.activeSessions,a['--session']):s.activatedSession===a['--session']))throw Error('请在当前会话完成激活');
+      const s=read(statePath);if(s.phase!=='initialized'||!(s.activeSessions?Object.hasOwn(s.activeSessions,a['--session']):s.activatedSession===a['--session']))throw Error('本会话尚未激活;机器已就绪时无需重新 prepare——把本会话可见的 team profile 精确名称写 JSON 后运行 initialize activate --session 本会话ID --loaded 该JSON 即可');
       const ready=run('team-state',['can-run','--state-dir',s.stateDir,'--team','ctbz','--session',a['--session']]);if(!ready.canRun)throw Error('运行配置失效');
       const order=route(cached.rules,s.bundle.profiles,a['--parent-model'],a['--role'],a['--now']?new Date(a['--now']):new Date());
       const p=selectProfile(s.bundle,registry,{defaultOrder:order},a['--role'],read(a['--loaded'],'--loaded'),a['--excluded']?read(a['--excluded'],'--excluded'):[]);

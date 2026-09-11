@@ -148,7 +148,7 @@ description: 草台班子——领导身边懂领导所想的骨干：接到问�
 
 prepare完成后提示“请新开会话并再次说草台班子初始化”。新会话自动读取状态，检查已加载 profile；若宿主已加载则调用 `initialize activate`，通过后写入 `.ctbz/已初始化.txt`（内容为当前时间）和结构化状态。未加载则明确等待，不伪称初始化完成。状态目录选择、初始化状态和调用规则均按每台电脑独立持久化。
 
-已 prepare 的机器上新会话只需一步激活：把当前宿主 Agent 工具列表中的 team profile 精确名称写成 JSON 后执行 activate，不得重复 prepare。status 报 drift 时先核对 初始化状态.json 的 installRoot 与指纹：installRoot 非本安装即为副本劫持，按重新 prepare 处理；installRoot 正确而指纹瞬时不一致多为宿主刚重写配置，稍候重试 activate 即可。
+会话说「草台班子初始化」时按序判定，禁止跳步或重复 prepare：① status=initialized → 机器已就绪：本会话已在 activeSessions 即直接可用；否则把本会话可见的 team profile 精确名称写成 JSON（名单须与本会话 Agent 工具列表核对一致）执行 `initialize activate`，一步完成。② status=awaiting-new-session → 同样只写名单 + activate，不 prepare。③ 仅 status 报 drift 且核对 installRoot 确认绑定指向其他安装、或本机从未初始化时才 prepare，且必须带 `--selection`（从现行 初始化状态.json 的 bundle 提取 modelRef，或列候选交用户确认）；候选超过 12 个而无 `--selection` 时脚本直接拒绝，防止误生成全量 profile 并清空已激活会话。status 报 drift 时先核对 初始化状态.json 的 installRoot 与指纹：installRoot 非本安装即为副本劫持，按重新 prepare 处理；installRoot 正确而指纹瞬时不一致多为宿主刚重写配置，稍候重试 activate 即可。
 
 支持目录：macOS 默认 `~/Documents/.ctbz`；Windows 优先 `%OneDrive%/Documents/.ctbz`，否则 `%USERPROFILE%/Documents/.ctbz`；Linux 优先 `$XDG_DOCUMENTS_DIR/.ctbz`，否则 `~/Documents/.ctbz`。用户选择“稍后”时，父会话仍可直接处理主会话任务；需要子 Agent 时要求先选择目录并初始化。
 

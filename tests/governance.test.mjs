@@ -100,6 +100,33 @@ test('adopt-run crosses generations, freezes the old manifest and records proven
   console.log(`Adoption evidence retained: ${temp}`);
 });
 
+test('prepare refuses unselected full-candidate catalogs and select error is self-healing', () => {
+  const {temp} = fixture();
+  const home = path.join(temp, 'state'), agents = path.join(temp, 'agents');
+  const base = stateArgs(home, agents);
+  const bigConfig = path.join(temp, 'big-config.json');
+  const models = {};
+  for (let i = 0; i < 15; i += 1) models[`m${i}`] = {reasoning: {variants: ['high']}, contextLimit: 1000, outputLimit: 1000};
+  fs.writeFileSync(bigConfig, JSON.stringify({provider: {test: {name: 'Big', kind: 'anthropic', enabled: true, source: 'custom', options: {baseURL: 'http://127.0.0.1:9', apiKey: 'k'}, models}}}));
+  const rejected = cli(['prepare', ...base, '--config', bigConfig, '--session', 's']);
+  assert.notEqual(rejected.status, 0);
+  assert.match(rejected.stderr, /--selection/);
+  assert.match(rejected.stderr, /--allow-all-candidates/);
+  const forced = cli(['prepare', ...base, '--config', bigConfig, '--allow-all-candidates', 'true', '--session', 's']);
+  assert.equal(forced.status, 0, forced.stderr);
+  assert.equal(JSON.parse(forced.stdout).profiles, 15 * JSON.parse(fs.readFileSync(path.join(root, '角色清单.json'))).roles.length);
+  const small = fixture();
+  const smallHome = path.join(small.temp, 'state'), smallAgents = path.join(small.temp, 'agents');
+  assert.equal(cli(['prepare', ...stateArgs(smallHome, smallAgents), '--config', small.config, '--session', 's']).status, 0);
+  const smallLoaded = path.join(small.temp, 'loaded.json');
+  fs.writeFileSync(smallLoaded, JSON.stringify(fs.readdirSync(smallAgents).filter(f => f.endsWith('.md')).map(f => f.replace(/\.md$/, ''))));
+  const selected = cli(['select', ...stateArgs(smallHome, smallAgents), '--session', 'other', '--loaded', smallLoaded, '--role', 'tester', '--parent-model', 'custom:test:economy']);
+  assert.notEqual(selected.status, 0);
+  assert.match(selected.stderr, /无需重新 prepare/);
+  assert.match(selected.stderr, /activate/);
+  console.log(`Guard evidence retained: ${temp} / ${small.temp}`);
+});
+
 test('dashboard work.create registers independent work groups and fails closed', () => {
   const {temp} = fixture();
   const workspace = path.join(temp, 'board');

@@ -8,6 +8,8 @@
 - **初始化快路径**：已 prepare 的机器新会话只需写 loaded JSON + activate 一步激活，不得重复 prepare；status 报 drift 时先核对 installRoot 区分副本劫持与宿主刚重写配置的瞬时漂移。
 - **prepare 携带已激活会话**：新旧 bundle 的 profile 名称集合一致时，自动把 activeSessions 携带进新 generation（状态文件与 team-state 同步标记 `carried-from:<旧代state>`），维护批次不再踢出在用会话；名称集合变化时不携带，按原流程要求新会话激活。
 - **adopt-run 跨代接管**：新增 `--adopter-state-dir`。权限按当前代会话校验，`--state-dir` 指向旧代并核验 manifest 溯源；接管后旧 manifest 冻结为 cancelled 并注明去向，续跑 manifest 重绑当前代（指纹/团队配置/路由）并记录 adoptions 溯源；终态 run 不可再接管。
+- **prepare 全候选保护**：未指定 `--selection` 且候选超过 12 个时直接拒绝（提示提取现行 modelRef 或显式 `--allow-all-candidates`），防止误生成全量 profile 并清空已激活会话（2026-09-11 17:28 320-profile 事故根治）。
+- **初始化判定阶梯**：「草台班子初始化」按序判定——initialized/awaiting 均只写名单+activate，禁止重复 prepare；仅 drift（核对 installRoot）或首次才 prepare 且必须带 selection。select 的未激活报错改为自愈指引（写名单+activate，无需重新 prepare）。
 - **dashboard work.create**：独立 work 组登记新增 `work.create`（已存在则拒绝 WORK_EXISTS，更新用 work.upsert）；未知 action 的报错列出全部合法 action 清单。项目看板.md 补登记顺序：先 work.create 后 scope.claim。
 - 新增 tests/governance.test.mjs（携带激活、跨代接管、work.create 三组回归，隔离夹具真实 CLI）。
 
