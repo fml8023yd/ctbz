@@ -103,7 +103,7 @@ try{
           newTs.attestationSource='carried-from:'+old.stateDir;
           atomic(newTsPath,newTs);
         }
-        if(!fs.existsSync(rulesPath))replace(rulesPath,defaultRules());
+        if(!fs.existsSync(rulesPath))replace(rulesPath,defaultRules(catalog.candidates));
         if(fs.existsSync(safe(marker,true)))retire(marker,path.join(generation,'旧初始化标记.txt'));
         if(carried)atomic(marker,(old.activatedAt??new Date().toISOString())+'\n');
         replace(statePath,{version:registry.version,phase:carried?'initialized':'awaiting-new-session',bundle,teamPath,stateDir,agents,generatedInSession:a['--session'],...(carried?{activeSessions:carried,activatedSession:old.activatedSession,activatedAt:old.activatedAt}:{})});
