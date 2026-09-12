@@ -118,11 +118,17 @@ try{
     try {
     const s=read(statePath),loaded=read(a['--loaded'],'--loaded');
     requireBundleBinding(s.bundle,methods);
-    if(!Array.isArray(loaded)||s.bundle.profiles.some(p=>!loaded.includes(p.name)))throw Error('当前宿主尚未加载全部版本角色配置');
+    // 激活门:逐角色覆盖即可——每个角色至少有一个该会话已加载的 profile。
+    // 全量超集要求会把「模型槽位中途换名」的老会话永久挡在门外(会话孤儿);
+    // 单次派发安全由 select 每次调用的 loaded 过滤独立保证,不在此放宽。
+    const loadedSet=new Set(Array.isArray(loaded)?loaded:[]);
+    const uncovered=registry.roles.filter(r=>!s.bundle.profiles.some(p=>p.role===r.id&&loadedSet.has(p.name))).map(r=>r.id);
+    if(!Array.isArray(loaded)||uncovered.length)throw Error('当前宿主未覆盖角色: '+uncovered.join(',')+';该会话需新开会话接力');
+    const missing=s.bundle.profiles.filter(p=>!loadedSet.has(p.name)).map(p=>p.name);
     const result=run('doctor',['--activate','--session',a['--session'],'--config',a['--config']??path.join(homedir(),'.zcode/v2/config.json'),'--agents',s.agents,'--team-config',s.teamPath,'--state-dir',s.stateDir,'--workspace',home]);
     const activatedAt=new Date().toISOString();
     const activeSessions={...(s.activeSessions??(s.activatedSession?{[s.activatedSession]:s.activatedAt}:{})),[a['--session']]:activatedAt};
-    atomic(statePath,{...s,phase:'initialized',activeSessions,activatedSession:a['--session'],activatedAt});atomic(marker,activatedAt+'\n');console.log(JSON.stringify(result));
+    atomic(statePath,{...s,phase:'initialized',activeSessions,activatedSession:a['--session'],activatedAt,...(missing.length?{partialLoad:{...(s.partialLoad??{}),[a['--session']]:{missingCount:missing.length,at:activatedAt}}}:{})});atomic(marker,activatedAt+'\n');console.log(JSON.stringify(result));
     } finally {fs.unlinkSync(activationLock);}
   }else if(cmd==='select'||cmd==='reload'){
     const cached=rulesFile(rulesPath);
