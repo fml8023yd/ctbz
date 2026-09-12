@@ -60,5 +60,5 @@ node <skill>/scripts/投影体检 --workspace <项目绝对路径> [--home <状�
 
 - 不修改任何权威文件;只写 wiki/、.wiki-config.json、.gitignore(忽略模式追加一行)。
 - workspace 必须显式绝对路径,不猜 cwd,不接受符号链接。
-- 与 ZCode 自带 repo-wiki 不冲突:本技能管协议与版本捆绑,ZCode 面板可作④现状层的外部渲染器。
+- **与 ZCode 自带 repo-wiki 的分工**:ZCode wiki 是 AI 分析层(模型按仓库生成讲解级页面,带文件引用但无 git 版本绑定、过期不可检测);本技能是确定性事实层(版本戳+过期门)。规则:交接背景材料可优先引用 ZCode wiki(须标"AI 生成、无版本绑定");验收对照与事实依据只用本投影+台账,禁止用 AI 分析层;大仓库生成前评估模型成本。
 - ctbz 集成(待批次):⑦交接附 handoff 提示、⑨验收前强制体检;enabled=false 时这些节点跳过。
