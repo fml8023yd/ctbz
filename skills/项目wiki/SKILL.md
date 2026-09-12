@@ -22,6 +22,17 @@ node <skill>/scripts/初始化 --level project --workspace <项目绝对路径> 
 - **ZCode 级**:`enabled` 即「初始化时选择是否加载」的总开关(ctbz 初始化/交接/验收节点据此决定是否挂 wiki 步骤);`mode` 默认 `ignore`(投影不入库,靠戳捆绑)。
 - **项目级**:要求 workspace 是 git 仓库;忽略模式自动把 `wiki/` 写入 .gitignore;文档骨架缺失时降级生成(缺什么层标什么层,不伪造)。
 
+## 定时整理(ZCode 定时功能)
+
+用户对某项目说「给项目开定时整理」(可带周期,默认每天一次)时,由宿主会话用 ZCode 定时功能注册自动化,提示词固定模板(替换 <ws>/<home>/<skill> 为绝对路径):
+
+```
+项目wiki定时整理:<ws>。运行 node <skill>/scripts/投影体检 --workspace <ws> --home <home>;若输出包含「过期」,接着运行 node <skill>/scripts/投影生成 --workspace <ws> --home <home>;最后用一行记录结果(新鲜/已再生成/失败原因)。仅做这件事,不做任何其他操作,不创建新的定时任务。
+```
+
+- 登记信息写入该项目的 `.wiki-config.json` 的 `scheduled` 字段(cron 表达式+注册时间);取消=用户在宿主定时列表删除,并清该字段。
+- 体检/生成均为确定性脚本,定时执行零模型消耗;再生成只在过期时发生。
+
 ## 日常命令
 
 ```sh
