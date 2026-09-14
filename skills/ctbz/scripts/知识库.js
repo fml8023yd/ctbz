@@ -38,22 +38,35 @@ function ensureSkeleton() {
 }
 
 function scanEntries() {
-  // 扫描各分区文件与自记库，产出 {标题, 触发词[], 锚点} 列表（按 ⚡条目 或 ## 标题 识别）
+  // 递归扫描 KB_ROOT 全部 .md（排除目录.md/README），兼容两种条目格式：
+  // A) ## 标题（触发：a|b）  B) # 标题 + 独立行 - 触发词：`a|b`（迁移条目）
   const out = [];
-  for (const f of [...PARTS.map((p) => `${p}.md`), "自记库-" + today().slice(0, 7) + ".md"]) {
-    const fp = join(KB_ROOT, f);
-    if (!existsSync(fp)) continue;
+  const files = [];
+  (function walk(dir) {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(join(dir, e.name));
+      else if (e.name.endsWith(".md") && e.name !== "目录.md") files.push(join(dir, e.name));
+    }
+  })(KB_ROOT);
+  const today = new Date().toISOString().slice(0, 10);
+  for (const fp of files) {
+    const rel = fp.slice(KB_ROOT.length + 1);
     const lines = readFileSync(fp, "utf8").split("\n");
     let cur = null;
-    for (const line of lines) {
-      const m = line.match(/^##+\s+(.+)$/);
-      if (m) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const h = line.match(/^(#{1,2})\s+(.+)$/);
+      if (h) {
         if (cur) out.push(cur);
-        const full = m[1].trim();
-        const trig = full.match(/（触发：([^）]*)）/) || full.match(/\(触发：([^)]*)\)/);
-        const title = full.replace(/（触发：[^）]*）/g, "").replace(/\(触发：[^)]*\)/g, "").trim();
-        const triggers = trig ? trig[1].split(/[|｜]/).map(norm) : [norm(title)];
-        cur = { file: f, title, triggers: triggers.filter(Boolean), line: lines.indexOf(line) + 1 };
+        const full = h[2].trim();
+        const trig = full.match(/（触发：([^）]*)）/);
+        const title = full.replace(/（触发：[^）]*）/g, "").trim();
+        cur = { file: rel, title, triggers: trig ? trig[1].split(/[|｜]/).map(norm) : [norm(title)], line: i + 1 };
+      } else if (cur) {
+        const t = line.match(/^[-•]\s*触发词[：:]\s*`?([^`\n]+)`?/);
+        if (t) cur.triggers = t[1].split(/[|｜]/).map(norm).filter(Boolean);
+        const d = line.match(/【有效期】至?(\d{4}-\d{2}-\d{2})/);
+        if (d) cur.过期 = d[1] < today;
       }
     }
     if (cur) out.push(cur);
@@ -71,7 +84,7 @@ function cmdSearch(query) {
   hits.sort((a, b) => (a.过期 ? 1 : 0) - (b.过期 ? 1 : 0));
   const result = {
     version: VERSION, query, root: KB_ROOT,
-    hits: hits.map((h) => ({ 标题: h.title, 位置: `${h.file}#L${h.line}`, 触发词命中: true })),
+    hits: hits.map((h) => ({ 标题: h.title, 位置: `${h.file}#L${h.line}`, ...(h.过期 ? { 疑似过期: true } : {}) })),
     零命中分支: hits.length ? undefined : "缺口阻塞任务定义→问用户限一次；不阻塞→通用能力开工+缺口进待确认项；反审确认库缺→写自记库+检索缺口台账",
   };
   console.log(JSON.stringify(result, null, 2));

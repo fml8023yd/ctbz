@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "d006b05329e2a46849eb9f8c7a3a96fe9102e1599152f3505b51704635b30f90"
+      "sha256": "b05abdd9caa2313fe0dcc469eb2fc5234d4bb4ea5c8907dd1647bf6b064c3463"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -55,7 +55,7 @@
     },
     {
       "path": "methods/contract.md",
-      "sha256": "1bff8e3e4954afaf4598afa02cd0ef5b37083b0948271b055da5e4e8ca1b440c"
+      "sha256": "2f179fdab7462df395daee5ccb2dee46359fc8a4c4bc2e6eb0d118e9e72c9973"
     },
     {
       "path": "methods/i-have-adhd.md",
@@ -311,11 +311,11 @@
     },
     {
       "path": "scripts/知识库.js",
-      "sha256": "9c1d255096c5e49b639ba9d0c92cddec5e2f40dbc724481a9d7c0e8a519ed88c"
+      "sha256": "855ec2e14292f5a16ee60e67148521f017bc5415eddcd9964403253504a0fe86"
     },
     {
       "path": "scripts/部署.js",
-      "sha256": "6ffb266112ff4813c097a2500cc1cd92229f1965d3307e4879e061195b167ea8"
+      "sha256": "2258d029f8cf12a24d407f012d74667be1f43190cc45945775caf25c40aeafdc"
     },
     {
       "path": "vendor/NOTICE.md",

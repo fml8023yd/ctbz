@@ -32,18 +32,35 @@ try {
       console.error(`✗ 开发工作区有未提交改动，先 commit 再部署：\n${dirty}`);
       process.exit(1);
     }
-    console.log("== 反向检测（安装副本 vs 仓库）==");
-    const drift = execSync(`diff -rq --exclude='__pycache__' --exclude='.backups' "${SRC}" "${DST}" || true`, { encoding: "utf8" }).trim();
-    const realDrift = drift.split("\n").filter(l => l.includes("differ") || l.startsWith("Only in " + DST));
-    if (realDrift.length) {
-      console.error(`✗ 安装副本存在仓库没有的改动（会被 --delete 抹掉）：\n${realDrift.slice(0, 5).join("\n")}\n→ 先把安装侧改动同步回仓库再部署。`);
-      process.exit(1);
+    console.log("== 反向检测（上次部署基线 vs 安装目录）==");
+    // 判定"安装侧被手改"的正解：与上次部署清单比对，而非与仓库 diff（differ 不分方向会拦死正常部署）
+    const { readFileSync: rf, existsSync: ex } = await import("node:fs");
+    const baselinePath = join(homedir(), "Documents", ".ctbz", "部署基线.json");
+    const listFiles = (dir) => execSync(`find "${dir}" -type f -not -path '*__pycache__*' -not -path '*.backups*' -not -name '.DS_Store'`, { encoding: "utf8" }).trim().split("\n");
+    const hash = (f) => execSync(`md5 -q "${f}"`, { encoding: "utf8" }).trim();
+    if (ex(baselinePath)) {
+      const baseline = JSON.parse(rf(baselinePath, "utf8"));
+      const cur = {}; for (const f of listFiles(DST)) cur[f.slice(DST.length + 1)] = hash(f);
+      const drift = Object.keys(cur).filter(k => baseline[k] !== cur[k]);
+      if (drift.length) {
+        console.error(`✗ 安装目录相对上次部署被手改（${drift.length} 处，rsync --delete 会抹掉）：\n${drift.slice(0, 5).join("\n")}\n→ 先把安装侧改动写回仓库再部署。`);
+        process.exit(1);
+      }
     }
+    console.log("（无基线或一致，放行）");
     console.log("== rsync 同步（源→安装目录，--delete 镜像）==");
     rsync();
   }
   console.log("== 发布检查（lock 重算 + verifyBundle + initialize 冒烟）==");
   execSync(`node "${join(dirname(fileURLToPath(import.meta.url)), "发布检查.js")}" "${DST}"`, { stdio: "inherit" });
+  // 写部署基线（供下次反向检测）
+  try {
+    const { writeFileSync: wf } = await import("node:fs");
+    const listFiles2 = (dir) => execSync(`find "${dir}" -type f -not -path '*__pycache__*' -not -path '*.backups*' -not -name '.DS_Store'`, { encoding: "utf8" }).trim().split("\n");
+    const hash2 = (f) => execSync(`md5 -q "${f}"`, { encoding: "utf8" }).trim();
+    const base = {}; for (const f of listFiles2(DST)) base[f.slice(DST.length + 1)] = hash2(f);
+    wf(baselinePath, JSON.stringify(base, null, 2));
+  } catch {}
   console.log("✓ 部署完成。");
 } catch (e) {
   console.error(`✗ 部署失败: ${e.message}`);
