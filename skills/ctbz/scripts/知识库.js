@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 
 const SKILL_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
 const VERSION = (readFileSync(join(SKILL_DIR, "SKILL.md"), "utf8").match(/^version:\s*(\S+)/m) || [])[1] || "unknown";
-const KB_ROOT = join(homedir(), "Documents", ".ctbz", VERSION, "知识库");
+const KB_ROOT = join(homedir(), "Documents", ".ctbz", "知识库");  // 1.9.1 单库制（跨版本）
 const PARTS = ["建模", "业务", "数据", "案例"];
 
 const norm = (s) => s.toLowerCase().replace(/[_\s]/g, "").replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
@@ -66,6 +66,9 @@ function cmdSearch(query) {
   const q = norm(query);
   const entries = scanEntries();
   const hits = entries.filter((e) => e.triggers.some((t) => t && (q.includes(t) || t.includes(q))));
+  // 过期降权：命中条目查【有效期】，过期标"疑似过期"排后
+  const now = new Date().toISOString().slice(0, 10);
+  hits.sort((a, b) => (a.过期 ? 1 : 0) - (b.过期 ? 1 : 0));
   const result = {
     version: VERSION, query, root: KB_ROOT,
     hits: hits.map((h) => ({ 标题: h.title, 位置: `${h.file}#L${h.line}`, 触发词命中: true })),
@@ -80,6 +83,7 @@ function cmdIndex() {
   const lines = ["# 知识库目录", "", "每条一行：标题（触发：词1|词2）→ 分区文件#锚点。由 `知识库.js index` 从条目头重建。", ""];
   for (const e of entries) lines.push(`- ${e.title}（触发：${e.triggers.join("|")}）→ ${e.file}#L${e.line}`);
   writeFileSync(join(KB_ROOT, "目录.md"), lines.join("\n") + "\n");
+  try { writeFileSync(join(homedir(), "Documents", ".ctbz", "库指标.json"), JSON.stringify({ entries: entries.length, indexedAt: new Date().toISOString() }, null, 2)); } catch {}
   console.log(JSON.stringify({ ok: true, indexed: entries.length }));
 }
 

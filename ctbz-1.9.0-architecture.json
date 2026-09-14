@@ -1,0 +1,282 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "草台班子 ctbz 1.9.0 · 系统架构",
+    "locale": "zh-CN",
+    "output": "草台班子架构图-v1.9.0.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "main-dispatch",
+        "label": "主派发路径",
+        "focus": [
+          "user",
+          "agents-md",
+          "entry",
+          "routing",
+          "pick-profile",
+          "crew",
+          "zcode"
+        ],
+        "note": "任务从路由总入口到七角色子 Agent 的主干。"
+      },
+      {
+        "id": "knowledge-loop",
+        "label": "知识库与循环",
+        "focus": [
+          "entry",
+          "kb",
+          "research-loop",
+          "record"
+        ],
+        "note": "四段式领域分流、知识库单库、循环模式与轮次日志。"
+      },
+      {
+        "id": "ops-safety",
+        "label": "运维与安全",
+        "focus": [
+          "ops",
+          "settings",
+          "model-health",
+          "failure"
+        ],
+        "note": "settings 偏好、模型健康账本、失败分类恢复。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "用户",
+      "sublabel": "目标 + 截止时间",
+      "row": 0,
+      "col": 0
+    },
+    {
+      "id": "agents-md",
+      "type": "frontend",
+      "label": "AGENTS 路由总入口",
+      "sublabel": "所有任务调用 ctbz",
+      "row": 0,
+      "col": 1
+    },
+    {
+      "id": "entry",
+      "type": "frontend",
+      "label": "SKILL.md 三模式分流",
+      "sublabel": "快速 / 正常 / 循环研究",
+      "row": 0,
+      "col": 2,
+      "tag": "反审硬门"
+    },
+    {
+      "id": "routing",
+      "type": "backend",
+      "label": "routing.md",
+      "sublabel": "派发契约 · 成本选型层",
+      "row": 0,
+      "col": 3
+    },
+    {
+      "id": "pick-profile",
+      "type": "backend",
+      "label": "包工头 · 资金池",
+      "sublabel": "pick-profile+rules",
+      "row": 0,
+      "col": 4,
+      "tag": "5 规则+rescue"
+    },
+    {
+      "id": "kb",
+      "type": "database",
+      "label": "知识库（单库制）",
+      "sublabel": "常用/目录/分区",
+      "row": 1,
+      "col": 2,
+      "tag": "185+ 条"
+    },
+    {
+      "id": "failure",
+      "type": "backend",
+      "label": "failure-policy.md",
+      "sublabel": "失败分类 · 冗余组",
+      "row": 1,
+      "col": 3
+    },
+    {
+      "id": "research-loop",
+      "type": "backend",
+      "label": "循环协议",
+      "sublabel": "轮次 · 干预 · 停机条款",
+      "row": 1,
+      "col": 1
+    },
+    {
+      "id": "settings",
+      "type": "database",
+      "label": "setting.yaml",
+      "sublabel": "权限/触点/超时档",
+      "row": 2,
+      "col": 1
+    },
+    {
+      "id": "model-health",
+      "type": "database",
+      "label": "模型健康账本",
+      "sublabel": "冷却截止 · 派发前过滤",
+      "row": 2,
+      "col": 2
+    },
+    {
+      "id": "record",
+      "type": "database",
+      "label": ".ctbz-record",
+      "sublabel": "计划快照 · 轮次日志",
+      "row": 3,
+      "col": 1
+    },
+    {
+      "id": "ops",
+      "type": "backend",
+      "label": "运维脚本组",
+      "sublabel": "doctor·部署·发版",
+      "row": 2,
+      "col": 0
+    },
+    {
+      "id": "crew",
+      "type": "database",
+      "label": "团队编制",
+      "sublabel": "31 profiles · 7 角色",
+      "row": 3,
+      "col": 3
+    },
+    {
+      "id": "zcode",
+      "type": "external",
+      "label": "ZCode Agent 工具",
+      "sublabel": "Agent·SendMessage",
+      "row": 3,
+      "col": 4
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "协议细则 · references",
+      "wraps": [
+        "routing",
+        "failure",
+        "research-loop"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "脚本 · 数据 · 偏好",
+      "wraps": [
+        "pick-profile",
+        "settings",
+        "model-health",
+        "record",
+        "ops"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "执行层",
+      "wraps": [
+        "crew",
+        "zcode"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "user-to-agents",
+      "from": "user",
+      "to": "agents-md",
+      "label": "任意任务",
+      "labelDy": -14
+    },
+    {
+      "id": "agents-to-entry",
+      "from": "agents-md",
+      "to": "entry",
+      "label": "进入 ctbz",
+      "labelDy": -14
+    },
+    {
+      "id": "entry-to-routing",
+      "from": "entry",
+      "to": "routing",
+      "label": "正常/快速模式"
+    },
+    {
+      "id": "routing-to-pick",
+      "from": "routing",
+      "to": "pick-profile",
+      "label": "派发前选档",
+      "labelDy": -14
+    },
+    {
+      "id": "entry-to-kb",
+      "from": "entry",
+      "to": "kb",
+      "label": "带缺口定向查",
+      "labelDx": 60,
+      "labelDy": 40
+    },
+    {
+      "id": "pick-to-crew",
+      "from": "pick-profile",
+      "to": "crew",
+      "label": "按档定派发",
+      "labelDy": -20
+    },
+    {
+      "id": "crew-to-zcode",
+      "from": "crew",
+      "to": "zcode",
+      "label": "strict 派发",
+      "labelDy": 20
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "四模式",
+      "items": [
+        "快速：验证优先，跳反审",
+        "正常：讨论→反审→strict 派发",
+        "循环：时间盒自主迭代+轮次日志",
+        "自动：全链流水线+ServerChan 推送"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "包工头 · 资金池 v3",
+      "items": [
+        "R1 免费时段：降档即冗余",
+        "R3 主进程同源 / R4 默认档 / R5 次级档",
+        "rescue 跨渠道救生（配额独立实测）"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "安全与治理",
+      "items": [
+        "反审硬门：实施前必反审",
+        "红线不因授权失效",
+        "模型健康：冷却过滤+过期自愈"
+      ]
+    }
+  ],
+  "layout": {
+    "mode": "grid",
+    "cols": 5,
+    "gapX": 72,
+    "gapY": 72
+  }
+}

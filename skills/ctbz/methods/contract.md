@@ -66,3 +66,7 @@ implementer、debugger、tester 仅在指定 worktree 和 write-set 内改动、
 ## 内置资源边界
 
 运行入口是 [索引](index.json) 中的 16 个普通 Markdown 文件，必要材料由 `resources` 列明。原始上游及脚本是惰性归档的 source-only 材料，不是运行依赖；初始化与方法读取不解包或执行它们。无需 Graphviz、上游视觉服务器、全局辅助技能、hooks 或联网 npm 安装。需要展示结构时先用文本或表格；需用户项目自己的工具时按任务实际环境与授权处理。
+
+## 背景摄取（1.9.1）
+
+新需求起草计划前，主会话必须读当前工作目录 .ctbz-record/记录.md（存在时），摄取相关历史决定、坑、产物路径作为背景；读了没有记入 run 事件（record.read）。

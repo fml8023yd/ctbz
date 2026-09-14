@@ -32,6 +32,13 @@ try {
       console.error(`✗ 开发工作区有未提交改动，先 commit 再部署：\n${dirty}`);
       process.exit(1);
     }
+    console.log("== 反向检测（安装副本 vs 仓库）==");
+    const drift = execSync(`diff -rq --exclude='__pycache__' --exclude='.backups' "${SRC}" "${DST}" || true`, { encoding: "utf8" }).trim();
+    const realDrift = drift.split("\n").filter(l => l.includes("differ") || l.startsWith("Only in " + DST));
+    if (realDrift.length) {
+      console.error(`✗ 安装副本存在仓库没有的改动（会被 --delete 抹掉）：\n${realDrift.slice(0, 5).join("\n")}\n→ 先把安装侧改动同步回仓库再部署。`);
+      process.exit(1);
+    }
     console.log("== rsync 同步（源→安装目录，--delete 镜像）==");
     rsync();
   }
