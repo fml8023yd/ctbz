@@ -1,0 +1,68 @@
+#!/usr/bin/env node
+// 项目wiki·投影生成:五层页面树 + git 版本戳。只读权威,只写 wiki/
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+
+const args = {};
+for (let i = 2; i < process.argv.length; i += 2) args[process.argv[i]] = process.argv[i + 1];
+const fail = (m) => { console.error(m); process.exit(1); };
+const realpath = (p) => { try { return fs.realpathSync(p); } catch { fail(`路径不存在: ${p}`); } };
+
+const ws = realpath(args['--workspace'] ?? fail('缺少 --workspace'));
+const home = realpath(args['--home'] ?? path.join(process.env.HOME, 'Documents', '.ctbz'));
+const zcfg = fs.existsSync(path.join(home, 'wiki.json')) ? JSON.parse(fs.readFileSync(path.join(home, 'wiki.json'), 'utf8')) : fail('未做 ZCode 级初始化');
+if (!zcfg.enabled) fail('项目wiki 未启用(enabled=false)');
+const pcfgPath = path.join(ws, '.wiki-config.json');
+if (!fs.existsSync(pcfgPath)) fail('未做项目级初始化(--level project)');
+const pcfg = JSON.parse(fs.readFileSync(pcfgPath, 'utf8'));
+const wikiDir = pcfg.wikiDir ?? 'wiki';
+const wiki = path.join(ws, wikiDir);
+
+const git = (c) => execSync(`git -C ${JSON.stringify(ws)} ${c}`, {encoding: 'utf8'}).trim();
+const commit = git('rev-parse HEAD'), branch = git('rev-parse --abbrev-ref HEAD'), dirty = git('status --porcelain').length > 0;
+const stamp = `${commit.slice(0, 8)}(${branch}${dirty ? ',dirty' : ''}) · ${new Date().toISOString()}`;
+const header = (src) => `> 🔖 投影 ${stamp} · 权威源: ${src} · 本页为只读投影,内容冲突以权威源为准;投影过期时先再生成\n\n`;
+const read = (p) => fs.existsSync(path.join(ws, p)) ? fs.readFileSync(path.join(ws, p), 'utf8') : null;
+
+fs.rmSync(wiki, {recursive: true, force: true});
+fs.mkdirSync(path.join(wiki, 'authority'), {recursive: true});
+const pages = [];
+const missing = [];
+
+fs.writeFileSync(path.join(wiki, 'index.md'), header('AGENTS.md') +
+  `# 项目 Wiki\n\n- 权威链:用户裁决 > AGENTS > CONTEXT > docs/ > 代码 > 本 Wiki\n- 页面:authority/ · decisions.md · snapshot.md${fs.existsSync(path.join(ws, 'docs/truth')) ? ' · evidence.md' : ''}\n- 投影版本: **${stamp}**\n`);
+pages.push('index.md');
+
+for (const f of ['AGENTS.md', 'CONTEXT.md']) {
+  const c = read(f);
+  if (c) { fs.writeFileSync(path.join(wiki, 'authority', f), header(f) + c); pages.push(`authority/${f}`); }
+  else missing.push(f);
+}
+
+let decisions = '';
+const adrDir = path.join(ws, 'docs/adr');
+if (fs.existsSync(adrDir)) decisions += '## ADR 索引\n' + fs.readdirSync(adrDir).map(x => `- docs/adr/${x}`).join('\n') + '\n\n';
+else missing.push('docs/adr');
+const ledger = read('docs/功能台账.md');
+if (ledger) decisions += '## 功能台账(投影)\n' + ledger.split('\n').slice(1).join('\n');
+else missing.push('docs/功能台账.md');
+if (decisions) { fs.writeFileSync(path.join(wiki, 'decisions.md'), header('docs/adr + docs/功能台账.md') + '# 决策与台账\n\n' + decisions); pages.push('decisions.md'); }
+
+const files = git('ls-files').split('\n');
+fs.writeFileSync(path.join(wiki, 'snapshot.md'), header('git ls-files + 源码首行注释') +
+  `# 现状快照\n\n## 文件树\n${files.map(x => `- ${x}`).join('\n')}\n\n## 模块摘要\n${files.filter(x => /^(src|lib|app|server|frontend\/src)\//.test(x)).map(x => {
+    const first = (read(x) || '').split('\n').find(l => l.trim()) || '';
+    return `- **${x}** — ${first.replace(/^[/\s]+/, '').slice(0, 80)}`;
+  }).join('\n')}\n`);
+pages.push('snapshot.md');
+
+const evidenceDirs = ['docs/truth', 'docs/data-samples', 'docs/ui-knowledge'].filter(d => fs.existsSync(path.join(ws, d)));
+if (evidenceDirs.length) {
+  fs.writeFileSync(path.join(wiki, 'evidence.md'), header('docs 真值/样本目录') + '# 证据层索引\n\n' +
+    evidenceDirs.map(d => `## ${d}\n` + fs.readdirSync(path.join(ws, d)).slice(0, 50).map(x => `- ${d}/${x}`).join('\n')).join('\n\n'));
+  pages.push('evidence.md');
+}
+
+fs.writeFileSync(path.join(wiki, '.wiki-meta.json'), JSON.stringify({commit, branch, dirty, generatedAt: new Date().toISOString(), pages, missingLayers: missing}, null, 2));
+console.log(`已生成 ${pages.length} 页 @ ${commit.slice(0, 8)}${dirty ? '(dirty)' : ''}${missing.length ? ` · 降级(缺:${missing.join(', ')})` : ''}`);

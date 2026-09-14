@@ -59,7 +59,8 @@ test('isolated CLI prepare blocks unactivated dispatch and invalid activation co
   assert.equal(JSON.parse(prepared.stdout).phase, 'awaiting-new-session');
   const selected = cli('select', ['--session','fixture-session','--loaded',load,'--role','implementer','--parent-model',models[0]]);
   assert.equal(selected.status, 1);
-  assert.match(selected.stderr, /当前会话完成激活/);
+  assert.match(selected.stderr, /本会话尚未激活/);
+  assert.match(selected.stderr, /无需重新 prepare/);
   const activated = cli('activate', ['--session','fixture-session','--loaded',load,'--config',cat]);
   assert.equal(activated.status, 1);
   assert.match(activated.stderr, /credentials-unverified/);

@@ -1,0 +1,53 @@
+#!/usr/bin/env node
+// 项目wiki·初始化:两级——ZCode 级(用户级总开关)与项目级(项目配置+首生成)
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+
+const args = {};
+for (let i = 2; i < process.argv.length; i += 2) {
+  const k = process.argv[i];
+  if (!k.startsWith('--') || !process.argv[i + 1]) { console.error('参数无效'); process.exit(1); }
+  args[k] = process.argv[i + 1];
+}
+const fail = (m) => { console.error(m); process.exit(1); };
+const realpath = (p) => { try { return fs.realpathSync(p); } catch { fail(`路径不存在: ${p}`); } };
+
+const home = realpath(args['--home'] ?? path.join(process.env.HOME, 'Documents', '.ctbz'));
+const level = args['--level'] ?? fail('缺少 --level zcode|project');
+
+if (level === 'zcode') {
+  const enabled = (args['--enabled'] ?? 'true') === 'true';
+  const mode = args['--mode'] === 'tracked' ? 'tracked' : 'ignore';
+  fs.mkdirSync(home, {recursive: true});
+  const file = path.join(home, 'wiki.json');
+  if (fs.existsSync(file)) {
+    const old = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (!args['--enabled'] && !args['--mode']) fail(`已初始化(${JSON.stringify(old)});要改用 --enabled/--mode`);
+  }
+  const cfg = {schemaVersion: 1, enabled, mode, wikiDir: 'wiki', initializedAt: new Date().toISOString()};
+  fs.writeFileSync(file, JSON.stringify(cfg, null, 2) + '\n');
+  console.log(JSON.stringify({level: 'zcode', home, ...cfg}));
+} else if (level === 'project') {
+  const ws = realpath(args['--workspace']);
+  if (!fs.existsSync(path.join(ws, '.git'))) fail('workspace 不是 git 仓库');
+  const zcfgPath = path.join(home, 'wiki.json');
+  if (!fs.existsSync(zcfgPath)) fail('先完成 ZCode 级初始化(--level zcode)');
+  const zcfg = JSON.parse(fs.readFileSync(zcfgPath, 'utf8'));
+  if (!zcfg.enabled) fail('项目wiki 未启用(ZCode 级 enabled=false;如需启用先 --level zcode --enabled true)');
+  const mode = args['--mode'] ?? zcfg.mode ?? 'ignore';
+  const wikiDir = zcfg.wikiDir ?? 'wiki';
+  const cfgFile = path.join(ws, '.wiki-config.json');
+  if (fs.existsSync(cfgFile)) fail('.wiki-config.json 已存在;重复初始化先手动移除');
+  fs.writeFileSync(cfgFile, JSON.stringify({schemaVersion: 1, mode, wikiDir, homeInitializedFrom: home, initializedAt: new Date().toISOString()}, null, 2) + '\n');
+  if (mode === 'ignore') {
+    // 用 .git/info/exclude(仓库本地、不产生未跟踪文件)排除投影产物,避免自污工作区
+    const ex = path.join(ws, '.git', 'info', 'exclude');
+    fs.mkdirSync(path.dirname(ex), {recursive: true});
+    const cur = fs.existsSync(ex) ? fs.readFileSync(ex, 'utf8') : '';
+    const wanted = [wikiDir + '/', '.wiki-config.json'].filter(l => !cur.split('\n').some(x => x.trim() === l));
+    if (wanted.length) fs.writeFileSync(ex, cur + (cur && !cur.endsWith('\n') ? '\n' : '') + wanted.join('\n') + '\n');
+  }
+  const gen = execSync(`node ${JSON.stringify(path.join(import.meta.dirname, '投影生成'))} --workspace ${JSON.stringify(ws)} --home ${JSON.stringify(home)}`, {encoding: 'utf8'});
+  console.log(JSON.stringify({level: 'project', workspace: ws, mode, wikiDir, firstGeneration: gen.trim()}));
+} else fail('--level 只接受 zcode|project');

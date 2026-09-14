@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "b05abdd9caa2313fe0dcc469eb2fc5234d4bb4ea5c8907dd1647bf6b064c3463"
+      "sha256": "9a930513b83464219d07b6ef18920514610cdda8d2947d8a4d6a53907f1ff4db"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -194,6 +194,10 @@
       "sha256": "1235b62b51e55ef0c8eb847ce2ca2d7b63ca704490dd21cfe147dbdd016bd297"
     },
     {
+      "path": "references/流程治理.md",
+      "sha256": "00250e97c65466d54a5de65bfd36f35a7f6f5f789ef1143365c4b9ce01c34b62"
+    },
+    {
       "path": "references/项目看板.md",
       "sha256": "a893758de9280e672ccff19f6cc86ea7751477f95095ea3c91da34f10de757ef"
     },
@@ -211,7 +215,7 @@
     },
     {
       "path": "scripts/initialize",
-      "sha256": "ae4bd9c4387e7cf184b76544841ebc282bee8f23975ba9183047775d07988554"
+      "sha256": "840b0ae4a2a49712e6faaee1bc48ecb805c424bca3408490cd308ff1726389ed"
     },
     {
       "path": "scripts/lib/dashboard-artifacts.mjs",
