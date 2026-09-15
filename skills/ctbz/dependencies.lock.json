@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "9a930513b83464219d07b6ef18920514610cdda8d2947d8a4d6a53907f1ff4db"
+      "sha256": "64d1516b92ddeeeff5b26f533c60f2be0deef9d8dad2723acdb6448dfb1e5eaf"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -215,7 +215,7 @@
     },
     {
       "path": "scripts/initialize",
-      "sha256": "840b0ae4a2a49712e6faaee1bc48ecb805c424bca3408490cd308ff1726389ed"
+      "sha256": "b46f8b10aa65323967686e414a865b0c78fabadf26aa5d9a286681598762b765"
     },
     {
       "path": "scripts/lib/dashboard-artifacts.mjs",
