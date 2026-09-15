@@ -1,5 +1,5 @@
 #!/bin/bash
-# 发版 —— 草台班子唯一发版入口（v1.8.3 起）
+# 发版 —— 草台班子唯一发版入口（v2.0.0 起）
 # 用法: ./skills/ctbz/scripts/发版.sh <版本号>   例: ./skills/ctbz/scripts/发版.sh 1.8.3
 # 流程: frontmatter bump → settings 版本联动 → commit → tag → push → Release → 附件 → 部署 → 阿里云
 set -eu

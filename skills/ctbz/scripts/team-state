@@ -676,6 +676,9 @@ function requireTask(task) {
     requireEvidence(task, "review", "approved");
     requireEvidence(task, "integration", "integrated");
   }
+  if (task.status === "cancelled" && task.integration !== undefined) {
+    requireEvidence(task, "integration", "cancelled");
+  }
   if (task.resultEvidence !== undefined && (!Array.isArray(task.resultEvidence) || task.resultEvidence.length > 1000 || task.resultEvidence.some(item => typeof item !== 'string' || !item.trim() || item.length > 50000) || (task.status === 'completed' && !task.resultEvidence.length))) fail('resultEvidence must contain nonempty evidence entries');
   return task;
 }

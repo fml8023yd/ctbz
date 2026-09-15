@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 发布前置钩子 —— 草台班子 v1.8.1（根治 lock 幽灵哈希）
+// 发布前置钩子 —— 草台班子 v2.0.0（根治 lock 幽灵哈希）
 // 用法: node 发布检查.js <安装副本根目录>
 // 作用: 打 tag 前必须跑——①全量重算 dependencies.lock.json ②verifyBundle 自测 ③入口脚本冒烟
 // 任一失败 exit 1，禁止发布。

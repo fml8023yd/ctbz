@@ -479,8 +479,9 @@ async function bind(options) {
 
 async function cleanup(options) {
   const state = await readManifest(options);
-  if (state.task.status !== "completed" || state.task.integration?.status !== "integrated") {
-    fail("task must be completed with integrated evidence");
+  if (!(state.task.status === "completed" && state.task.integration?.status === "integrated") &&
+      !(state.task.status === "cancelled" && state.task.integration?.status === "cancelled")) {
+    fail("task must be completed/integrated or cancelled with cancelled integration evidence");
   }
   if (state.task.verification?.status !== "passed") {
     fail("task verification status must be passed");

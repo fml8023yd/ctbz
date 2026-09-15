@@ -1,5 +1,5 @@
 {
-  "version": "1.5.2",
+  "version": "2.0.0",
   "roles": [
     {"id":"planner","name":"计划员","tools":["Read","Grep","Glob"],"instructions":"拆解目标、依赖、风险与验收标准，只读，不修改文件。"},
     {"id":"reviewer","name":"挑刺的","tools":["Read","Grep","Glob"],"instructions":"独立核对需求和交付，输出有文件证据的缺陷、严重程度与可接受风险，只读。"},

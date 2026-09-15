@@ -6,6 +6,8 @@
 // 原则: 开发工作区是唯一源；安装目录只被部署写入，不再手改。
 
 import { execSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { readdirSync, statSync, readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +16,18 @@ const ROOT = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
 const SRC = join(ROOT, "skills", "ctbz");
 const DST = join(homedir(), ".agents", "skills", "ctbz");
 const CHECK_ONLY = process.argv.includes("--check-only");
+const baselinePath = join(homedir(), "Documents", ".ctbz", "部署基线.json");
+
+function listFiles(dir, out = []) {
+  if (!existsSync(dir)) return out;
+  for (const ent of readdirSync(dir, { withFileTypes: true })) {
+    if (ent.name === ".DS_Store" || ent.name === "__pycache__" || ent.name === ".backups") continue;
+    const p = join(dir, ent.name);
+    if (ent.isDirectory()) listFiles(p, out); else if (ent.isFile()) out.push(p);
+  }
+  return out;
+}
+const hashFile = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
 
 function rsync() {
   // --delete 保证镜像一致（删掉安装目录里的多余文件，防血统残留）
@@ -34,13 +48,9 @@ try {
     }
     console.log("== 反向检测（上次部署基线 vs 安装目录）==");
     // 判定"安装侧被手改"的正解：与上次部署清单比对，而非与仓库 diff（differ 不分方向会拦死正常部署）
-    const { readFileSync: rf, existsSync: ex } = await import("node:fs");
-    const baselinePath = join(homedir(), "Documents", ".ctbz", "部署基线.json");
-    const listFiles = (dir) => execSync(`find "${dir}" -type f -not -path '*__pycache__*' -not -path '*.backups*' -not -name '.DS_Store'`, { encoding: "utf8" }).trim().split("\n");
-    const hash = (f) => execSync(`md5 -q "${f}"`, { encoding: "utf8" }).trim();
-    if (ex(baselinePath)) {
-      const baseline = JSON.parse(rf(baselinePath, "utf8"));
-      const cur = {}; for (const f of listFiles(DST)) cur[f.slice(DST.length + 1)] = hash(f);
+    if (existsSync(baselinePath)) {
+      const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
+      const cur = {}; for (const f of listFiles(DST)) cur[f.slice(DST.length + 1)] = hashFile(f);
       const drift = Object.keys(cur).filter(k => baseline[k] !== cur[k]);
       if (drift.length) {
         console.error(`✗ 安装目录相对上次部署被手改（${drift.length} 处，rsync --delete 会抹掉）：\n${drift.slice(0, 5).join("\n")}\n→ 先把安装侧改动写回仓库再部署。`);
@@ -55,11 +65,9 @@ try {
   execSync(`node "${join(dirname(fileURLToPath(import.meta.url)), "发布检查.js")}" "${DST}"`, { stdio: "inherit" });
   // 写部署基线（供下次反向检测）
   try {
-    const { writeFileSync: wf } = await import("node:fs");
-    const listFiles2 = (dir) => execSync(`find "${dir}" -type f -not -path '*__pycache__*' -not -path '*.backups*' -not -name '.DS_Store'`, { encoding: "utf8" }).trim().split("\n");
-    const hash2 = (f) => execSync(`md5 -q "${f}"`, { encoding: "utf8" }).trim();
-    const base = {}; for (const f of listFiles2(DST)) base[f.slice(DST.length + 1)] = hash2(f);
-    wf(baselinePath, JSON.stringify(base, null, 2));
+    mkdirSync(dirname(baselinePath), { recursive: true });
+    const base = {}; for (const f of listFiles(DST)) base[f.slice(DST.length + 1)] = hashFile(f);
+    writeFileSync(baselinePath, JSON.stringify(base, null, 2));
   } catch {}
   console.log("✓ 部署完成。");
 } catch (e) {

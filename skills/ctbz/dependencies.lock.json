@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "c0d44a84d8b7856a342e2643e3006bb29e219cec0a6fb6b371adf62cf5465a2b"
+      "sha256": "cffcd5104165cf2ea033f14a6ad7ea39e88dff6d88681b772ab829fa112e8bb1"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -55,7 +55,7 @@
     },
     {
       "path": "methods/contract.md",
-      "sha256": "2f179fdab7462df395daee5ccb2dee46359fc8a4c4bc2e6eb0d118e9e72c9973"
+      "sha256": "c400b232070746448fba252ebd9cd6de23a57dbe76cf75e5e45b2fd8b93113a0"
     },
     {
       "path": "methods/i-have-adhd.md",
@@ -111,7 +111,7 @@
     },
     {
       "path": "methods/superpowers/requesting-code-review.md",
-      "sha256": "d530fc3f79af7bcd75fb85d380142f8663b242be543aff4f07342f36bbb1f64b"
+      "sha256": "935a8a8aedcabb76dfe91b599514e4c6bdd5648feec87c946fac09d0e9b80044"
     },
     {
       "path": "methods/superpowers/subagent-driven-development.md",
@@ -135,7 +135,7 @@
     },
     {
       "path": "methods/superpowers/verification-before-completion.md",
-      "sha256": "bae2822a557df0558518b2eb08aa5bdf6c92a98cf4c25e8a395e6ff97b8333e2"
+      "sha256": "47b26dd6d00d537969745431ee49e525a0ff3f32ec9293653b8be38fa369a55e"
     },
     {
       "path": "methods/superpowers/writing-plans.md",
@@ -179,7 +179,11 @@
     },
     {
       "path": "references/recommended-workflow.md",
-      "sha256": "1987f01adc1c8ecc4066a8024f4562df7e2836f44fa26a14b272506ade2ecc14"
+      "sha256": "ccf919db0a2c57be80d76de9409e251277c17feac18b45ce69161e933a77aad8"
+    },
+    {
+      "path": "references/unified-workflow.md",
+      "sha256": "b41911f424b47bc98bd5614890b9d06c74242e9944c9fcf099b8642d04a0e39d"
     },
     {
       "path": "references/upstream-updates.md",
@@ -275,7 +279,7 @@
     },
     {
       "path": "scripts/settings.js",
-      "sha256": "7e651c821add96c10fb28ba3667d260369571f3d64d2db57f5649dee30efe2c4"
+      "sha256": "4099c42c2e7d5d134d0f13c10f41951363f891e80106614a98cd5e67c7ab644d"
     },
     {
       "path": "scripts/status",
@@ -283,7 +287,7 @@
     },
     {
       "path": "scripts/team-state",
-      "sha256": "9bed767d85266c035278e62b3e30985524ce3d05cf0c63b145dedcab6512c66b"
+      "sha256": "7c98c231da37a225cabd2b37a72bcc18ab15abc692ed4100f394b9aef8926009"
     },
     {
       "path": "scripts/upstream",
@@ -295,15 +299,15 @@
     },
     {
       "path": "scripts/worktree",
-      "sha256": "e9896b5381cab103c61c2c83e961aecbd3b54b649ed639d00280af1ab03c1d3c"
+      "sha256": "4030ec7923bf84f4927a838a6edb442a020546d2ea40a4a37a07ef4724f82dbf"
     },
     {
       "path": "scripts/发布检查.js",
-      "sha256": "c976b03aa298b50ea693206f6a30bf30a441ef23b5319daa59c7d4768c4b1ac1"
+      "sha256": "9babb0307c400c278a8e26afac61f4084be05a5096d20aa17f47e7c5e9d59749"
     },
     {
       "path": "scripts/发版.sh",
-      "sha256": "cd85581e2975a8c4d40eb891d03597e7b9a204735318c2f9bcb7f3f656dbd35a"
+      "sha256": "e6dea302496895ccbdc236e6644b836b630a7d2affc86132766ed6ad71300411"
     },
     {
       "path": "scripts/意见箱.js",
@@ -319,7 +323,7 @@
     },
     {
       "path": "scripts/部署.js",
-      "sha256": "2258d029f8cf12a24d407f012d74667be1f43190cc45945775caf25c40aeafdc"
+      "sha256": "817e21f032f38b1a4c344dc71a901181bd43745046bb1f54b3c76e63f7675f1a"
     },
     {
       "path": "vendor/NOTICE.md",
@@ -375,7 +379,7 @@
     },
     {
       "path": "角色清单.json",
-      "sha256": "2674fe05b8590b548315ccd15edabccf460e71e09460ea437d2b475e1315d3cb"
+      "sha256": "393f764572d83dc8cf3b85e9b613f2e9faf412cd631f3e0b4c991ff92e9faa23"
     }
   ]
 }

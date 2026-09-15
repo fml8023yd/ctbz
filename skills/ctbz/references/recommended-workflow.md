@@ -10,7 +10,7 @@ S = Superpowers 已内置无需另绑；M = Matt Pocock 组，本包适配直接
 | ② 裁决落档 | domain-modeling 裁决/ADR（M） | 父会话执行；咨询设计目录，未指定则 ./docs/design |
 | ③ 统一设计稿 | brainstorming（S）；ubiquitous-language 按需、design-an-interface 仅关键接口实质分歧时（M） | 父会话统稿，可收局部方案；原型前定验证问题、方法和通过标准 |
 | ④ 原型验证 | CTBZ 完整链路原型；verification-before-completion（S）；prototype 仅逻辑/UI 辅助（M）；web-gui-tester 按需（官） | 隔离构建，执行者提供真实证据，不能以 mock/截图代替集成 |
-| ⑤ 双层确认 | verification-before-completion 主导，requesting-code-review 按风险，receiving-code-review 处理反馈（S） | 父会话技术复核，用户明确确认业务效果；两层通过才继续 |
+| ⑤ 双层确认 | verification-before-completion 主导，requesting-code-review 按风险，receiving-code-review 处理反馈（S） | 父会话技术复核，业务效果按统一模式裁决；两层通过才继续 |
 | ⑥ 回补定稿 | brainstorming + writing-plans（S）；domain-modeling 按需（M） | 父会话更新唯一设计稿、正式验收条件与实施方案 |
 | ⑦ 任务拆分 | writing-plans + dispatching-parallel-agents + using-git-worktrees（S） | 父会话定稿，planner 可回草稿；依赖/write-set/接口/基线/验收齐全，交接新会话 |
 | ⑧ 独立 worktree 开发 | subagent-driven-development + using-git-worktrees + test-driven-development + dispatching-parallel-agents（S） | 父会话唯一调度，执行者限定工作区；模块测试、评审及修复 |
@@ -53,7 +53,7 @@ web-gui-tester 属官方插件，不在本包免配置闭包内。宿主可用�
 - ③覆盖目标与非目标、流程、接口、数据、状态、权限、异常、旧规则替代、关键假设与事实缺口。④独立目录构建，不改生产代码；至少一条真实完整核心链路跑通，阻塞实现的高风险假设均有证据，其余未验证项进入正式验收；纯后端不强制 UI。
 - ⑤两层确认绑定同一原型版本，记录用户确认及范围。沉默、等待、截图、技术通过均不等于用户业务确认。任一层不通过回到设计/④重验。
 - ⑥记录原设计、证据、调整与影响，明确原型代码保留/重构/替换；保留部分也需正式测试。业务行为、范围或体验变化交用户确认并重验受影响链路。
-- ⑦只拆分，不创建 worktree 或派发开发。共享接口/schema/config 唯一 owner，冲突任务串行。完成后提醒用户另开独立会话安排开发，建议经济优先而不减验收、不擅自换模型。当前规划会话不自动进入⑧；用户明确改为同会话继续时尊重该选择，泛称自动模式不自动取消交接。
+- ⑦只拆分，不创建 worktree 或派发开发。共享接口/schema/config 唯一 owner，冲突任务串行。完成后提醒用户另开独立会话安排开发，建议经济优先而不减验收、不擅自换模型。当前规划会话不自动进入⑧；用户明确改为同会话继续时尊重该选择，自动模式由当前主会话继续开发，不要求另开会话。
 - 交接包含预设 v1 和覆盖项、项目/设计目录、设计/验收/任务计划绝对路径及版本、用户决定、依赖/write-set/基线、未解决项；提醒新会话核对材料和合法角色，不重问已确认决定，不承诺自动创建会话。
 - ⑧并行写任务独立 worktree/分支，从确认基线开始，依赖成果就绪后对齐；模块通过不证明整体通过。⑨在实际集成版本运行核心链路、接口/数据/异常回归、原型遗留项及适用的部署升级检查。
-- 不自动 commit、push、发布或清理。dirty/未集成工作区保留；删除按原授权协议。采用本预设不授权反审或真实计费探测。
+- 不自动 commit、push、发布或清理。dirty/未集成工作区保留；删除按原授权协议。反审授权按统一工作流；采用本预设不授权真实计费探测。

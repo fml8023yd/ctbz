@@ -6,20 +6,19 @@
 //   get <路径>   读某字段（如 触点.推送开关）
 // 存储根: ~/Documents/.ctbz/setting.yaml（用户级跨版本）
 
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ROOT = join(homedir(), "Documents", ".ctbz");
 const FILE = join(ROOT, "setting.yaml");
 
-const VERSION = (readFileSync(join(dirname2(), "SKILL.md"), "utf8").match(/^version:\s*(\S+)/m) || [])[1] || "unknown";
-function dirname2() { return dirnameOf(import.meta.url); }
-function dirnameOf(u) { return join(u.replace(/^file:\/\//, "").split("/").slice(0, -2).join("/")); }
+const VERSION = (readFileSync(join(dirname(dirname(fileURLToPath(import.meta.url))), "SKILL.md"), "utf8").match(/^version:\s*(\S+)/m) || [])[1] || "unknown";
 
-const DEFAULTS = {
+export const DEFAULTS = {
   版本: VERSION,
-  权限边界: { 执行档位: "标准", 计划超时自动执行: 0, 可写目录: [] },
+  权限边界: { 执行档位: "标准", 计划超时自动执行: 30, 可写目录: [] },
   触点: { serverchan_key_env: "", 推送开关: false },
   知识库: { 自动沉淀: true, 待批提醒: true },
   继承来源: "",
@@ -84,7 +83,7 @@ function envInherit() {
   return env;
 }
 
-function mergeInherit(base, candidates) {
+export function mergeInherit(base, candidates) {
   const merged = structuredClone(base);
   const notes = [];
   for (const c of candidates) {
@@ -99,6 +98,8 @@ function mergeInherit(base, candidates) {
 }
 
 function cmdInit() {
+  // 用户目录可能尚未存在；初始化必须自包含，不依赖安装脚本预创建目录。
+  mkdirSync(ROOT, { recursive: true });
   const candidates = oldSettingsCandidates();
   const env = envInherit();
   let base = structuredClone(DEFAULTS);
@@ -109,9 +110,6 @@ function cmdInit() {
     notes.push("环境变量:SERVERCHAN_SENDKEY");
   }
   merged.继承来源 = notes.join("; ") || "无（全新安装）";
-  if (merged.权限边界.计划超时自动执行 > 0 && !merged.触点.推送开关) {
-    console.error("⚠ 计划超时自动执行需要推送触点（ServerChan）配合，当前推送开关为 false");
-  }
   writeFileSync(FILE, toYaml(merged) + "\n");
   console.log(JSON.stringify({ ok: true, file: FILE, 继承: notes, 提示: "已写入；请核对权限边界与触点配置" }, null, 2));
 }
@@ -131,6 +129,7 @@ function cmdGet(path) {
   console.log(JSON.stringify({ key: path, value: cur ?? null }));
 }
 
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
 const [cmd, ...rest] = process.argv.slice(2);
 try {
   if (cmd === "init") cmdInit();
@@ -138,3 +137,5 @@ try {
   else if (cmd === "get") cmdGet(rest[0] || "");
   else { console.log("用法: settings.js init|show|get <路径>"); process.exit(2); }
 } catch (e) { console.error(`✗ ${e.message}`); process.exit(1); }
+
+}
