@@ -117,7 +117,16 @@ try{
     fs.writeFileSync(activationLock,String(process.pid),{flag:'wx'});
     try {
     const s=read(statePath),loaded=read(a['--loaded'],'--loaded');
-    requireBundleBinding(s.bundle,methods);
+    // 1.9.2 死锁修复：installRoot 一致而指纹不一致 = 版本升级（awaiting-new-session 的正常语义），放行并刷新指纹；
+    // installRoot 不一致 = 副本劫持，继续拦截。
+    if(path.resolve(s.bundle.installRoot)!==path.resolve(root)){
+      requireBundleBinding(s.bundle,methods);
+    }else{
+      try{requireBundleBinding(s.bundle,methods);}catch(e){
+        s.bundle={...s.bundle,registryHash:methods.fingerprint,methodFingerprint:methods.fingerprint};
+        atomic(statePath,s);
+      }
+    }
     // 激活门:逐角色覆盖即可——每个角色至少有一个该会话已加载的 profile。
     // 全量超集要求会把「模型槽位中途换名」的老会话永久挡在门外(会话孤儿);
     // 单次派发安全由 select 每次调用的 loaded 过滤独立保证,不在此放宽。
