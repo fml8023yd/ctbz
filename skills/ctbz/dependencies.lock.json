@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "239587c69fc2eb5c7fc992e4a0db68c6c9e314d8793863c8227189c7e5f6bfd1"
+      "sha256": "f6112291b1f18669091fea80ec0a80e1fca261b1a0410f3ecbae340d0e484d79"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -19,7 +19,7 @@
     },
     {
       "path": "cost-rules.json",
-      "sha256": "42dcd10c96501377ae916ac8d0e55dfbea9ae9503bce9b6c09d21bae8355ef0d"
+      "sha256": "8100d31f3e4182071f49c00a886ca9ada83988a4741c5aa1294d66f68a61669a"
     },
     {
       "path": "dashboard/app.js",
@@ -183,7 +183,7 @@
     },
     {
       "path": "references/unified-workflow.md",
-      "sha256": "b41911f424b47bc98bd5614890b9d06c74242e9944c9fcf099b8642d04a0e39d"
+      "sha256": "8d0c00316d05fa3a953c7364e2e3a08ab2520f6d054c3e9af7a99a381353e8db"
     },
     {
       "path": "references/upstream-updates.md",
@@ -322,6 +322,10 @@
       "sha256": "855ec2e14292f5a16ee60e67148521f017bc5415eddcd9964403253504a0fe86"
     },
     {
+      "path": "scripts/自动更新检查.mjs",
+      "sha256": "5f07090536ff8bb95d178577b2280e057a56cf5f67c9f40e7256565d2d1e58d6"
+    },
+    {
       "path": "scripts/部署.js",
       "sha256": "817e21f032f38b1a4c344dc71a901181bd43745046bb1f54b3c76e63f7675f1a"
     },
@@ -379,7 +383,7 @@
     },
     {
       "path": "角色清单.json",
-      "sha256": "fee22a22778b645c0673d76a4038125497ed4f0a7789fc44b19d2e1bcc3f2564"
+      "sha256": "17930540600da08919dc013db60c697b585acc72fbe3559b3388dca1a6af556e"
     }
   ]
 }
