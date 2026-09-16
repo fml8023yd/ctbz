@@ -44,10 +44,32 @@
       "who": "用户",
       "change": "1.6.0：规则集升级 v3——新增 R3 builtin_follow（主进程同源，尽力尝试级）与 R5 vendor_parallel（同厂商次级档）+ 顶层 rescue 跨渠道救生块；原 R3 平移为 R4；全部规则带 cost_class",
       "before": "v2 三规则"
+    },
+    {
+      "date": "2026-09-16",
+      "who": "用户",
+      "change": "新增 R0_free_wb：WB-free 渠道（deepseek-v4.1-flash）priority=0 排第一，全角色适用，heavy×3 汇总；失败滑向既有规则兜底",
+      "before": "无 WB 规则"
     }
   ],
   "timezone": "Asia/Shanghai",
   "rules": [
+    {
+      "id": "R0_free_wb",
+      "priority": 0,
+      "enabled": true,
+      "type": "free_model",
+      "model": "custom:wb-workbuddy-remote:deepseek-v4.1-flash",
+      "model_note": "WB-free 渠道（wb-workbuddy-remote），纯免费。profile 短名 m47628ebc2f45。全部角色适用，档位 highest（reasoning: max）。免费故降档风险低，仅 heavy 角色×3 汇总。",
+      "action": {
+        "try_profile": "m47628ebc2f45",
+        "all_roles_profile": "m47628ebc2f45",
+        "parallel_multiplier": 3,
+        "triple_scope": "heavy_only",
+        "aggregate": "summarize"
+      },
+      "note": "2026-09-16 用户指示：WB-free 纯免费渠道排第一优先。命中即用；派发失败带 --exclude R0_free_wb 滑向 R1/R3/R4/R5 兜底。"
+    },
     {
       "id": "R1_free_glm_flash",
       "priority": 1,
@@ -84,6 +106,18 @@
       }
     },
     {
+      "id": "R3_builtin_follow",
+      "priority": 3,
+      "enabled": true,
+      "type": "builtin_follow",
+      "action": {
+        "parallel_multiplier": 1,
+        "aggregate": false
+      },
+      "cost_class": "paid-light",
+      "note": "尽力尝试级：主进程同源模型（omen-alpha）的受管 team profile；可用性随主进程账号配额，配额尽则同死；无对应受管 profile 即滑链；禁止通用 subagent 冒充。派发需父会话以 --main-profile 自报主进程模型档。"
+    },
+    {
       "id": "R4_vendor_follow",
       "priority": 4,
       "enabled": true,
@@ -108,18 +142,6 @@
       },
       "note": "兜底：子 Agent 跟随主进程厂商（哪家充了钱多用哪家），heavy/light 按顶层 role_tier 分档。需父会话以 --vendor 自报主进程厂商。",
       "cost_class": "paid-heavy"
-    },
-    {
-      "id": "R3_builtin_follow",
-      "priority": 3,
-      "enabled": true,
-      "type": "builtin_follow",
-      "action": {
-        "parallel_multiplier": 1,
-        "aggregate": false
-      },
-      "cost_class": "paid-light",
-      "note": "尽力尝试级：主进程同源模型（omen-alpha）的受管 team profile；可用性随主进程账号配额，配额尽则同死；无对应受管 profile 即滑链；禁止通用 subagent 冒充。派发需父会话以 --main-profile 自报主进程模型档。"
     },
     {
       "id": "R5_vendor_parallel",
