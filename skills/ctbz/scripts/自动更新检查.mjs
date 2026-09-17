@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /** 每日调度器入口：安全检查 GitHub 最新提交，干净时更新并部署；有本地改动则停止。 */
 import {execFileSync} from 'node:child_process';
-import fs from 'node:fs';
 import path from 'node:path';
-const root=path.resolve(new URL('../../..', import.meta.url).pathname);
+import {fileURLToPath} from 'node:url';
+const root=path.resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const run=(c,a)=>execFileSync(c,a,{cwd:root,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
 try {
  if(run('git',['status','--porcelain'])) throw Error('本地有未提交改动，停止自动更新');
