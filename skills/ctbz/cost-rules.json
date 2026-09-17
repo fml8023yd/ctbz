@@ -55,6 +55,27 @@
   "timezone": "Asia/Shanghai",
   "rules": [
     {
+      "id": "R-1_glm_flash_reaudit",
+      "type": "free_window",
+      "enabled": true,
+      "priority": -1,
+      "description": "反审专用（2026-09-17 用户指定）：24 Agent 反审全部使用 GLM-5.3-Flash",
+      "date_range": [
+        "2026-09-17",
+        "2026-09-17"
+      ],
+      "daily_window": [
+        "00:00",
+        "24:00"
+      ],
+      "action": {
+        "all_roles_profile": "glmf",
+        "parallel_multiplier": 3,
+        "aggregate": "summarize",
+        "triple_scope": "heavy_only"
+      }
+    },
+    {
       "id": "R0_free_wb",
       "priority": 0,
       "enabled": true,
