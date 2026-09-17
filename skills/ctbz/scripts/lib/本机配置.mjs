@@ -37,7 +37,7 @@ export function defaultRules(catalogCandidates=[],now=new Date()){
   const keys=(catalogCandidates??[]).map(x=>typeof x==='string'?x:x?.key).filter(Boolean);
   const byName=name=>keys.find(k=>k.split(':').pop()===name);
   const omen=byName('omen-alpha');
-  if(omen)rules.temporaryRules.push({id:'omen-alpha-first',description:'出厂默认：存在 omen-alpha 渠道即优先使用（GLM 夜间规则未命中时的第一优先），2026-10-30 失效',start:'2026-09-10T00:00:00+08:00',end:'2026-10-30T00:00:00+08:00',priority:2,enabled:true,modelOrder:[omen]});
+  if(omen)rules.temporaryRules.push({id:'omen-alpha-first',description:'出厂默认：存在 omen-alpha 渠道即优先使用（GLM 夜窗与 WB 规则均未命中时的兜底），2026-10-30 失效',start:'2026-09-10T00:00:00+08:00',end:'2026-10-30T00:00:00+08:00',priority:2,enabled:true,modelOrder:[omen]});
   const flash=byName('GLM-5.3-Flash');
   if(flash){
     // GLM Coding Plan 夜间畅用活动：2026-09-03 至 2026-09-20 每日 23:00-次日09:00（北京时间，来源 docs.bigmodel.cn 活动通知）
@@ -52,7 +52,7 @@ export function defaultRules(catalogCandidates=[],now=new Date()){
       if(endMs<=now.getTime())continue;      // 已过的窗口跳过
       const stamp=ms=>new Date(ms+8*36e5).toISOString().replace('Z','').slice(0,19)+'+08:00';
       const ds=new Date(dayMs+8*36e5).toISOString().slice(5,10).replace('-','');
-      rules.temporaryRules.push({id:`glm-flash-night-${ds}`,description:`出厂默认：GLM 夜间畅用 ${stamp(dayMs).slice(0,10)}23:00→次日09:00（北京时间），子Agent优先 GLM-5.3-Flash 置换高级模型；活动期 2026-09-03~09-20 到期自动失效`,start:stamp(startMs),end:stamp(endMs),priority:1,enabled:true,roles:['planner','reviewer','debugger','implementer','explorer','researcher','tester','reporter'],modelOrder:[flash]});
+      rules.temporaryRules.push({id:`glm-flash-night-${ds}`,description:`最优先（2026-09-17 用户指示）：GLM 夜间畅用 ${stamp(dayMs).slice(0,10)}23:00→次日09:00（北京时间），子Agent优先 GLM-5.3-Flash 置换高级模型；活动期 2026-09-03~09-20 到期自动失效`,start:stamp(startMs),end:stamp(endMs),priority:0,enabled:true,roles:['planner','reviewer','debugger','implementer','explorer','researcher','tester','reporter'],modelOrder:[flash]});
     }
   }
   const sol=keys.find(k=>k.split(':').pop()==='gpt-5.6-sol');

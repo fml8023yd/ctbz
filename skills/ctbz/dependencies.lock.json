@@ -19,7 +19,7 @@
     },
     {
       "path": "cost-rules.json",
-      "sha256": "8100d31f3e4182071f49c00a886ca9ada83988a4741c5aa1294d66f68a61669a"
+      "sha256": "ddb2383c3ac8f18883ebaab11abb4d42188336953a470844e80f528fab32e9d7"
     },
     {
       "path": "dashboard/app.js",
@@ -259,7 +259,7 @@
     },
     {
       "path": "scripts/lib/本机配置.mjs",
-      "sha256": "3894b106f277a8cbaaa440a3329b6b2b416eddf7683440c62ded31f14c25afc9"
+      "sha256": "ab0af0ffacbe2442105a2b88a086905570fd2fc8f1be1038fc1ab10d404d5177"
     },
     {
       "path": "scripts/methods",
@@ -323,7 +323,7 @@
     },
     {
       "path": "scripts/自动更新检查.mjs",
-      "sha256": "5f07090536ff8bb95d178577b2280e057a56cf5f67c9f40e7256565d2d1e58d6"
+      "sha256": "328445304926ee4c2a1e5cc7ca7db6b3636a12b0d7c9795f8a7efd448699441e"
     },
     {
       "path": "scripts/部署.js",

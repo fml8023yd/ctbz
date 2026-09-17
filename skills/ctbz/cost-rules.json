@@ -50,6 +50,12 @@
       "who": "用户",
       "change": "新增 R0_free_wb：WB-free 渠道（deepseek-v4.1-flash）priority=0 排第一，全角色适用，heavy×3 汇总；失败滑向既有规则兜底",
       "before": "无 WB 规则"
+    },
+    {
+      "date": "2026-09-17",
+      "who": "用户",
+      "change": "R1 升为常规最优先（priority 0，原 1），date_range 起点改为 2026-09-03（原 09-04）；R0_free_wb 降为次优先（priority 1，原 0）。口径：夜窗 23:00→次日09:00 最优先 GLM-5.3-Flash，次优先 WB deepseek-v4.1-flash。R-1 反审例外（priority -1，仅 09-17）维持不动。",
+      "before": "R0=0 第一、R1=1 第二、R1 起点 09-04"
     }
   ],
   "timezone": "Asia/Shanghai",
@@ -77,7 +83,7 @@
     },
     {
       "id": "R0_free_wb",
-      "priority": 0,
+      "priority": 1,
       "enabled": true,
       "type": "free_model",
       "model": "custom:wb-workbuddy-remote:deepseek-v4.1-flash",
@@ -89,15 +95,15 @@
         "triple_scope": "heavy_only",
         "aggregate": "summarize"
       },
-      "note": "2026-09-16 用户指示：WB-free 纯免费渠道排第一优先。命中即用；派发失败带 --exclude R0_free_wb 滑向 R1/R3/R4/R5 兜底。"
+      "note": "2026-09-17 用户指示：WB-free 降为次优先（priority 1）。夜窗内（23:00→次日09:00）让位于 R1 GLM-5.3-Flash；夜窗外 WB 仍为首选。派发失败带 --exclude R0_free_wb 重跑即滑向后续规则兜底。"
     },
     {
       "id": "R1_free_glm_flash",
-      "priority": 1,
+      "priority": 0,
       "enabled": true,
       "type": "free_window",
       "date_range": [
-        "2026-09-04",
+        "2026-09-03",
         "2026-09-20"
       ],
       "daily_window": [
@@ -110,7 +116,7 @@
         "aggregate": "summarize",
         "triple_scope": "heavy_only"
       },
-      "note": "GLM-5.3-Flash 限时免费时段：全角色直降 Flash 档。降档即冗余——原本高档(planner/reviewer/debugger)的角色并行×3、父会话汇总意见；原本就是低档 Flash 的角色档位未变，维持单发。冗余组失败处理见 failure-policy.md 冗余组小节。"
+      "note": "GLM-5.3-Flash 限时免费时段：全角色直降 Flash 档，最优先（priority 0，2026-09-17 用户指示）。降档即冗余——原本高档(planner/reviewer/debugger)的角色并行×3、父会话汇总意见；原本就是低档 Flash 的角色档位未变，维持单发。冗余组失败处理见 failure-policy.md 冗余组小节。活动期 2026-09-03~09-20（起点按 2026-09-17 用户口径由 09-04 修正），每日 23:00→次日09:00。"
     },
     {
       "id": "R2_free_model",
