@@ -56,3 +56,13 @@ test('local pinned commit check is read-only and deterministic', () => {
   assert.equal(result.changed, false);
   assert.equal(read('dependencies.lock.json'), before);
 });
+
+test('dsh 版 SKILL.md 含分支标识行、name: ctbz 与治理内核锚点，且零 .zcode 引用', () => {
+  const skill = read('SKILL.md');
+  assert.match(skill, /^name: ctbz$/m);
+  assert.match(skill, /宿主：DeepSeek Harness（dsh）｜分支：ctbz-dsh/);
+  for (const anchor of ['判型', '三问', '四扇', '反审规模分级', '验收表', '台账', '收尾自记']) {
+    assert.ok(skill.includes(anchor), `治理内核锚点缺失：${anchor}`);
+  }
+  assert.equal(skill.includes('.zcode'), false, 'SKILL.md 不得再引用 ZCode 专属目录');
+});

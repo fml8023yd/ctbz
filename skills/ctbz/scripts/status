@@ -195,6 +195,14 @@ function statusView(manifest) {
   };
 }
 
+// T4：dsh 版 status 冒烟——验证入口与 paths.mjs 依赖可解析，不依赖 ZCode 发现链、不需要 run manifest。
+if (process.argv.includes("--smoke")) {
+  process.stdout.write(
+    `${JSON.stringify({ ok: true, mode: "dsh-status-smoke", script: "status", pathsModuleLoaded: true })}\n`
+  );
+  process.exit(0);
+}
+
 try {
   const manifestPath = await parseArguments(process.argv.slice(2));
   const manifest = await readManifest(manifestPath);

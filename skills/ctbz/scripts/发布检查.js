@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 发布前置钩子 —— 草台班子 v2.0.0（根治 lock 幽灵哈希）
 // 用法: node 发布检查.js <安装副本根目录>
-// 作用: 打 tag 前必须跑——①全量重算 dependencies.lock.json ②verifyBundle 自测 ③入口脚本冒烟
+// 作用: 打 tag 前必须跑——①全量重算 dependencies.lock.json ②verifyBundle 自测 ③dsh 版 status 冒烟
 // 任一失败 exit 1，禁止发布。
 
 import { execSync } from "node:child_process";
@@ -46,16 +46,17 @@ print(f"locked {len(files)} files")
 PY`, { encoding: "utf8" }));
 
 step("② verifyBundle 自测", () =>
-  execSync(`node --input-type=module -e "
+  execSync(`"${process.execPath}" --input-type=module -e "
 import { verifyBundle } from 'file://${join(root, "scripts/lib/methods.mjs")}';
 const r = verifyBundle();
 console.log('fingerprint', r.fingerprint.slice(0, 16), '| methods', r.methods.length);
 "`, { encoding: "utf8" }));
 
-step("③ initialize status 冒烟（不得报依赖检查失败）", () => {
-  const out = execSync(`node "${join(root, "scripts/initialize")}" status 2>&1`, { encoding: "utf8" });
-  if (/依赖检查失败|依赖文件已变化|依赖文件集合与锁不一致/.test(out)) throw Error("依赖检查失败字样出现在 status 输出");
-  return out;
+step("③ dsh 版 status 冒烟（不依赖 ZCode 发现链）", () => {
+  const out = execSync(`"${process.execPath}" "${join(root, "scripts/status")}" --smoke`, { encoding: "utf8" });
+  const parsed = JSON.parse(out);
+  if (parsed.ok !== true) throw Error(`status --smoke 未返回 ok:true: ${out}`);
+  return out.trim();
 });
 
 console.log(JSON.stringify({ ok: true, steps: steps.length, root }, null, 2));

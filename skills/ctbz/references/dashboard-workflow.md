@@ -1,6 +1,8 @@
 # 1.5.0 工作范围、回执与成果
 
-本协议补充项目看板和运行记录约定。主会话仍是唯一调度者；没有后台模型执行器，网页不自动唤醒、打断或恢复 ZCode。
+本协议补充项目看板和运行记录约定。主会话仍是唯一调度者；没有后台模型执行器，网页不自动唤醒、打断或恢复父会话。
+
+工作区根识别：`--workspace` 一律显式传项目根绝对路径。git 仓库可嵌套（父目录本身也可能是 git 根），自动发现只返回最近仓库根，会认错项目。team-state 的 `--state-dir` 省略时默认 `<workspace>/.ctbz-record/state`。
 
 ## 目录、任务和会话
 
@@ -17,7 +19,7 @@
 团队任务：
 
 ```sh
-node <skill>/scripts/team-state init-run --state-dir <实际状态目录> --team ctbz --session <实际会话ID> --run-id <新runID> --workspace <项目绝对路径> --scope-id model-study --goal <已确认目标>
+node <skill>/scripts/team-state init-run --state-dir <实际状态目录，默认 <workspace>/.ctbz-record/state> --team ctbz --session <实际会话ID> --run-id <新runID> --workspace <项目绝对路径> --scope-id model-study --goal <已确认目标>
 node <skill>/scripts/team-state checkpoint --state-dir <实际状态目录> --team ctbz --session <实际会话ID> --run-id <runID> --file <检查点JSON绝对路径>
 ```
 

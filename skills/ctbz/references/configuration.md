@@ -8,27 +8,37 @@
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
-| `--config` | `~/.zcode/v2/config.json` | ZCode 非敏感 config，含 provider entries 和 `options.apiKey` |
-| `--agents` | `~/.zcode/agents/` | ZCode agent profile 加载目录 |
-| `--workspace` | `git rev-parse --show-toplevel` | 从 cwd 自动发现 git 根 |
-| `--team-config` | `<workspace>/.zcode/team-dev.json` | 团队配置 |
-| `--state-dir` | `<workspace>/.zcode/state` | 激活状态目录 |
+| `--config` | 无默认值，必须显式传入 | 原宿主凭据/发现路径已随注册链退役（T4），本版不提供等价默认 |
+| `--agents` | 无默认值，必须显式传入 | 同上；profile 输出/加载目录由调用方显式指定 |
+| `--workspace` | `git rev-parse --show-toplevel` | 从 cwd 自动发现 git 根。**git 仓库可嵌套**：父目录本身也可能是 git 根，自动发现只返回最近仓库根；一律优先显式传 `--workspace <项目根绝对路径>` |
+| `--team-config` | `<workspace>/.ctbz-record/team-dev.json` | 团队配置 |
+| `--state-dir` | `<workspace>/.ctbz-record/state` | 激活状态目录 |
 | `--attestation-output` | `<state-dir>/<team>/attestation.json` | doctor attestation 输出 |
-| `--worktree-root` | `<workspace>/.zcode/worktrees` | worktree 外部根 |
-| `--catalog` | `<workspace>/.zcode/catalog-dev.json` | catalog 文件 |
-| `--output` | `~/.zcode/agents/` | profile 输出目录 |
+| `--worktree-root` | `<workspace>/.ctbz-record/worktrees` | worktree 外部根 |
+| `--catalog` | `<workspace>/.ctbz-record/catalog-dev.json` | catalog 文件 |
+| `--output` | 无默认值，必须显式传入 | profile 输出目录 |
 | `--base-ref` | `HEAD` | worktree 基线引用 |
 
-不在 git 仓库时 `--workspace` 自动发现失败，需显式传 `--workspace <absolute-git-root>`。
+工作区状态一律在 `<workspace>/.ctbz-record/` 下，与宿主无关。旧工作区状态目录（`<workspace>/.zcode/`）只读作存量迁移源：
+
+```sh
+node <skill>/scripts/team-state migrate-workspace --workspace <项目根绝对路径> --migrate --dry-run
+node <skill>/scripts/team-state migrate-workspace --workspace <项目根绝对路径> --migrate
+```
+
+dry-run 只输出计划不写盘；执行时复制 `team-dev.json`、`catalog-dev.json`、`state`，原目录原样保留并写入 `.ctbz-migrated.json` 迁移标记；目标已存在一律跳过，绝不覆盖。`worktrees` 含 git 元数据与绝对路径绑定，默认不迁移，需显式 `--include-worktrees`。
+
+不在 git 仓库时 `--workspace` 自动发现失败，需显式传 `--workspace <项目根绝对路径>`。
 
 ## 安全发现
 
-调用方式（路径全部可选，使用默认值）：
+调用方式（`--config`/`--agents` 已无默认值，必须显式传入）：
 
 ```text
-<absolute-skill-dir>/scripts/discover-config [--config <path>] [--agents <path>]
+<absolute-skill-dir>/scripts/discover-config --config <path> --agents <path>
 ```
 
+原宿主专属默认路径已随注册链退役（T4），本版不提供等价默认值。
 父主会话只消费脚本构造的 allowlist JSON，不直接读取原始配置。allowlist 范围：
 
 - provider：`id`、`name`、`kind`、`enabled`、`source`、`credentialPresent`。
@@ -41,7 +51,7 @@
 
 ## 凭据验证
 
-`--config` 必须指向含 `provider`/`providers` 结构且带 `options.apiKey` 的 ZCode config 文件（如 `~/.zcode/v2/config.json`）。doctor 在 fingerprint 校验后、激活前会检查每个 route 引用 provider 的 `credentialPresent`：
+`--config` 必须指向含 `provider`/`providers` 结构且带 `options.apiKey` 的宿主 config 文件（由调用方显式传入，无默认值）。doctor 在 fingerprint 校验后、激活前会检查每个 route 引用 provider 的 `credentialPresent`：
 
 - provider 启用但无 apiKey：报 `provider-missing-credential` DRIFT，提示运行时将报 "Model provider is not configured: \<id\>"。
 - `--config` 无 provider entries（仅 modelCatalog.overrides）：报 `credentials-unverified` DRIFT。
@@ -50,22 +60,26 @@
 
 ## CLI 调用
 
-所有脚本路径参数可选，使用约定默认值。仍拒绝 `credentials.json` basename、符号链接和相对路径（显式传参时）。
+工作区类路径（`--workspace`/`--state-dir`/`--team-config`/`--catalog`/`--worktree-root`）有约定默认值，可选；凭据与 profile 类路径（`--config`/`--agents`/`--output`）无默认值，必须显式传。仍拒绝 `credentials.json` basename、符号链接和相对路径（显式传参时）。
 
 ```text
-# discover-config：零参数即可
-<absolute-skill-dir>/scripts/discover-config
+# discover-config：--config 与 --agents 必须显式传
+<absolute-skill-dir>/scripts/discover-config --config <path> --agents <path>
 
-# doctor：只需 --session
-<absolute-skill-dir>/scripts/doctor --session <session-id>
-<absolute-skill-dir>/scripts/doctor --activate --session <session-id>
+# doctor：--session 与 --config 必须显式传
+<absolute-skill-dir>/scripts/doctor --session <session-id> --config <path> --agents <path>
+<absolute-skill-dir>/scripts/doctor --activate --session <session-id> --config <path> --agents <path>
 
-# team-state：--session 必需，其余可选
+# team-state：--session 必需，工作区路径可选
 <absolute-skill-dir>/scripts/team-state setup --session <id> --setup-file <path>
 <absolute-skill-dir>/scripts/team-state activate --session <id> --doctor-attestation <json>
 <absolute-skill-dir>/scripts/team-state can-run --session <id>
-<absolute-skill-dir>/scripts/team-state init-run --session <id> --run-id <id> --goal <text>
+<absolute-skill-dir>/scripts/team-state init-run --session <id> --run-id <id> --goal <text> --workspace <项目根绝对路径>
 <absolute-skill-dir>/scripts/team-state update-task --session <id> --run-id <id> --task-file <path>
+
+# 存量迁移：旧宿主工作区状态 → .ctbz-record
+<absolute-skill-dir>/scripts/team-state migrate-workspace --workspace <项目根绝对路径> --migrate --dry-run
+<absolute-skill-dir>/scripts/team-state migrate-workspace --workspace <项目根绝对路径> --migrate
 
 # worktree：只需 --task-id（create 还需 --manifest 或自动发现）
 <absolute-skill-dir>/scripts/worktree create --task-id <id>
@@ -75,18 +89,20 @@
 # status：零参数（自动发现最新 run）
 <absolute-skill-dir>/scripts/status
 
-# render-agents：零参数
-<absolute-skill-dir>/scripts/render-agents --apply
+# render-agents：--output 必须显式传
+<absolute-skill-dir>/scripts/render-agents --apply --output <path>
 ```
 
-`--session` 是唯一必须由父调度器传入的参数（当前会话 ID），不可自动发现。
+`--session` 是唯一必须由父调度器传入的参数（当前会话 ID），不可自动发现。`--workspace` 建议显式传：git 仓库可嵌套，自动发现只返回最近仓库根。
 
 ## 禁止写入面
 
 - 禁止写入或修改 provider 配置，包括任何 config 的 provider 段。
 - 禁止写入或修改 `credentials.json` 或其他凭据存储。
-- 禁止写入或修改 `db.sqlite`、`tasks-index.sqlite` 或任何 ZCode 数据库。
-- 禁止写入或修改 `ZCode.app`、`/Applications/ZCode.app` 或其他应用包。
+- 禁止写入或修改 `db.sqlite`、`tasks-index.sqlite` 或任何宿主数据库。
+- 禁止写入或修改任何应用包（含已退役宿主的 `.app`）。
+
+迁移只新增 `<workspace>/.ctbz-record/` 下的目标与源目录内的 `.ctbz-migrated.json` 标记，不删除源目录。
 
 setup/reconfigure 只能写 team config、run state、backup 和 `team-*.md` profile 目标。
 
@@ -104,7 +120,7 @@ setup/reconfigure 只能写 team config、run state、backup 和 `team-*.md` pro
 
 生成或改写任何 profile 的事务必须在 team config 保存 `activationRequired: true`。当前旧会话不能执行任务，需新会话 doctor/activate。
 
-新会话激活时 `doctor --activate`（零路径参数，自动发现）：
+新会话激活时 `doctor --activate`：`--config`/`--agents` 必须显式传，工作区路径可自动发现（建议显式传 `--workspace`）：
 
 1. 父调度器确认 route 引用的每个必需 profile 已出现在当前会话 Agent 工具列表。
 2. CLI 重新安全发现 catalog，核对 fingerprint。
@@ -112,7 +128,7 @@ setup/reconfigure 只能写 team config、run state、backup 和 `team-*.md` pro
 4. CLI 检查每个 route 引用 provider 的 `credentialPresent`。
 5. 全部通过后写入 activation。
 
-attestation 是父调度器提供的可审计声明，记录显式 agents 目录证据和绑定信息；它不是不可伪造的 ZCode 内部证明。必须保留 `agentToolListInternallyVerified: false`，父调度器不能把该声明提升为内部可信根。
+attestation 是父调度器提供的可审计声明，记录显式 agents 目录证据和绑定信息；它不是不可伪造的宿主内部证明。必须保留 `agentToolListInternallyVerified: false`，父调度器不能把该声明提升为内部可信根。
 
 ## doctor
 

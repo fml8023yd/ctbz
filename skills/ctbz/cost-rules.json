@@ -1,204 +1,123 @@
 {
-  "version": 3,
-  "_说明": "成本选型规则集（包工头——父会话派发前执行的资金池分配模块，不是 Agent 角色）。按 priority 从小到大首中即胜（同 priority 按文件序，调序即调语义）；命中仅表示『优先尝试方向』，尝试失败（断流/凭据缺失/限流/模型下架/套餐到期）即带 --exclude <规则id> 重跑选型器滑向下一条，任何情况下不得卡死任务。规则 id 为完整形式（口头简称 R1/R2/R3），语义以 type 字段为准；文档描述按 type 对应，勿硬绑编号。维护方式：用户口头说改哪条，Agent 编辑前先复述目标规则、直接编辑本文件并实跑一次 pick-profile 验证，同时在 _变更记录 留痕。",
-  "_维护示例": "口头修改规则后验证并记录；role_tier 为顶层唯一分档来源。历史变更追加到当前项目 .ctbz-record，不使用来源机器绝对路径。",
-  "_演进预留": "出现对应需求前不动结构。①多规则叠加：触发信号=需要『窗口内再按角色指定不同模型』；动法=每条规则加可选 role_tier 过滤+结果按 priority 分层合并；与现行关系=作为规则级开关（如 stack:true）逐步启用，未开关的规则维持首中即胜；联动重定义 --exclude/--exclude-profile/fallback_chain/superseded；不做=全局放弃首中即胜。②free_model 角色分档：触发信号=免费模型读写角色要用不同 profile；动法=action 扩展 tier_profile:{heavy,light} 二选一替代 try_profile，role_tier 复用 vendor_follow 形态；与现行关系=try_profile 语义并入 tier_profile（单档= heavy/light 同值即可），老字段保留读取兼容一个版本；不做=无 role_tier 的角色分档（无法判定档位归属）。③预算上限：触发信号=要求月度花费上限超限降档；动法=顶层可选 budget 字段+选型器入口预检+warning；前置依赖=花费账本（脚本无状态，须靠 cost-decision 落盘累计或用户月度回填 spent_usd，选型器自身无法读 provider 计费）；不做=自动读取 provider 计费数据库。",
+  "version": "4.0.0-dsh",
+  "_说明": "dsh 版成本选型规则集（包工头——父会话派发前执行的资金池分配模块，不是 Agent 角色）。dsh 的选型器是 scripts/pick-profile（--kind discussion|dev），本文件的 rules[] 描述 5 模型 4 阵营的取样与滑链规则；provider/model 解析与冷却过滤逻辑在选型器内实现，本文件是其数据源与口径文档。派发失败（断流/凭据缺失/限流/模型下架/限额冷却）即带 --exclude <模型代号> 重跑选型器滑向下一条，任何情况下不得卡死任务。ZCode 时代的 profile 短名（glmf/dsp/team-ctbz-* 等）与 free_window 夜窗规则随宿主退役，历史见 _变更记录。维护方式：用户口头说改哪条，Agent 编辑前先复述目标规则、直接编辑本文件并实跑一次 pick-profile 验证，同时在 _变更记录 留痕。",
+  "_维护示例": "口头修改规则后验证并记录；模型库（models[]）是 M1-M5 代号唯一解析源，角色清单.json 的 agentOptions.model 只引用代号。历史变更追加到当前项目 .ctbz-record，不使用来源机器绝对路径。",
   "_变更记录": [
     {
       "date": "2026-09-04",
       "who": "用户",
-      "change": "初版三规则：R1 免费窗口 glmf×3 汇总 / R2 免费模型留桩 / R3 同厂商跟随",
+      "change": "初版三规则：R1 免费窗口 glmf×3 汇总 / R2 免费模型留桩 / R3 同厂商跟随（ZCode profile 时代）",
       "before": "无"
     },
     {
-      "date": "2026-09-04",
-      "who": "反审",
-      "change": "第一轮：_说明/_维护示例 补首中即胜、补零日期、空集语义、演进预留；R1 note 同步写任务默认不冗余",
-      "before": "初版文案"
-    },
-    {
-      "date": "2026-09-04",
-      "who": "反审",
-      "change": "第二轮：新增 version 与 _演进预留（四要素重写）；_说明/_维护示例 补同 priority 文件序、起点≤终点、时间范围、20 条上限、who 约定、档位引用同步提醒",
-      "before": "v1 文案"
-    },
-    {
-      "date": "2026-09-04",
-      "who": "用户",
-      "change": "确认 R1 尾夜（2026-09-21 00:00-09:00）保守不属免费窗口（date_range 止于 09-20，宁少白嫖不误判付费）",
-      "before": "字面口径含尾夜"
-    },
-    {
       "date": "2026-09-05",
       "who": "用户",
-      "change": "确立『降档即冗余』口径：×3 仅对发生降档的高档角色（R1/R2 同理），原本低档 Flash 的角色维持单发；role_tier 提为顶层共享，R3 改引顶层，action 增 triple_scope:heavy_only",
-      "before": "R1 对全角色统一 parallel_multiplier:3；role_tier 内嵌于 R3"
-    },
-    {
-      "date": "2026-09-05",
-      "who": "Agent",
-      "change": "1.1.0：统一R2冗余、显式读写类型与可用并发额度；默认单发。"
+      "change": "确立『降档即冗余』口径与顶层 role_tier（heavy/light 分档）；R3 改引顶层",
+      "before": "R1 对全角色统一 parallel_multiplier:3"
     },
     {
       "date": "2026-09-09",
       "who": "用户",
-      "change": "1.6.0：规则集升级 v3——新增 R3 builtin_follow（主进程同源，尽力尝试级）与 R5 vendor_parallel（同厂商次级档）+ 顶层 rescue 跨渠道救生块；原 R3 平移为 R4；全部规则带 cost_class",
+      "change": "1.6.0：规则集升级 v3——R3 builtin_follow + R5 vendor_parallel + rescue 救生块，全部规则带 cost_class",
       "before": "v2 三规则"
     },
     {
       "date": "2026-09-16",
       "who": "用户",
-      "change": "新增 R0_free_wb：WB-free 渠道（deepseek-v4.1-flash）priority=0 排第一，全角色适用，heavy×3 汇总；失败滑向既有规则兜底",
+      "change": "新增 R0_free_wb：WB-free 渠道 priority=0；R1 夜窗 GLM-5.3-Flash 限时免费（至 2026-09-20）",
       "before": "无 WB 规则"
     },
     {
       "date": "2026-09-17",
       "who": "用户",
-      "change": "R1 升为常规最优先（priority 0，原 1），date_range 起点改为 2026-09-03（原 09-04）；R0_free_wb 降为次优先（priority 1，原 0）。口径：夜窗 23:00→次日09:00 最优先 GLM-5.3-Flash，次优先 WB deepseek-v4.1-flash。R-1 反审例外（priority -1，仅 09-17）维持不动。",
-      "before": "R0=0 第一、R1=1 第二、R1 起点 09-04"
+      "change": "R1 升常规最优先（p0）、R0 降次优先（p1）；R-1 反审例外（09-17 专用 GLM-Flash）",
+      "before": "R0 第一"
+    },
+    {
+      "date": "2026-09-21",
+      "who": "用户",
+      "change": "4.0.0-dsh：宿主切换 dsh，ZCode profile 链（free_window/free_model/builtin_follow/vendor_follow/vendor_parallel/rescue）整体退役；改为 5 模型 4 阵营模型库 + 取样规则（讨论/反审 4 阵营每家至少 1、开发类排除 M5、反审 DeepSeek 席位换 deepseek-v4-pro）+ 冷却账本（~/Documents/.ctbz/模型健康.json，schema 见 references/派发.md）",
+      "before": "v3 profile 短名制"
     }
   ],
-  "timezone": "Asia/Shanghai",
-  "rules": [
+  "models": [
     {
-      "id": "R-1_glm_flash_reaudit",
-      "type": "free_window",
-      "enabled": true,
-      "priority": -1,
-      "description": "反审专用（2026-09-17 用户指定）：24 Agent 反审全部使用 GLM-5.3-Flash",
-      "date_range": [
-        "2026-09-17",
-        "2026-09-17"
-      ],
-      "daily_window": [
-        "00:00",
-        "24:00"
-      ],
-      "action": {
-        "all_roles_profile": "glmf",
-        "parallel_multiplier": 3,
-        "aggregate": "summarize",
-        "triple_scope": "heavy_only"
-      }
+      "code": "M1",
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "vendor": "DeepSeek",
+      "cost": "官方计费",
+      "reaudit_model": "deepseek-v4-pro",
+      "note": "反审席位用本模型时取 reaudit_model，避免与主进程 deepseek-flash 同模型自审"
     },
     {
-      "id": "R0_free_wb",
-      "priority": 1,
-      "enabled": true,
-      "type": "free_model",
-      "model": "custom:wb-workbuddy-remote:deepseek-v4.1-flash",
-      "model_note": "WB-free 渠道（wb-workbuddy-remote），纯免费。profile 短名 m47628ebc2f45。全部角色适用，档位 highest（reasoning: max）。免费故降档风险低，仅 heavy 角色×3 汇总。",
-      "action": {
-        "try_profile": "m47628ebc2f45",
-        "all_roles_profile": "m47628ebc2f45",
-        "parallel_multiplier": 3,
-        "triple_scope": "heavy_only",
-        "aggregate": "summarize"
-      },
-      "note": "2026-09-17 用户指示：WB-free 降为次优先（priority 1）。夜窗内（23:00→次日09:00）让位于 R1 GLM-5.3-Flash；夜窗外 WB 仍为首选。派发失败带 --exclude R0_free_wb 重跑即滑向后续规则兜底。"
+      "code": "M2",
+      "provider": "workbuddy",
+      "model": "glm-5.3-flash",
+      "vendor": "智谱",
+      "cost": "credit 0.01"
     },
     {
-      "id": "R1_free_glm_flash",
-      "priority": 0,
-      "enabled": true,
-      "type": "free_window",
-      "date_range": [
-        "2026-09-03",
-        "2026-09-20"
-      ],
-      "daily_window": [
-        "23:00",
-        "09:00"
-      ],
-      "action": {
-        "all_roles_profile": "glmf",
-        "parallel_multiplier": 3,
-        "aggregate": "summarize",
-        "triple_scope": "heavy_only"
-      },
-      "note": "GLM-5.3-Flash 限时免费时段：全角色直降 Flash 档，最优先（priority 0，2026-09-17 用户指示）。降档即冗余——原本高档(planner/reviewer/debugger)的角色并行×3、父会话汇总意见；原本就是低档 Flash 的角色档位未变，维持单发。冗余组失败处理见 failure-policy.md 冗余组小节。活动期 2026-09-03~09-20（起点按 2026-09-17 用户口径由 09-04 修正），每日 23:00→次日09:00。"
+      "code": "M3",
+      "provider": "workbuddy",
+      "model": "hy4-preview-f",
+      "vendor": "腾讯",
+      "cost": "0"
     },
     {
-      "id": "R2_free_model",
-      "priority": 2,
-      "enabled": true,
-      "type": "free_model",
-      "model": null,
-      "model_note": "用户需定义：候选如 OpenCode Zen 的 Nemotron 3.5 Lightning Free / Big Pickle；model 为 null 或模型未接入/不存在时，本条视为不可用，直接滑向下一条。接入后同 R1 逻辑：降档即冗余，heavy 角色×3、light 单发。",
-      "action": {
-        "try_profile": null,
-        "parallel_multiplier": 3,
-        "triple_scope": "heavy_only",
-        "aggregate": "summarize"
-      }
+      "code": "M4",
+      "provider": "workbuddy",
+      "model": "hy3",
+      "vendor": "腾讯",
+      "cost": "0"
     },
     {
-      "id": "R3_builtin_follow",
-      "priority": 3,
-      "enabled": true,
-      "type": "builtin_follow",
-      "action": {
-        "parallel_multiplier": 1,
-        "aggregate": false
-      },
-      "cost_class": "paid-light",
-      "note": "尽力尝试级：主进程同源模型（omen-alpha）的受管 team profile；可用性随主进程账号配额，配额尽则同死；无对应受管 profile 即滑链；禁止通用 subagent 冒充。派发需父会话以 --main-profile 自报主进程模型档。"
-    },
-    {
-      "id": "R4_vendor_follow",
-      "priority": 4,
-      "enabled": true,
-      "type": "vendor_follow",
-      "vendor_map": {
-        "glm": {
-          "heavy": "glm53",
-          "light": "glmf"
-        },
-        "ds": {
-          "heavy": "dsp",
-          "light": "dsf"
-        },
-        "gpt": {
-          "heavy": "sol",
-          "light": "terra"
-        },
-        "opds": {
-          "heavy": "odsp",
-          "light": "odsf"
-        }
-      },
-      "note": "兜底：子 Agent 跟随主进程厂商（哪家充了钱多用哪家），heavy/light 按顶层 role_tier 分档。需父会话以 --vendor 自报主进程厂商。",
-      "cost_class": "paid-heavy"
-    },
-    {
-      "id": "R5_vendor_parallel",
-      "priority": 5,
-      "enabled": true,
-      "type": "vendor_parallel",
-      "vendor_map": {
-        "glm": {
-          "heavy": "glm53",
-          "light": "glmf"
-        },
-        "ds": {
-          "heavy": "dsp",
-          "light": "dsf"
-        },
-        "gpt": {
-          "heavy": "sol",
-          "light": "terra"
-        },
-        "opds": {
-          "heavy": "odsp",
-          "light": "odsf"
-        }
-      },
-      "selection": "light",
-      "cost_class": "paid-light",
-      "note": "同厂商次级档（selection=light 与 role_tier 解耦）：主档派发失败后由父会话 --exclude R4_vendor_follow / --exclude-profile <重档> 触发；同厂商次级档常与主档共享账号配额，账号级配额场景不保证可用。"
+      "code": "M5",
+      "provider": "workbuddy",
+      "model": "kimi-k2.8-preview",
+      "vendor": "月之暗面",
+      "cost": "credit 0.1"
     }
   ],
+  "sampling": {
+    "discussion": {
+      "rule": "讨论/反审/动脑类 → 4 家提供商每家至少 1 个（DeepSeek/智谱/腾讯/月之暗面）",
+      "conservation_order": [
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        "M1"
+      ],
+      "note": "守恒顺序把 M1 列末位：官方计费且与主进程同模型，保阵营即可"
+    },
+    "dev": {
+      "rule": "开发类 → 排除 M5",
+      "conservation_order": [
+        "M1",
+        "M2",
+        "M3",
+        "M4"
+      ]
+    },
+    "reaudit": {
+      "rule": "反审席位的 DeepSeek 用 deepseek-v4-pro，避免与主进程同模型自审"
+    }
+  },
+  "cooldown_ledger": {
+    "path": "~/Documents/.ctbz/模型健康.json",
+    "key": "provider/model",
+    "fields": [
+      "cooldown_until",
+      "source",
+      "recorded_at"
+    ],
+    "schema_ref": "references/派发.md 第 5 节（T5 按此实现）",
+    "note": "选型器只读；写账本是 T5（scripts/模型健康.js report）的职责。冷却中的模型出局；某阵营全部冷却时其冷却主选守恒补位；全部冷却时守恒顺序兜底输出（打 ⚠ 不阻塞）。",
+    "fields_note": "provider/model 为复合键（见 key 字段），不作为并列字段。"
+  },
   "role_tier": {
+    "_note": "dsh 版保留档位概念供并行冗余决策参考；profile 短名已退役，不再有 heavy/light 双 profile",
     "heavy": [
       "planner",
       "reviewer",
@@ -208,16 +127,12 @@
       "implementer",
       "explorer",
       "researcher",
-      "tester"
+      "tester",
+      "reporter"
     ]
   },
-  "rescue": {
-    "enabled": true,
-    "channel": "ds",
-    "profiles": {
-      "heavy": "dsp",
-      "light": "dsf"
-    },
-    "note": "跨渠道救生：渠道/账号间配额独立为实测经验（2026-09-09 glmf+builtin 死、DS 通），非结构性保证；命中时豁免渠道一致约束；由父会话实测可用后 pin 定，脚本不自发现。"
-  }
+  "known_risks": [
+    "workbuddy 网关 baseURL 为 http 明文（M2/M3/M4/M5 共用），标注为已知风险上报，不改用户网络配置",
+    "toolFilter 在 workflow 通道不生效，只读约束靠 prompt 声明（已知缺口，下阶段 subagent 实例化解决）"
+  ]
 }

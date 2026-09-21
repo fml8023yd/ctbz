@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { lstat, realpath, readdir, mkdir } from "node:fs/promises";
+import { lstat, realpath, readdir, mkdir, copyFile, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { teamConfigFingerprint } from "./lib/team-config.mjs";
@@ -18,6 +18,9 @@ import {
   defaultStateDir,
   defaultTeamConfig,
   discoverWorkspace,
+  legacyWorkspaceStateRoot,
+  workspaceMigrationItems,
+  WORKSPACE_RECORD_DIR,
 } from "./lib/paths.mjs";
 
 class CliError extends Error {}
@@ -30,6 +33,7 @@ const fingerprintOptions = [
 ];
 
 const commandOptions = {
+  "migrate-workspace": new Set(["--workspace", "--migrate", "--dry-run", "--include-worktrees"]),
   setup: new Set([
     "--state-dir",
     "--team",
@@ -88,6 +92,14 @@ function fail(message) {
   throw new CliError(message);
 }
 
+function flag(options, name) {
+  const value = options[name];
+  if (value !== undefined && value !== "true" && value !== "false" && value !== "") {
+    fail(`${name} is a boolean switch and takes no value`);
+  }
+  return value !== undefined && value !== "false";
+}
+
 function parseArguments(arguments_) {
   const [command, ...optionArguments] = arguments_;
   if (!Object.hasOwn(commandOptions, command)) fail("unknown or missing command");
@@ -98,6 +110,14 @@ function parseArguments(arguments_) {
     const value = optionArguments[index + 1];
 
     if (!commandOptions[command].has(option)) fail(`invalid option: ${option}`);
+    // 布尔开关不跟值：--migrate / --dry-run / --include-worktrees
+    const switches = ["--migrate", "--dry-run", "--include-worktrees"];
+    if (switches.includes(option) && (value === undefined || value.startsWith("--"))) {
+      if (Object.hasOwn(options, option)) fail(`${option} may only be provided once`);
+      options[option] = "true";
+      index -= 1;
+      continue;
+    }
     if (value === undefined || value.startsWith("--")) {
       fail(`a value is required for ${option}`);
     }
@@ -297,6 +317,107 @@ async function readTeamState(options) {
   const state = await readJson(statePath);
   await requireNonSymlink(state.teamConfigPath, "teamConfigPath");
   return state;
+}
+
+async function statOrUndefined(path) {
+  try {
+    return await stat(path);
+  } catch (error) {
+    if (error?.code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+async function copyDirectory(source, target) {
+  await mkdir(target, { recursive: true, mode: 0o700 });
+  const entries = await readdir(source, { withFileTypes: true });
+  for (const entry of entries) {
+    const from = join(source, entry.name);
+    const to = join(target, entry.name);
+    if (entry.isSymbolicLink()) fail(`refusing to copy symlink: ${from}`);
+    if (entry.isDirectory()) {
+      await copyDirectory(from, to);
+      continue;
+    }
+    if (entry.isFile()) await copyFile(from, to);
+  }
+}
+
+// 存量迁移：<ws>/旧宿主状态目录/* → <ws>/.ctbz-record/*
+// 规则：源目录原样保留；目标已存在一律跳过（绝不覆盖）；写迁移标记；--dry-run 只报不改。
+// worktrees 含 git 元数据与绝对路径绑定，默认不迁移，需显式 --include-worktrees。
+async function migrateWorkspace(options) {
+  const workspace = discoverWorkspace(options["--workspace"]);
+  requireAbsolutePath(workspace, "--workspace");
+  const sourceRoot = legacyWorkspaceStateRoot(workspace);
+  const targetRoot = join(workspace, WORKSPACE_RECORD_DIR);
+  const dryRun = flag(options, "--dry-run");
+  const includeWorktrees = flag(options, "--include-worktrees");
+  if (!flag(options, "--migrate") && !dryRun) {
+    fail("migrate-workspace requires --migrate (execute) or --dry-run (preview only)");
+  }
+  const sourceStat = await statOrUndefined(sourceRoot);
+  const items = [];
+
+  for (const item of workspaceMigrationItems(workspace)) {
+    if (item.manual && !includeWorktrees) {
+      if (await statOrUndefined(item.source)) {
+        items.push({ name: item.name, source: item.source, target: item.target, action: "skipped", reason: "manual: pass --include-worktrees to migrate worktrees" });
+      }
+      continue;
+    }
+    const from = await statOrUndefined(item.source);
+    if (from === undefined) {
+      items.push({ name: item.name, source: item.source, target: item.target, action: "absent" });
+      continue;
+    }
+    if ((await statOrUndefined(item.target)) !== undefined) {
+      items.push({ name: item.name, source: item.source, target: item.target, action: "skipped", reason: "target exists; refusing to overwrite" });
+      continue;
+    }
+    if (dryRun) {
+      items.push({ name: item.name, source: item.source, target: item.target, action: "would-copy" });
+      continue;
+    }
+    if (item.kind === "directory") await copyDirectory(item.source, item.target);
+    else {
+      await mkdir(dirname(item.target), { recursive: true, mode: 0o700 });
+      await copyFile(item.source, item.target);
+    }
+    items.push({ name: item.name, source: item.source, target: item.target, action: "copied" });
+  }
+
+  const markerPath = join(sourceRoot, ".ctbz-migrated.json");
+  const marker = {
+    schemaVersion: 1,
+    migratedAt: new Date().toISOString(),
+    source: sourceRoot,
+    target: targetRoot,
+    dryRun,
+    copied: items.filter((item) => item.action === "copied").map((item) => item.name),
+    skipped: items.filter((item) => item.action === "skipped").map((item) => item.name),
+    sourceRetained: true,
+  };
+  let markerAction = "would-write";
+  if (!dryRun && sourceStat !== undefined) {
+    await writeJsonAtomic(markerPath, marker);
+    markerAction = "written";
+  } else if (sourceStat === undefined) {
+    markerAction = "absent";
+  }
+
+  return {
+    migrated: !dryRun,
+    dryRun,
+    workspace,
+    source: sourceRoot,
+    target: targetRoot,
+    sourceExists: sourceStat !== undefined,
+    sourceRetained: true,
+    marker: markerPath,
+    markerAction,
+    items,
+  };
 }
 
 async function setup(options) {
@@ -1010,6 +1131,7 @@ async function reviseTask(options) {
 async function main() {
   const { command, options: rawOptions } = parseArguments(process.argv.slice(2));
   const operations = {
+    "migrate-workspace": migrateWorkspace,
     setup,
     activate,
     "can-run": canRun,
