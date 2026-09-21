@@ -23,7 +23,7 @@
 | 退役件（存根） | `skills/ctbz/scripts/lib/team-config.mjs` | M | 去 ZCode team schema 校验，仅留 fingerprint 导出（总变更 719：-706/+13） | -706/+13 |
 | 退役件（存根） | `skills/ctbz/scripts/lib/初始化.mjs` | M | 去 ZCode 初始化逻辑（总变更 68：-57/+11），仅保留兼容壳 | -57/+11 |
 | 退役件（存根） | `skills/ctbz/scripts/lib/本机配置.mjs` | M | 去 ZCode 规则/路由/原子写，保留 `read`/`safe`（总变更 76：-57/+19） | -57/+19 |
-| 改写件 | `skills/ctbz/SKILL.md` | M | 删 ZCode 专属段、加分支标识行、写 dsh 派发层；`version: 2.0.4` | -36/+37 |
+| 改写件 | `skills/ctbz/SKILL.md` | M | 删 ZCode 专属段、加分支标识行、写 dsh 派发层；`version: 2.0.5` | -36/+37 |
 | 改写件 | `skills/ctbz/角色清单.json` | M | 角色规格=`persona`+`toolFilter`+`agentOptions.model`（代号）；`version: 3.0.0-dsh` | -60/+34 |
 | 改写件 | `skills/ctbz/scripts/pick-profile` | M | 选型器改写：profile 短名 → `provider`/`model`，输出 workflow 可消费 | -269/+167 |
 | 改写件 | `skills/ctbz/scripts/发布检查.js` | M | 第③步由 `initialize status` 改为 `status --smoke`（dsh 版冒烟） | -6/+7 |
@@ -74,7 +74,7 @@ D  skills/ctbz/scripts/lib/model-ref.mjs
 ## 3. 两处关键结论的可核对引用
 
 - **结论 A：安装副本分支身份由 `SKILL.md` 首行标识 + version 决定。**
-  引用：`skills/ctbz/SKILL.md:3`（`version: 2.0.4`）与 `skills/ctbz/SKILL.md:7`（`> 宿主：DeepSeek Harness（dsh）｜分支：ctbz-dsh`）。比对 main：同文件 `version: 2.0.3` 且无第 7 行分支标识。
+  引用：`skills/ctbz/SKILL.md:3`（`version: 2.0.5`）与 `skills/ctbz/SKILL.md:7`（`> 宿主：DeepSeek Harness（dsh）｜分支：ctbz-dsh`）。比对 main：同文件 `version: 2.0.3` 且无第 7 行分支标识。
 - **结论 B：ZCode 注册链已退役，发布检查第③步切到 dsh 版 `status --smoke`。**
   引用：`skills/ctbz/scripts/发布检查.js` 的 `step("③ dsh 版 status 冒烟（不依赖 ZCode 发现链）", …)` 调用 `status --smoke`；`skills/ctbz/scripts/status` 末段新增 `--smoke` 分支返回 `{"ok":true,…}`；退役入口报错文案见 `skills/ctbz/scripts/initialize:4`。
 
