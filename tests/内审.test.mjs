@@ -300,6 +300,150 @@ test('用法与环境错误 exit 2', () => {
   assert.equal(run(['bogus'], {cwd: ws}).status, 2);
 });
 
+test('V5 触发节 - 列表项 ≥10 且含 2.0.7 新增两条', () => {
+  const text = readFileSync(PROTOCOL, 'utf8');
+  const from = text.indexOf('## 触发');
+  const to = text.indexOf('## 三步');
+  assert.ok(from >= 0 && to > from, '内审协议.md 缺少「触发」或「三步」节');
+  const items = text.slice(from, to).split('\n').filter((line) => line.startsWith('- '));
+  assert.ok(items.length >= 10, '触发节 - 列表项 = ' + items.length);
+  for (const s of ['有明确下一步却停下复命', '把自己发现的可修缺陷转成「待裁决 / 建议」，只报不改']) {
+    assert.ok(items.some((line) => line.includes(s)), '触发节缺 2.0.7 新增项：' + s);
+  }
+});
+
+// 2.0.7 §2.3 复命闸：夹具全走 mkdtemp，只读不写盘。
+function fumingFixture(text) {
+  const ws = mkdtempSync(join(tmpdir(), 'ctbz-复命-'));
+  const file = join(ws, '复命.md');
+  writeFileSync(file, text, 'utf8');
+  return file;
+}
+
+function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['- 修了部署.js 的 PATH 缺陷 → skills/ctbz/scripts/部署.js'], pending = ['- 删远端数据 | 准入: 不可逆']} = {}) {
+  const list = (items) => (items.length ? items : ['无']);
+  return [
+    '# 复命 ctbz-2.0.7',
+    '',
+    '自主延伸:',
+    ...list(extend),
+    '',
+    '自主修复:',
+    ...list(fix),
+    '',
+    '待裁决:',
+    ...list(pending),
+    '',
+  ].join('\n');
+}
+
+function runFuming(file, extra = []) {
+  return run(['复命', '--file', file, ...extra]);
+}
+
+test('V3 复命闸放行：三段齐全 + 三条准入取值合法 → exit 0，且不改动夹具', () => {
+  const file = fumingFixture(
+    fumingText({
+      pending: ['- 删远端数据 | 准入: 不可逆', '- 改远端数据 | 准入: 四扇门', '- 选 A 还是 B | 准入: 用户要求二选一'],
+    })
+  );
+  const before = readFileSync(file, 'utf8');
+  const r = runFuming(file);
+  assert.equal(r.status, 0, r.stdout);
+  assert.match(r.stdout, /✓ 复命闸通过/);
+  assert.equal(readFileSync(file, 'utf8'), before, '复命闸不得写盘');
+
+  const json = runFuming(file, ['--json']);
+  assert.equal(json.status, 0, json.stdout);
+  assert.equal(json.stdout.trim().split('\n').length, 1);
+  assert.deepEqual(JSON.parse(json.stdout), {ok: true, mode: '复命'});
+});
+
+test('V3 待裁决: 无 → exit 0（自主延伸 / 自主修复 亦可为 无）', () => {
+  const file = fumingFixture(fumingText({extend: [], fix: [], pending: []}));
+  const r = runFuming(file);
+  assert.equal(r.status, 0, r.stdout);
+  assert.match(r.stdout, /✓ 复命闸通过/);
+});
+
+test('V3 段缺失 → exit 1', () => {
+  const noPending = fumingFixture(['# 复命 x', '', '自主延伸:', '无', '', '自主修复:', '无', ''].join('\n'));
+  const a = runFuming(noPending);
+  assert.equal(a.status, 1, a.stdout);
+  assert.match(a.stdout, /缺段标题/);
+  assert.match(a.stdout, /待裁决/);
+
+  const noExtend = fumingFixture(['# 复命 x', '', '自主修复:', '无', '', '待裁决:', '无', ''].join('\n'));
+  const b = runFuming(noExtend);
+  assert.equal(b.status, 1, b.stdout);
+  assert.match(b.stdout, /缺段标题/);
+  assert.match(b.stdout, /自主延伸/);
+});
+
+test('V3 准入取值非法 → exit 1；缺 准入: → exit 1', () => {
+  const illegal = fumingFixture(fumingText({pending: ['- 事项 | 准入: 两选一']}));
+  const a = runFuming(illegal);
+  assert.equal(a.status, 1, a.stdout);
+  assert.match(a.stdout, /准入取值非枚举/);
+
+  const missing = fumingFixture(fumingText({pending: ['- 事项']}));
+  const b = runFuming(missing);
+  assert.equal(b.status, 1, b.stdout);
+  assert.match(b.stdout, /缺 准入:/);
+});
+
+test('V2 出处指向本 skill 的待裁决条目 → exit 1', () => {
+  const file = fumingFixture(fumingText({pending: ['- 发布链还没走到 | 出处: skills/ctbz/SKILL.md:77']}));
+  const r = runFuming(file);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /指向本 skill/);
+
+  const json = runFuming(file, ['--json']);
+  assert.equal(json.status, 1, json.stdout);
+  const out = JSON.parse(json.stdout);
+  assert.equal(out.ok, false);
+  assert.ok(out.errors.some((e) => /指向本 skill/.test(e)), json.stdout);
+});
+
+test('V8 复命闸反绕过：G4 三条口语化出处变体各 → exit 1', () => {
+  for (const item of ['- 详见发布链 | 准入: 四扇门', '- 依据本 skill | 准入: 不可逆', '- SKILL.md:77 有说明 | 准入: 四扇门']) {
+    const file = fumingFixture(fumingText({pending: [item]}));
+    const r = runFuming(file);
+    assert.equal(r.status, 1, item + ' → ' + r.stdout);
+    assert.match(r.stdout, /指向本 skill/);
+  }
+});
+
+test('V8 复命闸反绕过：G5 只报不改词 → exit 1', () => {
+  for (const item of ['- 建议修一下部署脚本 | 准入: 四扇门', '- 已知缺陷，遗留待处理 | 准入: 不可逆']) {
+    const file = fumingFixture(fumingText({pending: [item]}));
+    const r = runFuming(file);
+    assert.equal(r.status, 1, item + ' → ' + r.stdout);
+    assert.match(r.stdout, /只报不改/);
+  }
+});
+
+test('复命闸其它规则：G2 形态、G3 全角冒号、G6 缺产物路径', () => {
+  const shape = fumingFixture(['# 复命 x', '', '自主延伸:', '做了点事', '', '自主修复:', '无', '', '待裁决:', '无', ''].join('\n'));
+  const a = runFuming(shape);
+  assert.equal(a.status, 1, a.stdout);
+  assert.match(a.stdout, /不合形态/);
+
+  const noArrow = fumingFixture(fumingText({extend: ['- 补跑了探活']}));
+  const b = runFuming(noArrow);
+  assert.equal(b.status, 1, b.stdout);
+  assert.match(b.stdout, /缺产物路径/);
+
+  const fullColon = fumingFixture(fumingText({pending: ['- 事项 | 准入：用户要求二选一']}));
+  assert.equal(runFuming(fullColon).status, 0);
+});
+
+test('复命闸用法错误 exit 2', () => {
+  const {ws} = fixture();
+  assert.equal(run(['复命'], {cwd: ws}).status, 2);
+  assert.equal(run(['复命', '--file', join(ws, '不存在.md')], {cwd: ws}).status, 2);
+});
+
 test('帮助与位置参数顺序', () => {
   const {ws} = fixture();
   const help = run(['-h'], {cwd: ws});

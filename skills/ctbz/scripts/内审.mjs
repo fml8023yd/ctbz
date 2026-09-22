@@ -1,10 +1,11 @@
 #!/usr/local/bin/node
-// ctbz 内审 CLI（dsh 版）——init / check / link
+// ctbz 内审 CLI（dsh 版）——init / check / link / 复命
 //
 // 用法：
 //   node 内审.mjs init  --subject <主题> [--prev <编号>] [--workspace <ws>] [--dir <目录>] [--date YYYY-MM-DD]
 //   node 内审.mjs check <文件> [--json]
 //   node 内审.mjs link  --prev <编号> --file <当前内审文件> [--workspace <ws>] [--dir <目录>]
+//   node 内审.mjs 复命 --file <复命.md> [--json]
 //
 // 契约（冻结，改需回主会话；出处 docs/ctbz-2.0.6-派发闸与内审-计划.md §4.7）：
 //   - 编号 = <YYYY-MM-DD>-<主题>；文件名 = <编号>.md；pending[].id == 编号；
@@ -15,6 +16,8 @@
 //   - 待办固定 <ws>/.ctbz-record/内审/pending.json；--dir 只管内审 md 落点（默认 <ws>/docs/内审）。
 //   - check 按被检文件向上找 pending.json：派发闸 audit 的 spawnSync 不保证 cwd，缺了会漏登记。
 //   - 只用 node 标准库；零网络；中文路径原样输出，不做 percent-encode。
+//   - 复命 = 复命闸（G1–G6）：段标题＝行首零缩进恰为 `自主延伸:` / `自主修复:` / `待裁决:` 的行，
+//     段内容＝标题之后至下一段标题或文件末尾的非空行；只读不写盘，与 check 互不调用。
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -26,15 +29,16 @@ const USAGE = `ctbz 内审 CLI（dsh 版）
   node 内审.mjs init  --subject <主题> [--prev <编号>] [--workspace <ws>] [--dir <目录>] [--date YYYY-MM-DD]
   node 内审.mjs check <文件> [--json]
   node 内审.mjs link  --prev <编号> --file <当前内审文件> [--workspace <ws>] [--dir <目录>]
+  node 内审.mjs 复命 --file <复命.md> [--json]
 
 选项：
   --subject <主题>      内审主题（必填，init）；编号 = <日期>-<主题>
   --prev <编号>         init：同类主题已存在时必须显式挂链；link：前一条内审编号
-  --file <文件>         当前内审文件（link）
+  --file <文件>         当前内审文件（link）/ 复命清单（复命）
   --workspace <ws>      工作区根，默认 git rev-parse --show-toplevel，失败回退 cwd
   --dir <目录>          内审 md 落点，默认 <ws>/docs/内审
   --date <YYYY-MM-DD>   编号日期，默认当日
-  --json                check 输出单行 JSON
+  --json                check / 复命 输出单行 JSON
   -h, --help            显示本帮助
 
 退出码：
@@ -43,7 +47,8 @@ const USAGE = `ctbz 内审 CLI（dsh 版）
 const USAGE_ONELINE =
   "用法：node 内审.mjs init --subject <主题> [--prev <编号>] [--workspace <ws>] [--dir <目录>] [--date YYYY-MM-DD]" +
   " | check <文件> [--json]" +
-  " | link --prev <编号> --file <当前内审文件> [--workspace <ws>] [--dir <目录>]";
+  " | link --prev <编号> --file <当前内审文件> [--workspace <ws>] [--dir <目录>]" +
+  " | 复命 --file <复命.md> [--json]";
 
 const FIELDS = ["现象", "证据", "根因", "修改项", "同类史", "可执行性声明"];
 const STATUS_FIELD = "实现状态";
@@ -56,6 +61,15 @@ const BAN_RE = /加强意识|下次注意|更仔细|提高警惕|引起重视/;
 const FILE_PATH_RE = /\.(mjs|js|md|json|yaml|yml|sh)(?![0-9A-Za-z_])/;
 const ACCEPT_RE = /判据|退出码|预期/;
 const FIELD_LINE_RE = /^([^\s:：]+)[:：](.*)$/;
+
+const FUMING_SECTIONS = ["自主延伸", "自主修复", "待裁决"];
+const SECTION_RE = /^(自主延伸|自主修复|待裁决)\s*[:：]\s*$/;
+const NONE = "无";
+const ADMISSION = ["四扇门", "不可逆", "用户要求二选一"];
+const ADMISSION_RE = /准入\s*[:：]\s*(.*)$/;
+// G4/G5 只扫「待裁决」条目：自主延伸 / 自主修复 的产物路径必然含 skills/ctbz，扫全文件会把合规清单判死。
+const SKILL_MARK_RE = /skill\.md|skills\/ctbz|references\/|本skill|发布链|命令集/;
+const REPORT_ONLY_RE = /建议|待修|遗留|已知缺陷|未修|只报不改|下次再修/;
 
 function usage(msg) {
   console.error("[内审.mjs] " + msg);
@@ -201,6 +215,75 @@ function judge(text) {
   return { ok, level, excellent: ok && l3, reason };
 }
 
+// 段标题＝行首（零缩进）恰为三段名之一的行；段内容＝该行之后至下一段标题或文件末尾的非空行。
+function parseFuming(text) {
+  const secs = {};
+  let cur = null;
+  text.split(/\r?\n/).forEach((line, i) => {
+    const m = SECTION_RE.exec(line);
+    if (m) {
+      cur = m[1];
+      if (!secs[cur]) secs[cur] = [];
+      return;
+    }
+    if (cur && line.trim() !== "") secs[cur].push({ no: i + 1, text: line });
+  });
+  return secs;
+}
+
+const isNone = (items) => items.length === 1 && items[0].text.trim() === NONE;
+
+// G4/G5 归一化口径：全角转半角 + toLowerCase + 去所有空白，再匹配特征串（不限字段、不豁免）。
+function normalizeFuming(line) {
+  return line
+    .replace(/[\uFF01-\uFF5E]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .toLowerCase()
+    .replace(/\s+/g, "");
+}
+
+function judgeFuming(text) {
+  const secs = parseFuming(text);
+  const errors = [];
+
+  for (const k of FUMING_SECTIONS) {
+    if (!secs[k]) errors.push("0: 缺段标题「" + k + ":」");
+  }
+
+  for (const k of FUMING_SECTIONS) {
+    const items = secs[k] || [];
+    if (isNone(items)) continue;
+    for (const it of items) {
+      if (!it.text.startsWith("- ")) {
+        errors.push(it.no + ": " + k + " 段行不合形态（须以「- 」开头，或整段恰为「" + NONE + "」）");
+      }
+    }
+  }
+
+  for (const k of ["自主延伸", "自主修复"]) {
+    const items = secs[k] || [];
+    if (!items.length || isNone(items)) continue;
+    for (const it of items) {
+      if (!it.text.startsWith("- ")) continue;
+      if (!it.text.includes(" → ")) errors.push(it.no + ": " + k + " 缺产物路径（须含「 → 」）");
+    }
+  }
+
+  const pending = secs["待裁决"] || [];
+  if (pending.length && !isNone(pending)) {
+    for (const it of pending) {
+      const m = ADMISSION_RE.exec(it.text);
+      const value = m ? m[1].trim() : null;
+      if (!m) errors.push(it.no + ": 待裁决缺 准入:（取值限 " + ADMISSION.join(" / ") + "）");
+      else if (!ADMISSION.includes(value)) errors.push(it.no + ": 准入取值非枚举（" + value + "）");
+      const n = normalizeFuming(it.text);
+      if (SKILL_MARK_RE.test(n)) errors.push(it.no + ": 待裁决指向本 skill（skill 里已有指令，该去做而不是来问）");
+      if (REPORT_ONLY_RE.test(n)) errors.push(it.no + ": 待裁决含只报不改词（可修缺陷须进「自主修复」段）");
+    }
+  }
+
+  return errors;
+}
+
 // 派发闸 audit 以 spawnSync 调 check，cwd 不受控：按被检文件向上找 pending.json，再退回默认 ws。
 // 命中候选后仍须校验 entry.file（resolve 后）与被检文件全等：子目录里的同名文件不得改写父目录 pending 条目。
 // 不符只跳过该条目并警告，继续向上；最终找不到即按未登记处理（只警告，不判不合格）。
@@ -312,6 +395,31 @@ function cmdCheck(a) {
   return r.ok ? 0 : 1;
 }
 
+// 复命闸：只读复命清单，逐条列违规；不写任何文件、零网络。
+function cmdFuming(a) {
+  if (!a.file) return usage("复命 缺少 --file <复命.md>");
+  const file = resolve(a.file);
+  if (!existsSync(file)) return usage("文件不存在：" + file);
+
+  let text;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch (e) {
+    return usage("文件无法读取：" + file + "（" + e.message + "）");
+  }
+
+  const errors = judgeFuming(text);
+  const ok = errors.length === 0;
+  if (a.json) {
+    console.log(ok ? JSON.stringify({ ok: true, mode: "复命" }) : JSON.stringify({ ok: false, errors }));
+  } else if (ok) {
+    console.log("✓ 复命闸通过");
+  } else {
+    for (const e of errors) console.log("✗ " + e);
+  }
+  return ok ? 0 : 1;
+}
+
 function cmdLink(a) {
   if (!a.prev) return usage("link 缺少 --prev <编号>");
   if (!a.file) return usage("link 缺少 --file <当前内审文件>");
@@ -357,6 +465,7 @@ function main() {
   const cmd = a._.shift();
   if (cmd === "init") return cmdInit(a);
   if (cmd === "check") return cmdCheck(a);
+  if (cmd === "复命") return cmdFuming(a);
   if (cmd === "link") return cmdLink(a);
   return usage(cmd ? "未知命令：" + cmd : "缺少命令");
 }

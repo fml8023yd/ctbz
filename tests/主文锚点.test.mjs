@@ -24,9 +24,11 @@ const CHANGELOG = readFileSync(CHANGELOG_PATH, "utf8");
 const skillLines = SKILL.split("\n");
 const sha256 = (s) => createHash("sha256").update(s).digest("hex");
 
-// 计划 §9.11 内联快照 = 编辑前 SKILL.md:77 硬门原文。常量独立存在，不取自被检文件（禁自证）。
+// 计划 §2.7 内联快照 = 硬门行原文。常量独立存在，不取自被检文件（禁自证）。
 const HARD_GATE = `所有计划实施前必须走反审协议（按规模分级）；快速模式验证性产出为例外（转正需反审）；倒计时/自动模式授权不得替代反审执行。反审必含硬问题【新鲜 Agent 测试】："把计划单独给一个没读过任何上下文的 Agent，能不能不问问题就开工？"卡住点=计划欠的具体性，补齐才过。反审通过的计划下一步只能派发，主会话不得自己执行（"写完计划自己开工"违规）；普通与自动模式的小修复也保留独立反审。`;
 const HARD_GATE_SHA = "d7bef505d4af949974b16948014d4fba8196c0c3156b823e7dcd173fd54d929e";
+const HARD_GATE_ANCHOR = "所有计划实施前必须走反审协议";
+const BOUNDARY_HEAD = "## 边界延伸（做得多、说得少）";
 
 function mirrorBlock(text, name) {
   const begin = `<!-- ${name}:BEGIN`;
@@ -62,28 +64,36 @@ test("V6 启动自检：preflight 命令与「反审阻塞」处置文案", () =
   assert.ok(SKILL.includes("反审阻塞"), "SKILL.md 缺「反审阻塞」");
 });
 
-test("V13 硬门未被下调：§9.11 快照行逐字保留且 sha256 不变", () => {
-  // §9.11 的 77 是编辑前基线行号：T4 在 :7 之后插 §9.2（空行 + 7 行）、在 :62 之前插 §9.1（21 行 + 空行），
-  // 共 +30 行；F1 回修在「派发前必跑」节末补 F-4 部署前置提示（正文 + 空行，仍在硬门行之前），再 +2 行。
-  // 故该行落到 77 + 30 + 2 = 109。位移必须恰等于这几处授权插入——多一行即说明硬门被挪动。
-  const BASE_LINE = 77;
-  const T4_SHIFT = 30;
-  const F1_SHIFT = 2;
-  assert.equal(sha256(HARD_GATE + "\n"), HARD_GATE_SHA, "内联快照常量本身与 §9.11 sha256 不符");
-  const hits = skillLines.filter((l) => l === HARD_GATE).length;
-  assert.equal(hits, 1, `硬门原文出现 ${hits} 次，应为 1 次`);
-  const lineNo = skillLines.indexOf(HARD_GATE) + 1;
+test("V13 硬门未被下调：按内容定位，快照行逐字保留且 sha256 不变", () => {
+  // 行号不参与判定：新节插在硬门行之后，任何行号算术常量（BASE_LINE + SHIFT 之类）都会失效。
+  const hits = skillLines.filter((l) => l.includes(HARD_GATE_ANCHOR));
+  assert.equal(hits.length, 1, `含「${HARD_GATE_ANCHOR}」的行有 ${hits.length} 行，应为 1 行`);
   assert.equal(
-    lineNo,
-    BASE_LINE + T4_SHIFT + F1_SHIFT,
-    `硬门原文在第 ${lineNo} 行，应为第 ${BASE_LINE + T4_SHIFT + F1_SHIFT} 行`,
+    SKILL.split(HARD_GATE_ANCHOR).length - 1,
+    1,
+    `「${HARD_GATE_ANCHOR}」在全文出现 ${SKILL.split(HARD_GATE_ANCHOR).length - 1} 次，应为 1 次`,
   );
-  assert.equal(skillLines[lineNo - 1].trim(), HARD_GATE, "硬门行 trim 后与快照不相等");
-  assert.equal(
-    sha256(skillLines[lineNo - 1] + "\n"),
-    HARD_GATE_SHA,
-    "硬门行 sha256 与 §9.11 不符（硬门被下调）",
+  assert.equal(sha256(HARD_GATE + "\n"), HARD_GATE_SHA, "内联快照常量本身与 §2.7 sha256 不符");
+  assert.equal(hits[0].trim(), HARD_GATE, "硬门行 trim 后与 §2.7 快照不相等");
+  assert.equal(sha256(hits[0] + "\n"), HARD_GATE_SHA, "硬门行 sha256 与 §2.7 不符（硬门被下调）");
+});
+
+// 2.0.7 §2.1：冷启动只读 SKILL.md 即可复述三判据 / 复命门槛 / 唯一准入三类。
+test("V1 边界延伸节可发现：插在硬门行之后，三判据与准入三类齐全", () => {
+  assert.ok(SKILL.includes(BOUNDARY_HEAD), "SKILL.md 缺「边界延伸」节标题");
+  assert.ok(
+    SKILL.indexOf(HARD_GATE) < SKILL.indexOf(BOUNDARY_HEAD),
+    "「边界延伸」节必须在硬门行之后（硬门行位置不得被挪动）",
   );
+  for (const s of ["复命门槛", "四扇门", "不可逆", "用户要求二选一"]) {
+    assert.ok(SKILL.includes(s), `SKILL.md 缺「${s}」`);
+  }
+  const i = SKILL.indexOf(BOUNDARY_HEAD);
+  const sec = SKILL.slice(i, SKILL.indexOf("\n## ", i + 1));
+  for (const s of ["有条款出处", "可回滚或可验证", "不触四扇门"]) {
+    assert.ok(sec.includes(s), `「边界延伸」节缺判据「${s}」`);
+  }
+  assert.ok(sec.includes("内审.mjs 复命 --file"), "「边界延伸」节缺复命闸命令");
 });
 
 test("镜像一致性：两个标记块在 SKILL.md 与 ~/.dsh/AGENTS.md 逐字相等", () => {
@@ -125,10 +135,11 @@ test("F-5 ③④⑤ 内审链接可达、派发契约四行、CHANGELOG 版本�
   }
 
   assert.ok(CHANGELOG.includes("## [2.0.6] - 2026-09-22"), "CHANGELOG.md 缺 2.0.6 版本段");
+  assert.ok(CHANGELOG.includes("## [2.0.7] - 2026-09-22"), "CHANGELOG.md 缺 2.0.7 版本段");
 });
 
-test("F-5 ⑥ 版本号 2.0.6、旧定级口径防回归、L2/L3 落盘目录名", () => {
-  assert.match(SKILL, /^version: 2\.0\.6$/m, "SKILL.md frontmatter 版本号非 2.0.6");
+test("F-5 ⑥ 版本号 2.0.7、旧定级口径防回归、L2/L3 落盘目录名", () => {
+  assert.match(SKILL, /^version: 2\.0\.7$/m, "SKILL.md frontmatter 版本号非 2.0.7");
   for (const s of ["架构级 6+", "模块级 4-6"]) {
     assert.ok(!SKILL.includes(s), `SKILL.md 仍含旧定级口径「${s}」（L2-1 回归）`);
   }
