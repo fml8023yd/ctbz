@@ -69,10 +69,10 @@ node <skill>/scripts/preflight.mjs --json
 
 ## 派发前必跑（硬闸，未过不得创建实施任务）
 
-1. 计划反审：`node <skill>/scripts/反审.mjs --plan <计划md> --gate`
+1. 计划反审：`node <skill>/scripts/反审.mjs --plan <计划md> --workspace <ws> --gate`
 2. 回执校验：`node <skill>/scripts/派发闸.mjs --plan <计划md> --workspace <ws> --level l1`
 3. 实施任务契约必须带 `派发闸.mjs` 输出的 `review` 块；`review_receipt` 为空 → 不得派发。
-4. 每个实施任务完成时跑 `--level l2`；全部通过后交付前跑 `--level l3`。
+4. 每个实施任务完成时跑 `--level l2 --task <T号>`（`<T号>` 逐字取实施任务号，如 `T1`）；全部通过后交付前跑 `--level l3`。
 反审一律走「`pick-profile` 取样 → `反审.mjs` 生成骨架 → `workflow.agent()` 执行」。
 **禁止**用 `spawn_teammate` / `subagent` 承担反审席位（无法指定 provider/model，等同同模型自审）。
 
@@ -278,7 +278,7 @@ dsh 无 ZCode 的 agent profile 注册概念（无 initialize/select/activate �
 
 工作区状态目录 `<ws>/.ctbz-record/*`（dashboard.json、记录.md、验收表、方法与重构落盘均在此）；项目看板独立存入项目 `.ctbz-record`，与宿主全局配置解耦。
 
-全局指令文件 `~/.dsh/AGENTS.md`：dsh 的跨会话全局指令落点（**本机当前不存在，首次需创建**，写入 ctbz 的固定前缀与最低人设，使新会话无需重复注入）。
+全局指令文件 `~/.dsh/AGENTS.md`：dsh 的跨会话全局指令落点（**本机已存在**，2.0.4 起落盘，含「末段契约」「哑巴模式」两个镜像块；**新机器首次需创建**，写入 ctbz 的固定前缀与最低人设，使新会话无需重复注入）。
 
 ## 模型阵营与取样规则（dsh 版）
 

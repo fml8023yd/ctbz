@@ -136,3 +136,27 @@ test("F-5 ⑥ 版本号 2.0.6、旧定级口径防回归、L2/L3 落盘目录名
     assert.ok(SKILL.includes(s), `SKILL.md 缺 L2/L3 落盘目录名「${s}」（L2-2 回归）`);
   }
 });
+
+// F5（L3 阻塞 B1 + zhipu 条件）：冷启动照抄命令必须可直接执行——第 1 步缺 --workspace、l2 缺 --task 均实测 exit 2。
+test("F5 派发前必跑：第 1 步含 --workspace、l2 含 --task、无过时 AGENTS.md 事实", () => {
+  const head = "## 派发前必跑（硬闸，未过不得创建实施任务）";
+  const i = SKILL.indexOf(head);
+  assert.ok(i >= 0, "SKILL.md 缺「派发前必跑」节标题");
+  const next = SKILL.indexOf("\n## ", i + head.length);
+  const sec = SKILL.slice(i, next === -1 ? SKILL.length : next);
+
+  const step1 = sec.split("\n").find((l) => l.startsWith("1. 计划反审："));
+  assert.ok(step1, "「派发前必跑」节缺第 1 步「计划反审」行");
+  assert.ok(step1.includes("反审.mjs"), `第 1 步缺「反审.mjs」：${step1}`);
+  assert.ok(step1.includes("--workspace"), `第 1 步缺「--workspace」（照抄必 exit 2）：${step1}`);
+
+  assert.ok(
+    sec.includes("--level l2 --task"),
+    "「派发前必跑」节缺「--level l2 --task <T号>」（l2 裸跑实测 exit 2）",
+  );
+
+  assert.ok(
+    !SKILL.includes("本机当前不存在，首次需创建"),
+    "SKILL.md 仍含过时事实「本机当前不存在，首次需创建」（~/.dsh/AGENTS.md 已存在）",
+  );
+});
