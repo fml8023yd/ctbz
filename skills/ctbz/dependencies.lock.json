@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "0af8962f69b729479876ae248dea75b6118595e7dd1fd44c9067c5b4dc06af9a"
+      "sha256": "ad2a8ee4157e0357f25b9413d4a0c07525a6308c41ee9bdbef8b8c5eb347e673"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -191,7 +191,7 @@
     },
     {
       "path": "references/内审协议.md",
-      "sha256": "5bd46d4edb0fc83e09d5c9534b9857627c0bb2fb8ec187ab1912bac2cb140c0a"
+      "sha256": "6b18182f35c3dfbbb659c930097792e9406db9209ea30a32a4d5a1106b3039c8"
     },
     {
       "path": "references/初始化.md",
@@ -311,7 +311,7 @@
     },
     {
       "path": "scripts/内审.mjs",
-      "sha256": "1db406938f176da2d26774dcf0b1e902826026424f08d195f18a08b528964c70"
+      "sha256": "e4e8b07196b4372bea7856fd48291a4bb995b06430178f4dc2b5d3e06862c00d"
     },
     {
       "path": "scripts/反审.mjs",
