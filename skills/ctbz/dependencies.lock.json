@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "ad2a8ee4157e0357f25b9413d4a0c07525a6308c41ee9bdbef8b8c5eb347e673"
+      "sha256": "e4633e2a0e0792c174dd4c0376783812783caaa032f830e3ff2129aeaa125304"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -311,7 +311,7 @@
     },
     {
       "path": "scripts/内审.mjs",
-      "sha256": "e4e8b07196b4372bea7856fd48291a4bb995b06430178f4dc2b5d3e06862c00d"
+      "sha256": "39abc43c45fb9732465da4c4f247047a5b0b38984667acb7418e97df04d3823e"
     },
     {
       "path": "scripts/反审.mjs",
