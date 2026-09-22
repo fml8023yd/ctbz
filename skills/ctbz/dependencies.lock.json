@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "0f9cd63e3bdafca8dca91c8e561d0f1eaff4f914111794e0924aa943614d6f60"
+      "sha256": "2545be4559cfac16d923b0f3272ce8bcd828f232a91b46a6acf195dcaf041079"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -190,16 +190,20 @@
       "sha256": "0ef6004a6f29d532c19823beeea620db4fe15a3c0af2aa214379bbc8e0650123"
     },
     {
+      "path": "references/内审协议.md",
+      "sha256": "5bd46d4edb0fc83e09d5c9534b9857627c0bb2fb8ec187ab1912bac2cb140c0a"
+    },
+    {
       "path": "references/初始化.md",
       "sha256": "4e2d3847f65c871fbf9689be3a2b5bf0f9fc0dabe55430f4c6a39eb5eb5ba044"
     },
     {
       "path": "references/反审协议.md",
-      "sha256": "3afa5d0effd21dbaaffc0e3382b556f77bb41c3492e74dddf0d4c132273aec33"
+      "sha256": "363fe4f26c28050d98c72c5884f0500bbad39dee3adad0d08f7dc12496cf7ce7"
     },
     {
       "path": "references/派发.md",
-      "sha256": "a257b3f44be06e359dd0427dc6a2e8f967ec649399816912cc23b194360da01d"
+      "sha256": "3d02cda2ec0a00b51638460fa61a6d4769f93a39950a1486b78635bb00c8fa3f"
     },
     {
       "path": "references/流程治理.md",
@@ -306,8 +310,12 @@
       "sha256": "4030ec7923bf84f4927a838a6edb442a020546d2ea40a4a37a07ef4724f82dbf"
     },
     {
+      "path": "scripts/内审.mjs",
+      "sha256": "1db406938f176da2d26774dcf0b1e902826026424f08d195f18a08b528964c70"
+    },
+    {
       "path": "scripts/反审.mjs",
-      "sha256": "53dd2dac18d25498ebf9afa2aba8d70cc84230a6c8f4abcffe12972a5505e896"
+      "sha256": "2353205a9d204f562fee0904369e73a59bb5c2a5f47bea9c8dfabc00c972ecfb"
     },
     {
       "path": "scripts/发布检查.js",
@@ -324,6 +332,10 @@
     {
       "path": "scripts/模型健康.js",
       "sha256": "698715dff4c9f4708622585bf5d2d270b1c3f608e097e9da136d3a441a7cec18"
+    },
+    {
+      "path": "scripts/派发闸.mjs",
+      "sha256": "1f0a655aac3679fef5f71b586e86848dc6e8e3e78d320b8499c15c83872978e7"
     },
     {
       "path": "scripts/知识库.js",
