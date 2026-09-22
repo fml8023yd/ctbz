@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "2545be4559cfac16d923b0f3272ce8bcd828f232a91b46a6acf195dcaf041079"
+      "sha256": "0af8962f69b729479876ae248dea75b6118595e7dd1fd44c9067c5b4dc06af9a"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -203,7 +203,7 @@
     },
     {
       "path": "references/派发.md",
-      "sha256": "3d02cda2ec0a00b51638460fa61a6d4769f93a39950a1486b78635bb00c8fa3f"
+      "sha256": "04abbb53209d663fedda856c1638d9c3d480201d6195a4c318a9b93a9749a0bb"
     },
     {
       "path": "references/流程治理.md",
