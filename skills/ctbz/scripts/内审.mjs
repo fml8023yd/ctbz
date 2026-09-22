@@ -16,7 +16,7 @@
 //   - 待办固定 <ws>/.ctbz-record/内审/pending.json；--dir 只管内审 md 落点（默认 <ws>/docs/内审）。
 //   - check 按被检文件向上找 pending.json：派发闸 audit 的 spawnSync 不保证 cwd，缺了会漏登记。
 //   - 只用 node 标准库；零网络；中文路径原样输出，不做 percent-encode。
-//   - 复命 = 复命闸（G1–G6）：段标题＝行首零缩进恰为 `自主延伸:` / `自主修复:` / `待裁决:` 的行，
+//   - 复命 = 复命闸（G1–G9）：段标题＝行首零缩进恰为 `自主延伸:` / `自主修复:` / `待裁决:` / `自疑:` 的行，
 //     段内容＝标题之后至下一段标题或文件末尾的非空行；只读不写盘，与 check 互不调用。
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -62,14 +62,18 @@ const FILE_PATH_RE = /\.(mjs|js|md|json|yaml|yml|sh)(?![0-9A-Za-z_])/;
 const ACCEPT_RE = /判据|退出码|预期/;
 const FIELD_LINE_RE = /^([^\s:：]+)[:：](.*)$/;
 
-const FUMING_SECTIONS = ["自主延伸", "自主修复", "待裁决"];
-const SECTION_RE = /^(自主延伸|自主修复|待裁决)\s*[:：]\s*$/;
+const FUMING_SECTIONS = ["自主延伸", "自主修复", "待裁决", "自疑"];
+const SECTION_RE = /^(自主延伸|自主修复|待裁决|自疑)\s*[:：]\s*$/;
 const NONE = "无";
 const ADMISSION = ["四扇门", "不可逆", "用户要求二选一"];
 const ADMISSION_RE = /准入\s*[:：]\s*(.*)$/;
 // G4/G5 只扫「待裁决」条目：自主延伸 / 自主修复 的产物路径必然含 skills/ctbz，扫全文件会把合规清单判死。
 const SKILL_MARK_RE = /skill\.md|skills\/ctbz|references\/|本skill|发布链|命令集/;
 const REPORT_ONLY_RE = /建议|待修|遗留|已知缺陷|未修|只报不改|下次再修/;
+// G7–G9（2.0.8）：自疑段的箭头计数在**原始行**上做（normalizeFuming 只做全角转半角，不转 `->`）。
+const ARROW_RE = /→|->/;
+const FAKE_EXPERIMENT_RE = /想了一下|推理|推测|可能|应该|大概|估计|觉得/;
+const DOUBT_RESULT_RE = /exit\s*[0-2]\b|pass\s*\d+|\d+\s*fail|[^\s:：]+\.(mjs|js|md|json|ts|sh|yaml|yml):\d+/;
 
 function usage(msg) {
   console.error("[内审.mjs] " + msg);
@@ -215,20 +219,24 @@ function judge(text) {
   return { ok, level, excellent: ok && l3, reason };
 }
 
-// 段标题＝行首（零缩进）恰为三段名之一的行；段内容＝该行之后至下一段标题或文件末尾的非空行。
+// 段标题＝行首（零缩进）恰为四段名之一（自主延伸 / 自主修复 / 待裁决 / 自疑）的行；段内容＝该行之后至下一段标题或文件末尾的非空行。
 function parseFuming(text) {
   const secs = {};
+  const heads = {};
   let cur = null;
   text.split(/\r?\n/).forEach((line, i) => {
     const m = SECTION_RE.exec(line);
     if (m) {
       cur = m[1];
-      if (!secs[cur]) secs[cur] = [];
+      if (!secs[cur]) {
+        secs[cur] = [];
+        heads[cur] = i + 1;
+      }
       return;
     }
     if (cur && line.trim() !== "") secs[cur].push({ no: i + 1, text: line });
   });
-  return secs;
+  return { secs, heads };
 }
 
 const isNone = (items) => items.length === 1 && items[0].text.trim() === NONE;
@@ -241,8 +249,32 @@ function normalizeFuming(line) {
     .replace(/\s+/g, "");
 }
 
+// G8 字段取值：标签命中后取到下一个箭头前（stopAtArrow）/ 行尾。
+function fumingFieldValue(line, label, stopAtArrow) {
+  const m = new RegExp(label + "\\s*[:：]\\s*").exec(line);
+  if (!m) return "";
+  const rest = line.slice(m.index + m[0].length);
+  const at = stopAtArrow ? rest.search(ARROW_RE) : -1;
+  return (at < 0 ? rest : rest.slice(0, at)).trim();
+}
+
+// G9 只扫「最可能错的地方」＝首个箭头之前的文本；证据 / 命令字段不参与扫描。
+function doubtHead(line) {
+  const at = line.search(ARROW_RE);
+  return normalizeFuming((at < 0 ? line : line.slice(0, at)).trim());
+}
+
+// G8 三判据：箭头 ≥2（原始行）/ 证伪实验非空且非推理词 / 结果命中命令回显形态。
+function hasEvidence(line) {
+  if ((line.match(/→|->/g) || []).length < 2) return false;
+  const exp = fumingFieldValue(line, "证伪实验", true);
+  if (!exp || FAKE_EXPERIMENT_RE.test(exp)) return false;
+  return DOUBT_RESULT_RE.test(fumingFieldValue(line, "结果", false));
+}
+
 function judgeFuming(text) {
-  const secs = parseFuming(text);
+  const { secs, heads } = parseFuming(text);
+  const NO_NONE = new Set(["自疑"]);   // 自疑段禁止写「无」
   const errors = [];
 
   for (const k of FUMING_SECTIONS) {
@@ -251,7 +283,10 @@ function judgeFuming(text) {
 
   for (const k of FUMING_SECTIONS) {
     const items = secs[k] || [];
-    if (isNone(items)) continue;
+    if (isNone(items)) {
+      if (NO_NONE.has(k)) errors.push(items[0].no + ": " + k + " 段不得写 " + NONE);
+      continue;
+    }
     for (const it of items) {
       if (!it.text.startsWith("- ")) {
         errors.push(it.no + ": " + k + " 段行不合形态（须以「- 」开头，或整段恰为「" + NONE + "」）");
@@ -259,6 +294,7 @@ function judgeFuming(text) {
     }
   }
 
+  // 自疑段跳过 G6（产物路径）：其箭头归 G8 计数，判定交 G7 / G8 / G8b / G9。
   for (const k of ["自主延伸", "自主修复"]) {
     const items = secs[k] || [];
     if (!items.length || isNone(items)) continue;
@@ -278,6 +314,22 @@ function judgeFuming(text) {
       const n = normalizeFuming(it.text);
       if (SKILL_MARK_RE.test(n)) errors.push(it.no + ": 待裁决指向本 skill（skill 里已有指令，该去做而不是来问）");
       if (REPORT_ONLY_RE.test(n)) errors.push(it.no + ": 待裁决含只报不改词（可修缺陷须进「自主修复」段）");
+    }
+  }
+
+  // G7–G9：自疑段只认 `- ` 条目；G8b/G9 只看首个箭头之前的「最可能错的地方」。
+  const doubt = (secs["自疑"] || []).filter((it) => it.text.startsWith("- "));
+  if (doubt.length < 3) {
+    errors.push((heads["自疑"] || 0) + ": 自疑条数不足：需 ≥3（自疑段不得写 " + NONE + "）");
+  }
+  const seen = new Set();
+  for (const it of doubt) {
+    if (!hasEvidence(it.text)) errors.push(it.no + ": 自疑条目缺证伪实验或可核结果");
+    const head = doubtHead(it.text);
+    if (seen.has(head)) errors.push(it.no + ": 自疑条目重复");
+    seen.add(head);
+    if (SKILL_MARK_RE.test(head) || REPORT_ONLY_RE.test(head)) {
+      errors.push(it.no + ": 自疑条目指向本 skill / 只报不改 → 该去做而不是来自疑");
     }
   }
 

@@ -320,7 +320,14 @@ function fumingFixture(text) {
   return file;
 }
 
-function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['- 修了部署.js 的 PATH 缺陷 → skills/ctbz/scripts/部署.js'], pending = ['- 删远端数据 | 准入: 不可逆']} = {}) {
+// 2.0.8 §2.7①：自疑条目逐字三条——满足 G8 三判据、G8b 两两不等、G9 首个箭头前不含特征串。
+const DOUBT = [
+  '- 断言可能被插入位移击穿 → 证伪实验: node --test tests/主文锚点.test.mjs → 结果: 10 pass / 0 fail',
+  "- 夹具段数可能漏改 → 证伪实验: grep -c '自疑:' tests/内审.test.mjs → 结果: exit 0",
+  '- 闸门口径可能与计划不符 → 证伪实验: node scripts/内审.mjs 复命 --file /tmp/f.md → 结果: exit 0',
+];
+
+function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['- 修了部署.js 的 PATH 缺陷 → skills/ctbz/scripts/部署.js'], pending = ['- 删远端数据 | 准入: 不可逆'], doubt = DOUBT} = {}) {
   const list = (items) => (items.length ? items : ['无']);
   return [
     '# 复命 ctbz-2.0.7',
@@ -333,6 +340,9 @@ function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['
     '',
     '待裁决:',
     ...list(pending),
+    '',
+    '自疑:',
+    ...list(doubt),
     '',
   ].join('\n');
 }
@@ -367,13 +377,13 @@ test('V3 待裁决: 无 → exit 0（自主延伸 / 自主修复 亦可为 无�
 });
 
 test('V3 段缺失 → exit 1', () => {
-  const noPending = fumingFixture(['# 复命 x', '', '自主延伸:', '无', '', '自主修复:', '无', ''].join('\n'));
+  const noPending = fumingFixture(['# 复命 x', '', '自主延伸:', '无', '', '自主修复:', '无', '', '自疑:', ...DOUBT, ''].join('\n'));
   const a = runFuming(noPending);
   assert.equal(a.status, 1, a.stdout);
   assert.match(a.stdout, /缺段标题/);
   assert.match(a.stdout, /待裁决/);
 
-  const noExtend = fumingFixture(['# 复命 x', '', '自主修复:', '无', '', '待裁决:', '无', ''].join('\n'));
+  const noExtend = fumingFixture(['# 复命 x', '', '自主修复:', '无', '', '待裁决:', '无', '', '自疑:', ...DOUBT, ''].join('\n'));
   const b = runFuming(noExtend);
   assert.equal(b.status, 1, b.stdout);
   assert.match(b.stdout, /缺段标题/);
@@ -390,6 +400,90 @@ test('V3 准入取值非法 → exit 1；缺 准入: → exit 1', () => {
   const b = runFuming(missing);
   assert.equal(b.status, 1, b.stdout);
   assert.match(b.stdout, /缺 准入:/);
+});
+
+// 2.0.8 §2.7③ / §6 V3–V5、V7：自疑段（G7/G8/G8b/G9）用例，夹具一律复用 fumingText / fumingFixture。
+test('V3 G7 自疑条数：2 条 → exit 1；3 条 → exit 0；写 无 → exit 1', () => {
+  const two = fumingFixture(fumingText({doubt: DOUBT.slice(0, 2)}));
+  const a = runFuming(two);
+  assert.equal(a.status, 1, a.stdout);
+  assert.match(a.stdout, /自疑条数不足：需 ≥3/);
+
+  const three = fumingFixture(fumingText());
+  assert.equal(runFuming(three).status, 0);
+
+  const none = fumingFixture(fumingText({doubt: []}));
+  const b = runFuming(none);
+  assert.equal(b.status, 1, b.stdout);
+  assert.match(b.stdout, /自疑 段不得写 无/);
+});
+
+test('V4 G8 三判据：推理词/自然语言结果 → exit 1；命令回显 → exit 0', () => {
+  const fake = fumingFixture(fumingText({doubt: ['- X → 证伪实验: 想了一下 → 结果: 应该没问题', DOUBT[1], DOUBT[2]]}));
+  const a = runFuming(fake);
+  assert.equal(a.status, 1, a.stdout);
+  assert.match(a.stdout, /自疑条目缺证伪实验或可核结果/);
+
+  // 只坏 8.2：结果形态合法，但实验本身是推理 → 仍须红（否则 8.3 会替 8.2 兜底）。
+  const fakeOnly = fumingFixture(
+    fumingText({doubt: ['- 证伪实验本身没跑 → 证伪实验: 想了一下 → 结果: exit 0', DOUBT[1], DOUBT[2]]})
+  );
+  assert.equal(runFuming(fakeOnly).status, 1, 'G8.2 须独立成立：结果合法也救不了推理型实验');
+
+  const real = fumingFixture(
+    fumingText({doubt: ['- X → 证伪实验: node --test tests/内审.test.mjs → 结果: 18 pass / 0 fail', DOUBT[1], DOUBT[2]]})
+  );
+  assert.equal(runFuming(real).status, 0);
+});
+
+test('V4 G8.1/G8.3：半角箭头等价、箭头不足与纯自然语言结果 → exit 1', () => {
+  const half = fumingFixture(fumingText({doubt: [DOUBT[2].replace(/→/g, '->'), DOUBT[0], DOUBT[1]]}));
+  assert.equal(runFuming(half).status, 0, '半角 -> 与 → 等价（在原始行上计数）');
+
+  const oneArrow = fumingFixture(
+    fumingText({doubt: ['- 只有一个箭头 → 证伪实验: node x.mjs 结果: exit 0', DOUBT[0], DOUBT[1]]})
+  );
+  assert.equal(runFuming(oneArrow).status, 1);
+
+  const pathLine = fumingFixture(
+    fumingText({doubt: ['- 证据落在文件行号 → 证伪实验: grep -n SKILL_MARK_RE skills/ctbz/scripts/内审.mjs → 结果: skills/ctbz/scripts/内审.mjs:71', DOUBT[0], DOUBT[1]]})
+  );
+  assert.equal(runFuming(pathLine).status, 0, 'G9 不扫证据字段：结果里的 skill 路径不得误杀');
+
+  const colonDigit = fumingFixture(
+    fumingText({doubt: ['- 白话结果加冒号数字 → 证伪实验: node x.mjs → 结果: 应该没问题 :1', DOUBT[0], DOUBT[1]]})
+  );
+  assert.equal(runFuming(colonDigit).status, 1, '8.3 只认 `文件:行号` 形态，裸 `:数字` 不得过闸（S16 收窄）');
+});
+
+test('V5 G8b 三条重复 → exit 1；G9 指向本 skill / 只报不改 → exit 1', () => {
+  const dup = fumingFixture(fumingText({doubt: [DOUBT[0], DOUBT[0], DOUBT[0]]}));
+  const a = runFuming(dup);
+  assert.equal(a.status, 1, a.stdout);
+  assert.match(a.stdout, /自疑条目重复/);
+
+  for (const bad of [
+    '- 见发布链 → 证伪实验: node x.mjs → 结果: exit 0',
+    '- 建议下次再跑 → 证伪实验: node x.mjs → 结果: exit 0',
+  ]) {
+    const file = fumingFixture(fumingText({doubt: [bad, DOUBT[1], DOUBT[2]]}));
+    const r = runFuming(file);
+    assert.equal(r.status, 1, bad + ' → ' + r.stdout);
+    assert.match(r.stdout, /自疑条目指向本 skill \/ 只报不改/);
+  }
+});
+
+// V7：夹具迁四段是既有用例全绿的唯一达成方式——旧三段形态必须在 G7 下红。
+test('V7 夹具已迁四段：四段齐全且放行，旧三段形态仍被 G7 拦住', () => {
+  const four = fumingText();
+  for (const s of ['自主延伸:', '自主修复:', '待裁决:', '自疑:']) {
+    assert.ok(four.includes(s), '夹具缺段：' + s);
+  }
+  assert.equal(runFuming(fumingFixture(four)).status, 0);
+
+  const legacy = runFuming(fumingFixture(four.split('自疑:')[0]));
+  assert.equal(legacy.status, 1, '旧三段夹具在 G7 下必须红');
+  assert.match(legacy.stdout, /自疑条数不足/);
 });
 
 test('V2 出处指向本 skill 的待裁决条目 → exit 1', () => {
@@ -424,7 +518,7 @@ test('V8 复命闸反绕过：G5 只报不改词 → exit 1', () => {
 });
 
 test('复命闸其它规则：G2 形态、G3 全角冒号、G6 缺产物路径', () => {
-  const shape = fumingFixture(['# 复命 x', '', '自主延伸:', '做了点事', '', '自主修复:', '无', '', '待裁决:', '无', ''].join('\n'));
+  const shape = fumingFixture(['# 复命 x', '', '自主延伸:', '做了点事', '', '自主修复:', '无', '', '待裁决:', '无', '', '自疑:', ...DOUBT, ''].join('\n'));
   const a = runFuming(shape);
   assert.equal(a.status, 1, a.stdout);
   assert.match(a.stdout, /不合形态/);
