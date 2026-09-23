@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "d9ee907366651c66c9e6e1767e27ecc9a8b98a9d2b90b8a32bb117eee6e955ae"
+      "sha256": "1463923d70005468b636bb513039e8f8d4b72294e70b9f0b3118feeccd87104d"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -15,7 +15,7 @@
     },
     {
       "path": "cost-rules.json",
-      "sha256": "929732a192f67364df7bb6d42af60431c05c554644af642ae853fe5abb252802"
+      "sha256": "5cfe3c1aff9361992985f811db1918879e22d58ea1dcd00f66162f386812aeea"
     },
     {
       "path": "dashboard/app.js",
@@ -199,11 +199,11 @@
     },
     {
       "path": "references/反审协议.md",
-      "sha256": "363fe4f26c28050d98c72c5884f0500bbad39dee3adad0d08f7dc12496cf7ce7"
+      "sha256": "61af07cbb38ea220f0bad30b5f0b3a7838c1036685575bbf48cfb23c9b8b44da"
     },
     {
       "path": "references/派发.md",
-      "sha256": "04abbb53209d663fedda856c1638d9c3d480201d6195a4c318a9b93a9749a0bb"
+      "sha256": "4d5451372f5c20e78f7f1eab7a69f06423bce8e2fbd616e3b296236aa1c08ddf"
     },
     {
       "path": "references/流程治理.md",
@@ -271,7 +271,7 @@
     },
     {
       "path": "scripts/pick-profile",
-      "sha256": "87837d673b1b09113244915c85d18e51bdf0c5a8200134a230229072b51e0be8"
+      "sha256": "0631cae859784f9a20ac07cc59c26dcb4ace4aee2754be19ee9c9c7cc806d275"
     },
     {
       "path": "scripts/preflight.mjs",
@@ -315,7 +315,7 @@
     },
     {
       "path": "scripts/反审.mjs",
-      "sha256": "2353205a9d204f562fee0904369e73a59bb5c2a5f47bea9c8dfabc00c972ecfb"
+      "sha256": "9a673156331e4563d34b63acde8e1e7c192647244dd167e582ff175228163dfd"
     },
     {
       "path": "scripts/发布检查.js",
@@ -335,7 +335,7 @@
     },
     {
       "path": "scripts/派发闸.mjs",
-      "sha256": "1f0a655aac3679fef5f71b586e86848dc6e8e3e78d320b8499c15c83872978e7"
+      "sha256": "c3e8b379fcf7bf442044c1e5d31affeba8d9151184b369dc0952aa8a6d8a44e9"
     },
     {
       "path": "scripts/知识库.js",
