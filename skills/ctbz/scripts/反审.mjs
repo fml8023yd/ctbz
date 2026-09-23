@@ -8,7 +8,8 @@
 //
 // 产物：可直接交给 dsh `workflow` 工具执行的 JS 骨架（脚本体）。
 //   - 调度走 workflow 的 agent(prompt,{provider,model})，显式传 provider/model（见 references/派发.md §3 模型代号表）。
-//   - 反审席位 DeepSeek 一律 deepseek-v4-pro（避免与主进程 deepseek-flash 同模型自审）。
+//   - 反审席位 DeepSeek 取 deepseek-flash（与主进程同源，仅提供独立上下文与采样，不计模型独立性）：
+//     三路独立 + 一路同源；回执允许可选 same_source: true，闸门通过时 review 块打印 "independence":"3 independent + 1 same-source"。
 //   - 规避 maxResultChars 50000 静默截断：每路裁决由 reviewer 子代理写入独立文件（.ctbz-record 下），
 //     workflow 仅回 "文件路径 + 一句话摘要"，不被 50k 截断吞掉。
 //   - 只依赖 workflow 提供的 agent()；不使用任何 Node 文件系统/网络 API（workflow 沙箱不提供）。
@@ -27,9 +28,9 @@ import { createHash } from "node:crypto";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// 模型代号表：与 references/派发.md §3 完全一致（4 阵营 / 5 模型取样，反审席位 DeepSeek 取 deepseek-v4-pro）
+// 模型代号表：与 references/派发.md §3 完全一致（4 阵营 / 5 模型取样，反审席位 DeepSeek 取 deepseek-flash（同源，不计独立性））
 const CAMPS = {
-  deepseek: { key: "deepseek", label: "DeepSeek", provider: "deepseek-official", model: "deepseek-v4-pro" },
+  deepseek: { key: "deepseek", label: "DeepSeek", provider: "deepseek-official", model: "deepseek-flash" },
   zhipu:    { key: "zhipu",    label: "智谱",     provider: "workbuddy",         model: "glm-5.3-flash" },
   tencent:  { key: "tencent",  label: "腾讯",     provider: "workbuddy",         model: "hy4-preview-f" },
   moonshot: { key: "moonshot", label: "月之暗面", provider: "workbuddy",         model: "kimi-k2.8-preview" },
@@ -105,7 +106,7 @@ function buildSkeleton({ plan, camps, round, prev, workspace }) {
   const L = [];
   L.push("// ctbz 四路反审骨架（scripts/反审.mjs 自动生成，可直接交 dsh workflow 执行）");
   L.push("// 调度：workflow agent(prompt,{provider,model})；模型代号见 references/派发.md §3");
-  L.push("// 反审席位 DeepSeek 一律 deepseek-v4-pro（避免与主进程 deepseek-flash 同模型自审）");
+  L.push("// 反审席位：DeepSeek 席 deepseek-flash（同源，不计独立性），三路独立 + 一路同源");
   L.push("// 规避 maxResultChars 50000 静默截断：每路裁决由 reviewer 子代理写入独立文件，workflow 仅回 路径+摘要");
   L.push("// 回执落盘：" + recordDirNote + "/<camp>" + roundSuffix(round) + ".json");
   L.push("// 校验命令：node " + gatePath + " --plan " + plan + " --workspace " + wsNote + " --level l1");

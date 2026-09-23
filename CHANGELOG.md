@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.0.9] - 2026-09-22
+
+多渠道反审席位：对外口径由「四路独立」改「三路独立 + 一路同源」。
+
+### 变更
+- 反审席位 DeepSeek 取值 `deepseek-v4-pro` → `deepseek-flash`（v4-pro 底层路由至 flash，与主进程同源，已丧失独立性）；口径改「**三路独立 + 一路同源**」，独立性由腾讯/月之暗面/智谱三路保证。
+- `scripts/派发闸.mjs`：`SEAT_TABLE.deepseek.models` 并列白名单 `["deepseek-flash","deepseek-v4-pro"]`（v4-pro 为 2.0.6/2.0.7/2.0.8 旧回执的历史兼容值）；新增 `SAME_SOURCE_MODELS`，`--host-model` 硬闸改「不得取非豁免席位模型」；同模型自审软校验按 camp 判定（deepseek 席豁免，其余三席保留）；`review` 块新增 `"independence":"3 independent + 1 same-source"`。
+- 同步 20 处口径点：`scripts/{反审.mjs,pick-profile}`、`references/{反审协议,派发}.md`、`cost-rules.json`、`SKILL.md`；`cost-rules.json` history 保留 2026-09-21 史实并追加 `r2026-09-22` 更正注记。
+- 同步 8 处测试点：`tests/{dsh-regression,派发闸,主文锚点}.test.mjs`、`tests/README.md`；V3 改四断言（deepseek 席同源放行、历史兼容值放行、其余三席同源仍拒、`--host-model` 取非豁免席位模型 exit 2）。
+- 版本 `2.0.8` → `2.0.9`。
+
+### 已知限制
+- 反审结构实际由 4 路独立降为 3 路独立（RK1）；4 席中 3 席共用 `workbuddy` 网关（同 baseURL/凭据/限流池，网关抖动可同时打掉 3 席，RK2）。
+- `deepseek-official` 单点同时影响主进程与该席（RK3）；`hy4-preview-f` 冷却时是否滑到 `hy3` 沿用 `pick-profile` 既有逻辑，本轮不新增兜底（RK4）。
+
 ## [2.0.8] - 2026-09-22
 
 自证与自疑：把「请相信我」换成可证伪的证据。

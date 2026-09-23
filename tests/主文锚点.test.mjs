@@ -20,6 +20,7 @@ const INTERNAL_AUDIT_PATH = join(REPO, "skills/ctbz/references/内审协议.md")
 const SKILL = readFileSync(SKILL_PATH, "utf8");
 const AGENTS = readFileSync(AGENTS_PATH, "utf8");
 const DISPATCH = readFileSync(DISPATCH_PATH, "utf8");
+const REVIEW_PROTO = readFileSync(join(REPO, "skills/ctbz/references/反审协议.md"), "utf8");
 const CHANGELOG = readFileSync(CHANGELOG_PATH, "utf8");
 const skillLines = SKILL.split("\n");
 const sha256 = (s) => createHash("sha256").update(s).digest("hex");
@@ -119,6 +120,13 @@ test("V1 自证与自疑节：插在硬门行之后、边界延伸之后，四�
 test("V2 复命模板已四段：含自疑段与条数下限，且不再含三段表述", () => {
   assert.ok(SKILL.includes("（不少于 3 条，不得写 `无`）"), "SKILL.md 复命模板缺「不少于 3 条，不得写 无」");
   assert.ok(!SKILL.includes("三段均为必填"), "SKILL.md 仍含「三段均为必填」（V2 回归）");
+});
+
+test("V2 反审口径：主文含三路独立+一路同源、协议无裸 v4-pro", () => {
+  assert.ok(SKILL.includes("三路独立 + 一路同源"));
+  assert.ok(!SKILL.includes("4 阵营并行独立反审"));
+  const bare = REVIEW_PROTO.split("\n").filter(l => l.includes("deepseek-v4-pro") && !/历史|legacy|更正|兼容/.test(l));
+  assert.deepEqual(bare, []);
 });
 
 test("镜像一致性：两个标记块在 SKILL.md 与 ~/.dsh/AGENTS.md 逐字相等", () => {

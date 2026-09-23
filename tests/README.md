@@ -46,9 +46,9 @@
 
 ## 新增最小回归
 
-- **T3 选型器**（`scripts/pick-profile`）：讨论类 `--kind discussion` 覆盖 DeepSeek/智谱/腾讯/月之暗面 4 阵营；开发类 `--kind dev` 不含 M5（月之暗面缺席）；反审席位 `--role reviewer` 时 DeepSeek 席位换 `deepseek-v4-pro`。用临时 `{}` 账本与 `--now` 定时刻，无网络、无真实账本读写。
+- **T3 选型器**（`scripts/pick-profile`）：讨论类 `--kind discussion` 覆盖 DeepSeek/智谱/腾讯/月之暗面 4 阵营；开发类 `--kind dev` 不含 M5（月之暗面缺席）；反审席位 `--role reviewer` 时 DeepSeek 席位取 `deepseek-flash`（同源，不计独立性）。用临时 `{}` 账本与 `--now` 定时刻，无网络、无真实账本读写。
 - **T5 账本解析**（`scripts/模型健康.js`）：样例限额错误文本 `[1310][...限额将在 2026-09-25 18:00:00 重置...]` 解析出 `2026-09-25T10:00:00.000Z`（北京时间→UTC）；`retry after 3600s` 解析为未来时刻；账本文件 0600；`check` 在冷却中 exit 1。全程 `HOME` 指向临时目录，不发网络请求、不触碰真实账本。
-- **T7 骨架生成器**（`scripts/反审.mjs`）：`--dry-run` 输出可被 `new Function` 解析的 workflow 脚本体，含四路 `agent(prompt,{provider,model})`、DeepSeek 席位 `deepseek-v4-pro`、每路裁决独立落盘的 `RECORD_DIR`。
+- **T7 骨架生成器**（`scripts/反审.mjs`）：`--dry-run` 输出可被 `new Function` 解析的 workflow 脚本体，含四路 `agent(prompt,{provider,model})`、DeepSeek 席位 `deepseek-flash`（同源，不计独立性）、每路裁决独立落盘的 `RECORD_DIR`。
 
 ## 无测试引用被退役件（grep 证明）
 

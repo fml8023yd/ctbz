@@ -38,6 +38,12 @@
       "who": "用户",
       "change": "4.0.0-dsh：宿主切换 dsh，ZCode profile 链（free_window/free_model/builtin_follow/vendor_follow/vendor_parallel/rescue）整体退役；改为 5 模型 4 阵营模型库 + 取样规则（讨论/反审 4 阵营每家至少 1、开发类排除 M5、反审 DeepSeek 席位换 deepseek-v4-pro）+ 冷却账本（~/Documents/.ctbz/模型健康.json，schema 见 references/派发.md）",
       "before": "v3 profile 短名制"
+    },
+    {
+      "date": "2026-09-22",
+      "who": "用户",
+      "change": "更正注记（r2026-09-22）：v4-pro 底层路由至 flash，已丧失独立性；反审席位改 deepseek-flash 并明示同源（3 independent + 1 same-source）",
+      "before": "反审 DeepSeek 席位换 deepseek-v4-pro"
     }
   ],
   "models": [
@@ -47,8 +53,8 @@
       "model": "deepseek-flash",
       "vendor": "DeepSeek",
       "cost": "官方计费",
-      "reaudit_model": "deepseek-v4-pro",
-      "note": "反审席位用本模型时取 reaudit_model，避免与主进程 deepseek-flash 同模型自审"
+      "reaudit_model": "deepseek-flash",
+      "note": "反审席位用本模型时取 reaudit_model：DeepSeek 席与主进程同源，不计独立性"
     },
     {
       "code": "M2",
@@ -101,7 +107,7 @@
       ]
     },
     "reaudit": {
-      "rule": "反审席位的 DeepSeek 用 deepseek-v4-pro，避免与主进程同模型自审"
+      "rule": "反审席位 DeepSeek 取 deepseek-flash（同源，不计模型独立性）"
     }
   },
   "cooldown_ledger": {

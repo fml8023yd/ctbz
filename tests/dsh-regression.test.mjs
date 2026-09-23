@@ -47,7 +47,7 @@ test('T3 选型器：讨论类覆盖 4 阵营，开发类不含 M5', () => {
   assert.ok(!v.decision_table.some((t) => t.阵营 === '月之暗面'), '开发类排除 M5 后月之暗面阵营应缺席');
 });
 
-test('T3 选型器：反审席位 DeepSeek 换 deepseek-v4-pro', () => {
+test('T3 选型器：反审席位 DeepSeek 取 deepseek-flash（同源）', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-pick-'));
   const ledger = path.join(dir, 'ledger.json');
   fs.writeFileSync(ledger, '{}\n');
@@ -56,8 +56,8 @@ test('T3 选型器：反审席位 DeepSeek 换 deepseek-v4-pro', () => {
   assert.equal(r.status, 0, r.stderr);
   const j = JSON.parse(r.stdout);
   const m1 = j.slots.find((s) => s.code === 'M1');
-  assert.equal(m1.model, 'deepseek-v4-pro');
-  assert.match(m1.note, /deepseek-v4-pro/);
+  assert.equal(m1.model, 'deepseek-flash');
+  assert.match(m1.note, /同源/);
 });
 
 // ---------- T5 账本解析（不发网络请求） ----------
@@ -108,7 +108,8 @@ test('T7 骨架生成器：--dry-run 输出可被 JS 解析的 workflow 脚本�
   // workflow 脚本体允许顶层 await/return；用 async IIFE 包裹后由 new Function 解析。
   assert.doesNotThrow(() => new Function('agent', `return (async () => {\n${body}\n})();`));
   assert.match(body, /provider: c\.provider, model: c\.model/);
-  assert.ok(body.includes('deepseek-v4-pro'), '反审席位 DeepSeek 应 baked-in deepseek-v4-pro');
+  assert.ok(body.includes('deepseek-flash'), '反审席位 DeepSeek 应 baked-in deepseek-flash（同源）');
+  assert.ok(!body.includes('deepseek-v4-pro'), '骨架不得残留 deepseek-v4-pro');
   assert.ok(body.includes('kimi-k2.8-preview'), '应含月之暗面阵营模型');
   assert.match(body, /RECORD_DIR/, '骨架应含每路裁决独立落盘的 RECORD_DIR');
 });

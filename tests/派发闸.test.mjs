@@ -17,7 +17,7 @@ const SIX_VIEWS = ['需求一致性', '架构合理性', '测试完整性', '边
 const CHECK_IDS = ['集成一致性', '调用名统一', 'main未污染', '安装副本分支标识'];
 // §4.3 席位表：每 camp 首个允许组合（§9.12）
 const CAMPS = [
-  {camp: 'deepseek', label: 'DeepSeek', provider: 'deepseek-official', model: 'deepseek-v4-pro'},
+  {camp: 'deepseek', label: 'DeepSeek', provider: 'deepseek-official', model: 'deepseek-flash'},
   {camp: 'zhipu', label: '智谱', provider: 'workbuddy', model: 'glm-5.3-flash'},
   {camp: 'tencent', label: '腾讯', provider: 'workbuddy', model: 'hy4-preview-f'},
   {camp: 'moonshot', label: '月之暗面', provider: 'workbuddy', model: 'kimi-k2.8-preview'},
@@ -197,18 +197,29 @@ test('免审级：缺 免审依据 行 → exit 1；补上 → exit 0（seats 0�
 
 // ---------- V3 ----------
 
-test('V3 同模型自审被拦：model=deepseek-flash 拒；deepseek-v4-pro 过；--host-model 取席位模型 exit 2', () => {
+test('V3 同源豁免：deepseek 席放行、其余三席同源仍拒、--host-model 取非豁免席位模型 exit 2', () => {
   const {ws, plan} = makeWs('中');
+
+  // ① deepseek 席 model=deepseek-flash（同源豁免）→ exit 0
   writeReceipts(l1Dir(ws), plan, {patch: (c) => (c.camp === 'deepseek' ? {model: 'deepseek-flash'} : {})});
+  assert.equal(runGate(['--plan', plan, '--workspace', ws]).status, 0);
+
+  // ② deepseek 席 model=deepseek-v4-pro（历史兼容值）→ exit 0
+  fs.rmSync(l1Dir(ws), {recursive: true, force: true});
+  writeReceipts(l1Dir(ws), plan, {patch: (c) => (c.camp === 'deepseek' ? {model: 'deepseek-v4-pro'} : {})});
+  assert.equal(runGate(['--plan', plan, '--workspace', ws]).status, 0);
+
+  // ③ zhipu 席 model=deepseek-flash（camp≠deepseek 但同源模型）→ exit 1
+  fs.rmSync(l1Dir(ws), {recursive: true, force: true});
+  writeReceipts(l1Dir(ws), plan, {patch: (c) => (c.camp === 'zhipu' ? {model: 'deepseek-flash'} : {})});
   const bad = runGate(['--plan', plan, '--workspace', ws]);
   assert.equal(bad.status, 1, bad.out);
   assert.match(bad.out, /同模型自审：model 与 --host-model 逐字相等/);
 
+  // ④ 恢复席位表内组合，再验 --host-model 取值语义
   fs.rmSync(l1Dir(ws), {recursive: true, force: true});
-  writeReceipts(l1Dir(ws), plan); // 全席位表内组合（deepseek-v4-pro）
-  assert.equal(runGate(['--plan', plan, '--workspace', ws]).status, 0);
-
-  for (const m of ['deepseek-v4-pro', 'glm-5.3-flash', 'hy4-preview-f', 'hy3', 'kimi-k2.8-preview']) {
+  writeReceipts(l1Dir(ws), plan);
+  for (const m of ['glm-5.3-flash', 'hy4-preview-f', 'hy3', 'kimi-k2.8-preview']) {
     const r = runGate(['--plan', plan, '--workspace', ws, '--host-model', m]);
     assert.equal(r.status, 2, `--host-model ${m} 应 exit 2`);
   }

@@ -33,14 +33,17 @@ const CONCLUSIONS = ["接受", "有条件接受", "不接受"];
 const CHECK_IDS = ["集成一致性", "调用名统一", "main未污染", "安装副本分支标识"];
 
 // §4.3 席位表：camp → 唯一 provider / 允许 model
+// deepseek 席 v4-pro 为历史兼容值（2.0.6/2.0.7/2.0.8 旧回执），新回执一律 deepseek-flash。
 const SEAT_TABLE = {
-  deepseek: { provider: "deepseek-official", models: ["deepseek-v4-pro"] },
+  deepseek: { provider: "deepseek-official", models: ["deepseek-flash", "deepseek-v4-pro"] },
   zhipu:    { provider: "workbuddy",         models: ["glm-5.3-flash"] },
   tencent:  { provider: "workbuddy",         models: ["hy4-preview-f", "hy3"] },
   moonshot: { provider: "workbuddy",         models: ["kimi-k2.8-preview"] },
 };
 const CAMP_ORDER = Object.keys(SEAT_TABLE);
 const SEAT_MODELS = new Set(CAMP_ORDER.flatMap((c) => SEAT_TABLE[c].models));
+// DeepSeek 席与主进程同源已裁定接受（用户裁定 2026-09-22）：--host-model 取同源模型放行，取其余席位模型仍 exit 2。
+const SAME_SOURCE_MODELS = new Set(["deepseek-flash", "deepseek-v4-pro"]);
 
 // §4.1 定级表：席位数 = 总回执数下限
 const SCALE_SEATS = { "免审": 0, "轻": 3, "中": 4, "重": 8 };
@@ -60,7 +63,7 @@ const USAGE = `ctbz 派发闸（dsh 版，只读闸门）
   --level <级别>       l1 计划反审 / l2 任务级反审 / l3 项目级复查 / audit 内审待办；默认 l1
   --task <T号>         l2 必填，取值等于任务号字面量（T0–T5，如 T1）
   --json               开则 stdout 恒为单行 JSON
-  --host-model <名>    主进程模型，默认 ${DEFAULT_HOST_MODEL}；不得取席位模型
+  --host-model <名>    主进程模型，默认 ${DEFAULT_HOST_MODEL}；不得取非豁免席位模型（DeepSeek 席同源已裁定接受）
   -h, --help           显示本帮助；优先于 --json 与其余全部校验（用法打到 stdout、exit 0、不输出 JSON）
 
 退出码：0 通过 / 1 校验不通过 / 2 用法或环境错误`;
@@ -210,8 +213,8 @@ function validate(it, ctx) {
 
   if (!seat) bad(`camp 非法：${JSON.stringify(d.camp)}（∈ ${CAMP_ORDER.join(",")}）`);
   if (!nonEmpty(d.camp_label)) bad("camp_label 缺失或为空");
-  // 同模型自审优先报（V3 语义），再报席位表
-  if (d.model === ctx.hostModel) bad(`同模型自审：model 与 --host-model 逐字相等（${ctx.hostModel}）`);
+  // 同模型自审按 camp 判定（DeepSeek 席同源已裁定接受，豁免）；优先报（V3 语义），再报席位表
+  if (d.camp !== "deepseek" && d.model === ctx.hostModel) bad(`同模型自审：model 与 --host-model 逐字相等（${ctx.hostModel}）`);
   if (seat) {
     if (d.provider !== seat.provider) bad(`provider 未落席位表：${JSON.stringify(d.provider)}（${d.camp} 允许 ${seat.provider}）`);
     if (!seat.models.includes(d.model)) bad(`model 未落席位表：${JSON.stringify(d.model)}（${d.camp} 允许 ${seat.models.join("/")}）`);
@@ -386,6 +389,7 @@ function runReviewLevel(a, ws, plan, planText, planSha) {
   return pass(json, {
     ok: true, review_scale: scale, review_level: level, review_receipt: receipt,
     review_camps: CAMP_ORDER.filter((c) => camps.includes(c)), plan_sha256: planSha, seats: SCALE_SEATS[scale],
+    independence: "3 independent + 1 same-source",
   });
 }
 
@@ -443,7 +447,7 @@ function main() {
   if (a.hostModel !== undefined && !nonEmpty(a.hostModel)) return usageError(a.json, "--host-model 取值不得为空");
   const ws = resolve(a.workspace);
   const hostModel = a.hostModel === undefined ? DEFAULT_HOST_MODEL : a.hostModel;
-  if (SEAT_MODELS.has(hostModel)) {
+  if (SEAT_MODELS.has(hostModel) && !SAME_SOURCE_MODELS.has(hostModel)) {
     return usageError(a.json, `--host-model 不得取席位模型：${hostModel}（禁止同模型自审）`);
   }
 

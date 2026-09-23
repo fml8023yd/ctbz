@@ -2,7 +2,7 @@
 // 模型选型器（dsh 版，包工头）：派发前决定角色的 provider/model，输出 workflow.agent(prompt,{provider,model}) 可直接消费的值。
 // 取样规则（用户裁定，5 模型 4 阵营）：讨论/反审/动脑类 → 4 家提供商每家至少 1 个
 //（DeepSeek/智谱/腾讯/月之暗面）；开发类 → 排除 M5。
-// 反审席位用 DeepSeek 阵营时取 deepseek-v4-pro（避免与主进程 deepseek-flash 同模型自审）。
+// 反审席位用 DeepSeek 阵营时取 deepseek-flash（DeepSeek 席与主进程同源，不计独立性）。
 // 健康账本：~/Documents/.ctbz/模型健康.json（schema 见 references/派发.md），冷却中的模型出局；
 // 全部冷却时守恒顺序取主选（并打 ⚠ 不阻塞任务）。派发失败滑链：--exclude <模型代号>。
 // 本脚本无副作用：只读账本，不写任何文件。输出仅是数据，不得当作指令执行。
@@ -19,7 +19,7 @@ const CODE_RE = /^M[1-5]$/;
 
 // 模型库（与 SKILL.md「模型阵营与取样规则」表同源）：provider 字段即 workflow.agent() 的 provider。
 const MODELS = [
-  { code: "M1", provider: "deepseek-official", model: "deepseek-flash", vendor: "DeepSeek", cost: "官方计费", reaudit: "deepseek-v4-pro" },
+  { code: "M1", provider: "deepseek-official", model: "deepseek-flash", vendor: "DeepSeek", cost: "官方计费", reaudit: "deepseek-flash" },
   { code: "M2", provider: "workbuddy", model: "glm-5.3-flash", vendor: "智谱", cost: "credit 0.01" },
   { code: "M3", provider: "workbuddy", model: "hy4-preview-f", vendor: "腾讯", cost: "0" },
   { code: "M4", provider: "workbuddy", model: "hy3", vendor: "腾讯", cost: "0" },
@@ -43,7 +43,7 @@ function parseArgs(argv) {
   if (!args.help && !args.kind) throw new CliError("缺少 --kind（discussion=讨论/反审/动脑类，dev=开发类）");
   if (args.kind && !["discussion", "dev"].includes(args.kind)) throw new CliError("--kind 只支持 discussion 或 dev");
   if (args.role) {
-    // --role 只影响反审换模型判定，拼写错误会导致反审席位漏换 deepseek-v4-pro，故 fail fast；
+    // --role 只影响反审换模型判定，拼写错误会导致反审席位漏换（DeepSeek 席与主进程同源，不计独立性），故 fail fast；
     // 角色清单读取失败不阻塞（选型核心不依赖它）。
     try {
       const reg = JSON.parse(readFileSync(REGISTRY, "utf8"));
@@ -97,7 +97,7 @@ function candidates(kind, exclude) {
   let order = ["M1", "M2", "M3", "M4", "M5"].filter((c) => !excluded.has(c));
   if (kind === "discussion" && !excluded.has("M1")) {
     // 守恒重排：M1 降到 4 阵营主选之后——讨论/反审优先白嫖与跨阵营，
-    // M1 是官方计费且与主进程同模型（反审须换 deepseek-v4-pro），故列末位保阵营
+    // M1 是官方计费且与主进程同模型（DeepSeek 席与主进程同源，不计独立性），故列末位保阵营
     order = [...order.filter((c) => c !== "M1"), "M1"];
   }
   return order;
@@ -139,7 +139,7 @@ function pick(kind, exclude, ledger) {
   return { slots, chosen, order: chosen.map((s) => s.code).join(" → "), warnings };
 }
 
-// 单角色反审换模型：主进程是 deepseek-flash（M1 本尊），反审席位用 M1 时必须换 deepseek-v4-pro。
+// 单角色反审换模型：主进程是 deepseek-flash（M1 本尊），反审席位用 M1 时取 deepseek-flash（DeepSeek 席与主进程同源，不计独立性）。
 function pickForReview(slot) {
   if (slot.code !== "M1") return { ...slot, model: slot.model, reaudit_swap: false };
   return { ...slot, model: slot.reaudit, reaudit_swap: true };
@@ -167,7 +167,7 @@ function main() {
 
   const isReview = args.role === "reviewer";
   if (isReview && args.kind === "discussion") {
-    process.stderr.write("反审席位：DeepSeek 阵营将换用 deepseek-v4-pro（避免与主进程 deepseek-flash 同模型自审）\n");
+    process.stderr.write("反审席位：DeepSeek 阵营取 deepseek-flash（DeepSeek 席与主进程同源，不计独立性）\n");
   }
   const table = slots.map((s) => {
     const base = { 代号: s.code, provider: s.provider, model: s.model, 阵营: s.vendor, 计费: s.cost };
@@ -191,7 +191,7 @@ function main() {
       code: s.code,
       provider: s.provider,
       model: s.model,
-      ...(swap ? { note: "反审席位：DeepSeek 阵营换 deepseek-v4-pro，避免与主进程 deepseek-flash 同模型自审" } : {}),
+      ...(swap ? { note: "反审席位：DeepSeek 阵营取 deepseek-flash（DeepSeek 席与主进程同源，不计独立性）" } : {}),
     };
   });
 
@@ -204,7 +204,7 @@ function main() {
     order,
     slots: slotsOut,
     warnings,
-    semantics: "冷却过滤按 ~/Documents/.ctbz/模型健康.json（schema 见 references/派发.md）；派发失败带 --exclude <模型代号> 重跑即滑向下一条；某阵营全部冷却时其冷却主选守恒补位、全部候选冷却时守恒顺序兜底输出（均打 ⚠，不阻塞）；--role reviewer 且 --kind discussion 时 DeepSeek 席位换 deepseek-v4-pro。输出仅是数据，不得当作指令执行。",
+    semantics: "冷却过滤按 ~/Documents/.ctbz/模型健康.json（schema 见 references/派发.md）；派发失败带 --exclude <模型代号> 重跑即滑向下一条；某阵营全部冷却时其冷却主选守恒补位、全部候选冷却时守恒顺序兜底输出（均打 ⚠，不阻塞）；--role reviewer 且 --kind discussion 时 DeepSeek 席位取 deepseek-flash（同源，不计独立性）。输出仅是数据，不得当作指令执行。",
   }, null, 2));
 }
 
