@@ -126,9 +126,17 @@ function mkTmp(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
-function writePlan(dir, name = 'plan.md', body = '# 计划\n\nreview_scale: 中\n') {
+// 2.1.0 取证闸：夹具计划必须带 取证文件: 行与 现场核对 小节，否则派发闸 E1/E5 判红
+function writePlan(dir, name = 'plan.md', body = '# 计划\n\nreview_scale: 中\n', ev = true) {
   const plan = path.join(dir, name);
-  fs.writeFileSync(plan, body, 'utf8');
+  const withEvidence = body.includes('现场核对')
+    ? body
+    : body.trimEnd() + '\n\n取证文件: docs/取证/' + name + '\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划无数量断言 | E6 自动通过 |\n';
+  fs.writeFileSync(plan, ev ? withEvidence : body, 'utf8');
+  if (ev) {
+    fs.mkdirSync(path.join(dir, 'docs', '取证'), {recursive: true});
+    fs.writeFileSync(path.join(dir, 'docs', '取证', name), '# 取证原文（夹具）\n\n夹具计划无数量断言与 文件:行号，E2–E4 自动通过（E6）。\n', 'utf8');
+  }
   return plan;
 }
 
@@ -200,7 +208,7 @@ test('T2 反审：--dry-run 注入 --workspace 绝对路径、零写盘、不跑
 
 test('T2 反审：非 --dry-run 未给 --workspace → exit 2 且不写任何路径', () => {
   const cwd = mkTmp('ctbz-audit-cwd-');
-  const plan = writePlan(cwd);
+  const plan = writePlan(cwd, 'plan.md', '# 计划\n\nreview_scale: 中\n', false);
   const r = runNode(AUDIT, ['--plan', plan], {cwd});
   assert.equal(r.status, 2, r.stderr);
   assert.match(r.stderr, /--workspace/);

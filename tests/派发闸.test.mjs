@@ -38,8 +38,10 @@ const l3Dir = (ws, slug = 'plan') => path.join(ws, '.ctbz-record', '反审', '�
 function makeWs(scale = '中') {
   const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-gate-'));
   fs.mkdirSync(path.join(ws, 'docs'), {recursive: true});
+  fs.mkdirSync(path.join(ws, '.ctbz-record', '取证'), {recursive: true});
   const plan = path.join(ws, 'docs', 'plan.md');
-  fs.writeFileSync(plan, `# 夹具计划\n\nreview_scale: ${scale}\n`);
+  fs.writeFileSync(plan, `# 夹具计划\n\nreview_scale: ${scale}\n\n取证文件: .ctbz-record/取证/plan.md\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划仅含 review_scale | 无需外部断言 |\n`);
+  fs.writeFileSync(path.join(ws, '.ctbz-record', '取证', 'plan.md'), '# 取证原文（夹具）\n\n夹具计划无数量断言与 文件:行号，E2–E4 自动通过（E6）。\n');
   return {ws, plan};
 }
 
@@ -527,4 +529,96 @@ test('V14 闸门只读：l1 通过与 audit 两条路径均不改动夹具任何
   const audit = runGate(['--workspace', empty.ws, '--level', 'audit'], {script: path.join(bin, '派发闸.mjs')});
   assert.equal(audit.status, 0, audit.out);
   assert.equal(snapTree(empty.ws), aBefore, 'audit 分支不得写文件（含 pending.json）');
+});
+
+// ---------- 取证闸（§3.6 C1–C8） ----------
+
+// C 用例夹具：计划正文自定；evidence=null → 不落取证文件。
+// C1 取证文件按 E1「存在、非空」写最小非空内容（§3.6 表内「为空」与 §3.1 E1 冲突，以 E1 为准）。
+function makeEvWs(body, evidence = '# 取证原文（夹具）\n', rel = 'docs/取证/ev.md') {
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-ev-'));
+  const plan = path.join(ws, 'docs', 'plan.md');
+  fs.mkdirSync(path.dirname(plan), {recursive: true});
+  fs.writeFileSync(plan, `# 取证夹具计划\n\nreview_scale: 免审\n免审依据: 只读诊断，不写仓库\n取证文件: ${rel}\n\n## 现场核对\n\n${body}\n`);
+  if (evidence !== null) {
+    const ev = path.join(ws, rel);
+    fs.mkdirSync(path.dirname(ev), {recursive: true});
+    fs.writeFileSync(ev, evidence);
+  }
+  return {ws, plan};
+}
+
+// E2 解析顺序含 <ws>/skills/ctbz/scripts/：C3/C4 需夹具内可解析到真闸
+function copyGateScript(ws) {
+  const dir = path.join(ws, 'skills', 'ctbz', 'scripts');
+  fs.mkdirSync(dir, {recursive: true});
+  fs.copyFileSync(GATE, path.join(dir, '派发闸.mjs'));
+  return dir;
+}
+
+test('C1 零断言计划：取证齐全 → exit 0（E6）且 payload 带 evidence', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| 无数量断言、无 文件:行号 | 无需外部断言 |\n');
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
+  assert.equal(JSON.parse(r.stdout).evidence, 'docs/取证/ev.md');
+});
+
+test('C2 数量断言未标 ↗ → exit 1 含「未标取证锚点」', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| 路线图共 35 处数量断言 | 未标锚点 |\n');
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /未标取证锚点/);
+});
+
+test('C3 横表数据行含可达 文件:行号 → exit 0（表格行不误判）', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| `派发闸.mjs:50` 定义 LEVELS | ↗ #1（grep 输出 50:const LEVELS） |\n');
+  copyGateScript(ws);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
+});
+
+test('C4 文件:行号 不可达 → exit 1 含「不可达」', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| `派发闸.mjs:9999` 不存在 | 无 |\n');
+  copyGateScript(ws);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /不可达/);
+});
+
+test('C5 缺取证文件 → exit 1 含「缺取证文件」', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| 数量断言 3 处 ↗ #1 | 取证文件不存在 |\n', null);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /缺取证文件/);
+});
+
+test('C6 l2 路径：取证齐全 + 1 份合格回执 → exit 0 且 stdout 含 "evidence"', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| 无数量断言 | 无 |\n');
+  writeReceipts(l2Dir(ws, 'T1'), plan, {camps: [CAMPS[0]], patch: {implementer_camp: 'zhipu', reviewer_camp: 'deepseek'}});
+  const r = runGate(['--plan', plan, '--workspace', ws, '--level', 'l2', '--task', 'T1']);
+  assert.equal(r.status, 0, r.out);
+  assert.ok(r.stdout.includes('"evidence"'), r.stdout);
+  assert.equal(JSON.parse(r.stdout).evidence, 'docs/取证/ev.md');
+});
+
+test('C7 词边界：取证含 335: 但不含独立 35 → exit 1 含「找不到数字 35」', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| 共 35 处 ↗ #1 | 见取证 |\n', '命令: grep -n "x" f\n335:  foo\n');
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /找不到数字 35/);
+});
+
+test('C8 中文散文无锚点不误报 → exit 0（CJK 左边界）', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| 每个文件各加一行注释 | 无需外部断言 |\n');
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
+});
+
+// C9：跳过节只在同级/更高级标题出现前生效（其后小节的断言仍入闸面）
+test('C9 取证：跳过节遇同级标题即恢复扫描', () => {
+  const {ws, plan} = makeWs('中');
+  fs.appendFileSync(plan, '\n## 6 不做\n\n本节免检\n\n## 7 附录\n\n共 7 处未标锚点\n');
+  const r = runGate(['--plan', plan, '--workspace', ws, '--level', 'l1']);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr + r.stdout, /未标取证锚点/);
 });
