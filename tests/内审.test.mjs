@@ -327,7 +327,7 @@ const DOUBT = [
   '- 闸门口径可能与计划不符 → 证伪实验: node scripts/内审.mjs 复命 --file /tmp/f.md → 结果: exit 0',
 ];
 
-function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['- 修了部署.js 的 PATH 缺陷 → skills/ctbz/scripts/部署.js'], pending = ['- 删远端数据 | 准入: 不可逆'], doubt = DOUBT} = {}) {
+function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['- 修了部署.js 的 PATH 缺陷 → skills/ctbz/scripts/部署.js'], pending = ['- 删远端数据 | 准入: 不可逆'], doubt = DOUBT, ledger = ['无']} = {}) {
   const list = (items) => (items.length ? items : ['无']);
   return [
     '# 复命 ctbz-2.0.7',
@@ -343,6 +343,9 @@ function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['
     '',
     '自疑:',
     ...list(doubt),
+    '',
+    '行动账增量:',
+    ...list(ledger),
     '',
   ].join('\n');
 }
@@ -377,13 +380,13 @@ test('V3 待裁决: 无 → exit 0（自主延伸 / 自主修复 亦可为 无�
 });
 
 test('V3 段缺失 → exit 1', () => {
-  const noPending = fumingFixture(['# 复命 x', '', '自主延伸:', '无', '', '自主修复:', '无', '', '自疑:', ...DOUBT, ''].join('\n'));
+  const noPending = fumingFixture(['# 复命 x', '', '自主延伸:', '无', '', '自主修复:', '无', '', '自疑:', ...DOUBT, '', '行动账增量:', '无', ''].join('\n'));
   const a = runFuming(noPending);
   assert.equal(a.status, 1, a.stdout);
   assert.match(a.stdout, /缺段标题/);
   assert.match(a.stdout, /待裁决/);
 
-  const noExtend = fumingFixture(['# 复命 x', '', '自主修复:', '无', '', '待裁决:', '无', '', '自疑:', ...DOUBT, ''].join('\n'));
+  const noExtend = fumingFixture(['# 复命 x', '', '自主修复:', '无', '', '待裁决:', '无', '', '自疑:', ...DOUBT, '', '行动账增量:', '无', ''].join('\n'));
   const b = runFuming(noExtend);
   assert.equal(b.status, 1, b.stdout);
   assert.match(b.stdout, /缺段标题/);
@@ -473,17 +476,41 @@ test('V5 G8b 三条重复 → exit 1；G9 指向本 skill / 只报不改 → exi
   }
 });
 
-// V7：夹具迁四段是既有用例全绿的唯一达成方式——旧三段形态必须在 G7 下红。
-test('V7 夹具已迁四段：四段齐全且放行，旧三段形态仍被 G7 拦住', () => {
+// V7：夹具迁五段是既有用例全绿的唯一达成方式——旧四段形态必须在 G7 下红。
+test('V7 夹具已迁五段：五段齐全且放行，旧四段形态仍被 G7 拦住', () => {
   const four = fumingText();
-  for (const s of ['自主延伸:', '自主修复:', '待裁决:', '自疑:']) {
+  for (const s of ['自主延伸:', '自主修复:', '待裁决:', '自疑:', '行动账增量:']) {
     assert.ok(four.includes(s), '夹具缺段：' + s);
   }
   assert.equal(runFuming(fumingFixture(four)).status, 0);
 
-  const legacy = runFuming(fumingFixture(four.split('自疑:')[0]));
-  assert.equal(legacy.status, 1, '旧三段夹具在 G7 下必须红');
+  const legacy = runFuming(fumingFixture(four.split('自疑:')[0] + '行动账增量:\n无\n'));
+  assert.equal(legacy.status, 1, '旧四段夹具在 G7 下必须红');
   assert.match(legacy.stdout, /自疑条数不足/);
+});
+
+// V6（2.2.0）：复命第 5 段 `行动账增量:` + G10。
+test('V6 复命五段：全齐 exit 0；缺第 5 段报缺段标题；非 无 缺字段/取舍空话 exit 1', () => {
+  assert.equal(runFuming(fumingFixture(fumingText())).status, 0, '五段齐全（第 5 段为 无）须放行');
+
+  const full = fumingFixture(fumingText({ledger: ['- A1 顺手补了夹具 | 依据: docs/plan.md:1 | 取舍: 否掉「等下一版」：本版更省 | 证伪: node --test tests/内审.test.mjs → 结果: exit 0']}));
+  assert.equal(runFuming(full).status, 0, '非 无 且三字段齐全须放行');
+
+  const legacy = fumingFixture(fumingText().replace('\n行动账增量:\n无\n', '\n'));
+  const a = runFuming(legacy);
+  assert.equal(a.status, 1, a.stdout);
+  assert.match(a.stdout, /缺段标题/);
+  assert.match(a.stdout, /行动账增量/);
+
+  const missingField = fumingFixture(fumingText({ledger: ['- A1 顺手补了夹具 | 依据: docs/plan.md:1 | 取舍: 否掉「等下一版」：本版更省']}));
+  const b = runFuming(missingField);
+  assert.equal(b.status, 1, b.stdout);
+  assert.match(b.stdout, /行动账增量缺 证伪/);
+
+  const emptyTrade = fumingFixture(fumingText({ledger: ['- A1 顺手补了夹具 | 依据: docs/plan.md:1 | 取舍: 无 | 证伪: exit 0']}));
+  const c = runFuming(emptyTrade);
+  assert.equal(c.status, 1, c.stdout);
+  assert.match(c.stdout, /取舍为空话/);
 });
 
 test('V2 出处指向本 skill 的待裁决条目 → exit 1', () => {

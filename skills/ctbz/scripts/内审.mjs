@@ -16,7 +16,7 @@
 //   - 待办固定 <ws>/.ctbz-record/内审/pending.json；--dir 只管内审 md 落点（默认 <ws>/docs/内审）。
 //   - check 按被检文件向上找 pending.json：派发闸 audit 的 spawnSync 不保证 cwd，缺了会漏登记。
 //   - 只用 node 标准库；零网络；中文路径原样输出，不做 percent-encode。
-//   - 复命 = 复命闸（G1–G9）：段标题＝行首零缩进恰为 `自主延伸:` / `自主修复:` / `待裁决:` / `自疑:` 的行，
+//   - 复命 = 复命闸（G1–G10）：段标题＝行首零缩进恰为 `自主延伸:` / `自主修复:` / `待裁决:` / `自疑:` / `行动账增量:` 的行，
 //     段内容＝标题之后至下一段标题或文件末尾的非空行；只读不写盘，与 check 互不调用。
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -62,8 +62,8 @@ const FILE_PATH_RE = /\.(mjs|js|md|json|yaml|yml|sh)(?![0-9A-Za-z_])/;
 const ACCEPT_RE = /判据|退出码|预期/;
 const FIELD_LINE_RE = /^([^\s:：]+)[:：](.*)$/;
 
-const FUMING_SECTIONS = ["自主延伸", "自主修复", "待裁决", "自疑"];
-const SECTION_RE = /^(自主延伸|自主修复|待裁决|自疑)\s*[:：]\s*$/;
+const FUMING_SECTIONS = ["自主延伸", "自主修复", "待裁决", "自疑", "行动账增量"];
+const SECTION_RE = /^(自主延伸|自主修复|待裁决|自疑|行动账增量)\s*[:：]\s*$/;
 const NONE = "无";
 const ADMISSION = ["四扇门", "不可逆", "用户要求二选一"];
 const ADMISSION_RE = /准入\s*[:：]\s*(.*)$/;
@@ -74,6 +74,9 @@ const REPORT_ONLY_RE = /建议|待修|遗留|已知缺陷|未修|只报不改|�
 const ARROW_RE = /→|->/;
 const FAKE_EXPERIMENT_RE = /想了一下|推理|推测|可能|应该|大概|估计|觉得/;
 const DOUBT_RESULT_RE = /exit\s*[0-2]\b|pass\s*\d+|\d+\s*fail|[^\s:：]+\.(mjs|js|md|json|ts|sh|yaml|yml):\d+/;
+// G10（2.2.0）：与 派发闸.mjs LEDGER_EMPTY_WORDS 同表；取舍取值整值等于任一项即判红。
+const LEDGER_EMPTY_WORDS = ["无", "N/A", "—", "显而易见", "常规做法", "最佳实践", "一般来说", "通常"];
+const LEDGER_LABELS = ["依据", "取舍", "证伪"];
 
 function usage(msg) {
   console.error("[内审.mjs] " + msg);
@@ -219,7 +222,7 @@ function judge(text) {
   return { ok, level, excellent: ok && l3, reason };
 }
 
-// 段标题＝行首（零缩进）恰为四段名之一（自主延伸 / 自主修复 / 待裁决 / 自疑）的行；段内容＝该行之后至下一段标题或文件末尾的非空行。
+// 段标题＝行首（零缩进）恰为五段名之一（自主延伸 / 自主修复 / 待裁决 / 自疑 / 行动账增量）的行；段内容＝该行之后至下一段标题或文件末尾的非空行。
 function parseFuming(text) {
   const secs = {};
   const heads = {};
@@ -264,6 +267,18 @@ function doubtHead(line) {
   return normalizeFuming((at < 0 ? line : line.slice(0, at)).trim());
 }
 
+// G10 字段取值：模板以 `|` 分隔，取到下一个 `|` 为止（G7–G9 的 fumingFieldValue 取到行尾，同段多字段会串值）。
+function ledgerField(line, label) {
+  const m = new RegExp(label + "\\s*[:：]\\s*([^|]*)").exec(line);
+  return m ? m[1].trim() : "";
+}
+
+// G10 空话判定：去空白与首尾标点后整值比对（与 派发闸.mjs ledgerScalar 同口径）。
+function ledgerScalar(v) {
+  const P = "`*_「」『』（）()【】\\[\\]，。、；：,.;:!?！？—–-";
+  return v.replace(/\s+/g, "").replace(new RegExp(`^[${P}]+`), "").replace(new RegExp(`[${P}]+$`), "");
+}
+
 // G8 三判据：箭头 ≥2（原始行）/ 证伪实验非空且非推理词 / 结果命中命令回显形态。
 function hasEvidence(line) {
   if ((line.match(/→|->/g) || []).length < 2) return false;
@@ -290,6 +305,20 @@ function judgeFuming(text) {
     for (const it of items) {
       if (!it.text.startsWith("- ")) {
         errors.push(it.no + ": " + k + " 段行不合形态（须以「- 」开头，或整段恰为「" + NONE + "」）");
+      }
+    }
+  }
+
+  // G10（2.2.0）：行动账增量段——整段 `无` 放行（不在 NO_NONE）；非 `无` 时每行三字段须各自非空，取舍不得为空话。
+  const ledger = secs["行动账增量"] || [];
+  if (ledger.length && !isNone(ledger)) {
+    for (const it of ledger) {
+      if (!it.text.startsWith("- ")) continue;
+      for (const label of LEDGER_LABELS) {
+        if (!ledgerField(it.text, label)) errors.push(it.no + ": 行动账增量缺 " + label + ": 或取值为空");
+      }
+      if (LEDGER_EMPTY_WORDS.includes(ledgerScalar(ledgerField(it.text, "取舍")))) {
+        errors.push(it.no + ": 行动账增量 取舍为空话（整值等于词表任一项）");
       }
     }
   }

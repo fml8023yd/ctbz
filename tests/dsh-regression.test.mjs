@@ -127,11 +127,14 @@ function mkTmp(prefix) {
 }
 
 // 2.1.0 取证闸：夹具计划必须带 取证文件: 行与 现场核对 小节，否则派发闸 E1/E5 判红
+// 2.2.0 行动账：计划须带 `## 行动账` 节（A1）；本夹具计划落在 <ws>/plan.md，故证伪列取 `plan.md:1`
+const LEDGER_OK = '## 行动账\n\n| A# | 动作 | 依据 | 取舍 | 证伪 |\n|---|---|---|---|---|\n| A1 | 夹具动作 | 命令: 无外部断言 | 否掉「不做」：无据可依 | `plan.md:1` 无命中 → 失效 |';
+
 function writePlan(dir, name = 'plan.md', body = '# 计划\n\nreview_scale: 中\n', ev = true) {
   const plan = path.join(dir, name);
   const withEvidence = body.includes('现场核对')
     ? body
-    : body.trimEnd() + '\n\n取证文件: docs/取证/' + name + '\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划无数量断言 | E6 自动通过 |\n';
+    : body.trimEnd() + '\n\n取证文件: docs/取证/' + name + '\n\n' + LEDGER_OK + '\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划无数量断言 | E6 自动通过 |\n';
   fs.writeFileSync(plan, ev ? withEvidence : body, 'utf8');
   if (ev) {
     fs.mkdirSync(path.join(dir, 'docs', '取证'), {recursive: true});

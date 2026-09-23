@@ -61,6 +61,12 @@ const FILE_LINE_RE = /[A-Za-z0-9_./\u4e00-\u9fff-]+\.(?:mjs|js|sh|md|json|yaml|y
 const CN_DIGIT = { "〇":0,"零":0,"一":1,"二":2,"两":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9 };
 const INNER_TIMEOUT_MS = 10_000;
 
+// §3.3 行动账（2.2.0）：常量块逐字照计划；A0–A4 判定见 ledgerProblems。
+const LEDGER_HEAD = /^##\s*行动账\s*$/m;
+const LEDGER_EMPTY_WORDS = ["无", "N/A", "—", "显而易见", "常规做法", "最佳实践", "一般来说", "通常"];
+const LEDGER_DENY_RE = /否掉|弃|排除|不采用|而非|放弃|改为/;
+const LEDGER_FALSIFY_RE = /exit\s*[0-2]\b|pass\s*\d+|\d+\s*fail|[A-Za-z0-9_./\u4e00-\u9fff-]+\.(?:mjs|js|sh|md|json):\d+/;
+
 const USAGE = `ctbz 派发闸（dsh 版，只读闸门）
 
 用法：
@@ -295,6 +301,114 @@ function evidenceProblems(planText, ws) {
   return [...e1, ...e2, ...e3, ...e4, ...e5];
 }
 
+// §3.3 A0：先剥离 ``` / ~~~ 围栏块，再跑 A1–A4；围栏行以空行占位，A 类提示仍按计划原文行号报。
+function stripFences(planText) {
+  const out = [];
+  let fence = false;
+  for (const raw of planText.split(/\r?\n/)) {
+    const isFence = /^\s*(```|~~~)/.test(raw);
+    if (fence) { out.push(""); if (isFence) fence = false; continue; }
+    if (isFence) { fence = true; out.push(""); continue; }
+    out.push(raw);
+  }
+  return out.join("\n");
+}
+
+// §3.3 A2 切列：先把 \| 换占位符再切，切完还原——列内竖线不切错列。
+function ledgerCells(raw) {
+  return raw
+    .replace(/\\\|/g, "\u0001")
+    .split("|")
+    .slice(1, -1)
+    .map((c) => c.replace(/\u0001/g, "|").trim());
+}
+
+// §3.3 A2：扫描域＝LEDGER_HEAD 命中标题之后、下一个同级或更高级标题之前；表头（首列 A#）与分隔行天然不匹配账行正则。
+function ledgerScan(planText) {
+  const text = stripFences(planText);
+  const m = LEDGER_HEAD.exec(text);           // 非全局正则：exec 不推进 lastIndex
+  if (!m) return { head: -1, rows: [] };
+  const head = text.slice(0, m.index).split("\n").length;   // 标题行号（1 起）
+  const lines = text.split("\n");
+  const rows = [];
+  for (let i = head; i < lines.length; i++) {               // lines[head] ＝ 标题的下一行
+    if (/^#{1,2}\s/.test(lines[i])) break;                  // 同级（##）或更高级（#）标题即出域
+    if (/^\|\s*A\d+\s*\|/.test(lines[i])) rows.push({ n: i + 1, text: lines[i] });
+  }
+  return { head, rows };
+}
+
+// §3.3 A4 空话判定与 内审.mjs G10 同口径：去空白与首尾标点后整值比对。
+function ledgerScalar(v) {
+  const P = "`*_「」『』（）()【】\\[\\]，。、；：,.;:!?！？—–-";
+  return v
+    .replace(/\s+/g, "")
+    .replace(new RegExp(`^[${P}]+`), "")
+    .replace(new RegExp(`[${P}]+$`), "");
+}
+
+// §3.3 A3：依据列的 文件:行号 走 E2 同款解析与行号校验，且其后须紧跟括号原文片段并在该行命中（防行号真内容假）；
+// 无 文件:行号 的依据须以「」包裹或为命令文本。
+function ledgerRefProblems(id, n, cell, ws) {
+  const out = [];
+  const s = cell.replace(/`/g, "");
+  const re = new RegExp(FILE_LINE_RE.source, "g");   // 独立实例：不动模块级 FILE_LINE_RE 的 lastIndex
+  let hit = false;
+  for (const m of s.matchAll(re)) {
+    hit = true;
+    const ref = m[0];
+    const file = ref.slice(0, ref.search(/[:：]/));
+    const target = evidenceRefFile(ws, file);
+    let text = null;
+    if (target) { try { text = readFileSync(target, "utf8"); } catch { text = null; } }
+    let reach = false;
+    for (const num of m[2] ? [m[1], m[2]] : [m[1]]) {   // 范围 file:a-b 拆两个单点
+      if (text !== null && Number(num) <= countLines(text)) reach = true;
+      else out.push(`✗ 计划:行${n} 「${id}」依据不可达：${file}:${num}`);
+    }
+    if (!reach) continue;
+    const par = s.slice(m.index + ref.length).match(/^\s*[（(]([\s\S]*)[)）]/);
+    if (!par) { out.push(`✗ 计划:行${n} 「${id}」依据原文不符：${ref} 后缺括号原文片段`); continue; }
+    const line = text.split(/\r?\n/)[Number(m[1]) - 1] || "";
+    const chunks = par[1].split(/[\s,，、；;：:（）()「」『』【】]+/).filter((c) => c.length >= 2);
+    if (!chunks.some((c) => line.includes(c))) {
+      out.push(`✗ 计划:行${n} 「${id}」依据原文不符：${ref} 括号原文未在该行命中`);
+    }
+  }
+  const v = cell.trim();
+  if (!hit && !/^「.+」$/.test(v) && !/^命令\s*[:：]/.test(v) && !/node |grep |git /.test(cell)) {
+    out.push(`✗ 计划:行${n} 「${id}」依据未以「」包裹且非命令`);
+  }
+  return out;
+}
+
+// §3.3 A1–A4：两参与 evidenceProblems 同形（不读 E1 的取证文件正文）。
+function ledgerProblems(planText, ws) {
+  const out = [];
+  const { head, rows } = ledgerScan(planText);
+  if (head < 0) return ["✗ 缺「行动账」小节"];                       // A1
+  if (rows.length === 0 && !/^\s*无\s*$/m.test(stripFences(planText).split("\n").slice(head).join("\n"))) {
+    out.push(`✗ 计划:行${head} 行动账小节内无账行（账行须行首匹配「| A<数字> |」；整节为「无」才豁免）`);
+  }
+  for (const it of rows) {
+    const cells = ledgerCells(it.text);
+    const id = cells[0] || "";
+    if (cells.length !== 5 || cells.slice(1, 5).some((c) => c === "")) {   // A2
+      out.push(cells.length > 5
+        ? `✗ 计划:行${it.n} 「${id}」列含未转义竖线（列内竖线须写成 \\|）`
+        : `✗ 计划:行${it.n} 「${id}」四列不全（动作｜依据｜取舍｜证伪 四列均须非空）`);
+      continue;
+    }
+    out.push(...ledgerRefProblems(id, it.n, cells[2], ws));             // A3
+    if (LEDGER_EMPTY_WORDS.includes(ledgerScalar(cells[3]))) {          // A4
+      out.push(`✗ 计划:行${it.n} 「${id}」取舍为空话：${cells[3]}（整值等于词表任一项）`);
+    }
+    if (!LEDGER_DENY_RE.test(cells[3])) out.push(`✗ 计划:行${it.n} 「${id}」取舍未含被否候选`);
+    if (!LEDGER_FALSIFY_RE.test(cells[4])) out.push(`✗ 计划:行${it.n} 「${id}」证伪不可执行`);
+  }
+  return out;
+}
+
 // §4.4 文件名 → 期望 camp 与 round；l2 目录允许任意 *.json（此时不强制后缀一致）
 function expectFromName(name, level) {
   const m = name.match(/^(.+?)(?:-r(\d+))?\.json$/i);
@@ -499,6 +613,7 @@ function runReviewLevel(a, ws, plan, planText, planSha) {
   const receipt = dir.split(sep).join("/") + "/";
   const cmd = gateCmd(level, plan, ws, task);
   const evidence = declaredEvidence(planText);
+  const ledger = ledgerScan(planText).rows.length;
 
   const sc = readScale(planText);
   const missing = [];
@@ -510,6 +625,7 @@ function runReviewLevel(a, ws, plan, planText, planSha) {
   }
 
   missing.push(...evidenceProblems(planText, ws));
+  missing.push(...ledgerProblems(planText, ws));
 
   const items = scanReceipts(dir, level);
   const top = topRounds(items);
@@ -521,7 +637,7 @@ function runReviewLevel(a, ws, plan, planText, planSha) {
     if (missing.length) return checkFailed(json, { missing, fix, notes: null });
     return pass(json, {
       ok: true, review_scale: scale, review_level: "l1", review_receipt: receipt,
-      review_camps: [], plan_sha256: planSha, seats: 0, evidence,
+      review_camps: [], plan_sha256: planSha, seats: 0, ledger, evidence,
     });
   }
 
@@ -551,7 +667,7 @@ function runReviewLevel(a, ws, plan, planText, planSha) {
   return pass(json, {
     ok: true, review_scale: scale, review_level: level, review_receipt: receipt,
     review_camps: CAMP_ORDER.filter((c) => camps.includes(c)), plan_sha256: planSha, seats: SCALE_SEATS[scale],
-    independence: "3 independent + 1 same-source", evidence,
+    independence: "3 independent + 1 same-source", ledger, evidence,
   });
 }
 

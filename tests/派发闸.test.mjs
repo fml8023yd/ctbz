@@ -34,13 +34,18 @@ const l1Dir = (ws, slug = 'plan') => path.join(ws, '.ctbz-record', '反审', slu
 const l2Dir = (ws, task) => path.join(ws, '.ctbz-record', '反审', '任务级', task);
 const l3Dir = (ws, slug = 'plan') => path.join(ws, '.ctbz-record', '反审', '项目级', slug);
 
+// 2.2.0 §3.5：既有夹具补 `## 行动账` 节 + 一行四列齐全的合法账行（取舍含「否掉」、证伪含 路径:行号）
+const LEDGER_ROW =
+  '| A1 | 夹具动作 | 命令: 无外部断言 | 否掉「不做」：无据可依 | `docs/plan.md:1` 无命中 → 失效 |';
+const LEDGER_OK = `## 行动账\n\n| A# | 动作 | 依据 | 取舍 | 证伪 |\n|---|---|---|---|---|\n${LEDGER_ROW}`;
+
 // 夹具项目：mkdtemp 内 docs/plan.md（含 review_scale）
 function makeWs(scale = '中') {
   const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-gate-'));
   fs.mkdirSync(path.join(ws, 'docs'), {recursive: true});
   fs.mkdirSync(path.join(ws, '.ctbz-record', '取证'), {recursive: true});
   const plan = path.join(ws, 'docs', 'plan.md');
-  fs.writeFileSync(plan, `# 夹具计划\n\nreview_scale: ${scale}\n\n取证文件: .ctbz-record/取证/plan.md\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划仅含 review_scale | 无需外部断言 |\n`);
+  fs.writeFileSync(plan, `# 夹具计划\n\nreview_scale: ${scale}\n\n取证文件: .ctbz-record/取证/plan.md\n\n${LEDGER_OK}\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划仅含 review_scale | 无需外部断言 |\n`);
   fs.writeFileSync(path.join(ws, '.ctbz-record', '取证', 'plan.md'), '# 取证原文（夹具）\n\n夹具计划无数量断言与 文件:行号，E2–E4 自动通过（E6）。\n');
   return {ws, plan};
 }
@@ -539,7 +544,7 @@ function makeEvWs(body, evidence = '# 取证原文（夹具）\n', rel = 'docs/�
   const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-ev-'));
   const plan = path.join(ws, 'docs', 'plan.md');
   fs.mkdirSync(path.dirname(plan), {recursive: true});
-  fs.writeFileSync(plan, `# 取证夹具计划\n\nreview_scale: 免审\n免审依据: 只读诊断，不写仓库\n取证文件: ${rel}\n\n## 现场核对\n\n${body}\n`);
+  fs.writeFileSync(plan, `# 取证夹具计划\n\nreview_scale: 免审\n免审依据: 只读诊断，不写仓库\n取证文件: ${rel}\n\n${LEDGER_OK}\n\n## 现场核对\n\n${body}\n`);
   if (evidence !== null) {
     const ev = path.join(ws, rel);
     fs.mkdirSync(path.dirname(ev), {recursive: true});
@@ -621,4 +626,118 @@ test('C9 取证：跳过节遇同级标题即恢复扫描', () => {
   const r = runGate(['--plan', plan, '--workspace', ws, '--level', 'l1']);
   assert.equal(r.status, 1);
   assert.match(r.stderr + r.stdout, /未标取证锚点/);
+});
+
+// ---------- 行动账（§3.3 A0–A4，2.2.0） ----------
+
+// 账行/计划夹具：只坏一处，其余取自合法基线
+function ledgerRow({action = '夹具动作', rely = '命令: 无外部断言', trade = '否掉「不做」：无据可依', falsify = '`docs/plan.md:1` 无命中 → 失效'} = {}) {
+  return `| A1 | ${action} | ${rely} | ${trade} | ${falsify} |`;
+}
+
+const LEDGER_BLOCK = (row) => `## 行动账\n\n| A# | 动作 | 依据 | 取舍 | 证伪 |\n|---|---|---|---|---|\n${row}`;
+
+function makeLedgerWs(ledger, scale = '中') {
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-ledger-'));
+  const plan = path.join(ws, 'docs', 'plan.md');
+  fs.mkdirSync(path.dirname(plan), {recursive: true});
+  fs.mkdirSync(path.join(ws, '.ctbz-record', '取证'), {recursive: true});
+  fs.writeFileSync(plan, `# 行动账夹具计划\n\nreview_scale: ${scale}\n\n取证文件: .ctbz-record/取证/plan.md\n\n${ledger ? ledger + '\n\n' : ''}## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划无数量断言 | 无需外部断言 |\n`);
+  fs.writeFileSync(path.join(ws, '.ctbz-record', '取证', 'plan.md'), '# 取证原文（夹具）\n\n夹具计划无数量断言与 文件:行号，E2–E4 自动通过（E6）。\n');
+  return {ws, plan};
+}
+
+test('V1 账齐备通过：合法账行 + 4 份合格回执 → exit 0 且 payload 带 ledger', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK(ledgerRow()));
+  writeReceipts(l1Dir(ws), plan);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
+  assert.ok(r.stdout.includes('"ledger"'), r.stdout);
+  assert.equal(JSON.parse(r.stdout).ledger, 1);
+});
+
+test('V2 缺账被拦：删 ## 行动账 小节 → exit 1 含「缺「行动账」小节」', () => {
+  const {ws, plan} = makeLedgerWs(null);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /缺「行动账」小节/);
+});
+
+test('V3 空话取舍被拦；反例「否掉了『无缓存』方案」放行', () => {
+  const empty = makeLedgerWs(LEDGER_BLOCK(ledgerRow({trade: '无'})));
+  const a = runGate(['--plan', empty.plan, '--workspace', empty.ws]);
+  assert.equal(a.status, 1, a.out);
+  assert.match(a.out, /取舍为空话/);
+
+  const ok = makeLedgerWs(LEDGER_BLOCK(ledgerRow({trade: '否掉了「无缓存」方案'})));
+  writeReceipts(l1Dir(ok.ws), ok.plan);
+  const b = runGate(['--plan', ok.plan, '--workspace', ok.ws]);
+  assert.equal(b.status, 0, b.out);
+});
+
+test('V4 依据不可达被拦：派发闸.mjs:9999 → exit 1 含「依据不可达」', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK(ledgerRow({rely: '`派发闸.mjs:9999`（`NUM_CLAIM_RE`）'})));
+  copyGateScript(ws);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /依据不可达/);
+});
+
+test('V5 免审短路前接入：免审级缺行动账 → exit 1 含「缺「行动账」小节」', () => {
+  const {ws, plan} = makeLedgerWs(null, '免审');
+  fs.appendFileSync(plan, '\n免审依据: 只读诊断，不写仓库\n');
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /缺「行动账」小节/);
+  assert.doesNotMatch(r.out, /免审依据/);
+});
+
+test('V8 取舍未含被否候选被拦：「方案A 更好」→ exit 1 含「取舍未含被否候选」', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK(ledgerRow({trade: '方案A 更好'})));
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /取舍未含被否候选/);
+});
+
+test('V9 证伪不可执行被拦：「若不行则失效」→ exit 1 含「证伪不可执行」', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK(ledgerRow({falsify: '若不行则失效'})));
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /证伪不可执行/);
+});
+
+test('V10 围栏内账行不计入（A0）', () => {
+  const {ws, plan} = makeLedgerWs(`## 行动账\n\n\`\`\`\n${ledgerRow()}\n\`\`\``);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /行动账小节内无账行/);
+});
+
+test('V11 行号真内容假被拦：派发闸.mjs:520（NUM_CLAIM_RE）→ exit 1 含「依据原文不符」', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK(ledgerRow({rely: '`派发闸.mjs:520`（`NUM_CLAIM_RE`）'})));
+  copyGateScript(ws);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /依据原文不符/);
+});
+
+test('A3 正例：依据 文件:行号 + 紧跟括号原文且该行命中 → exit 0（不误杀真内容）', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK(ledgerRow({rely: '`docs/plan.md:1`（`# 行动账夹具计划`）'})));
+  writeReceipts(l1Dir(ws), plan);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
+});
+
+test('A2 未转义竖线：列内含裸 | 致段数 6 → exit 1 含「列含未转义竖线」', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK('| A1 | 夹具动作 | 命令: a | b | 否掉「不做」：无据可依 | `docs/plan.md:1` 无命中 → 失效 |'));
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /列含未转义竖线/);
+});
+
+test('A2 转义竖线：列内 \\| 按占位符法还原、不切错列 → exit 0', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK('| A1 | 夹具动作 | 命令: grep -c x \\| wc -l | 否掉「不做」：无据可依 | `docs/plan.md:1` 无命中 → 失效 |'));
+  writeReceipts(l1Dir(ws), plan);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
 });

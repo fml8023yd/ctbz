@@ -112,7 +112,7 @@ test("V1 自证与自疑节：插在硬门行之后、边界延伸之后，四�
     SKILL.indexOf(BOUNDARY_HEAD) < i && i < SKILL.indexOf("## 统一模式规则"),
     "「自证与自疑」节须插在「边界延伸」整节之后、「统一模式规则」之前",
   );
-  for (const s of ["自证优先于自述", "先证伪，后确认", "自疑:", "四段均为必填"]) {
+  for (const s of ["自证优先于自述", "先证伪，后确认", "自疑:", "五段均为必填"]) {
     assert.ok(SKILL.includes(s), `SKILL.md 缺「${s}」`);
   }
 });
