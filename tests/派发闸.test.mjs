@@ -45,7 +45,7 @@ function makeWs(scale = '中') {
   fs.mkdirSync(path.join(ws, 'docs'), {recursive: true});
   fs.mkdirSync(path.join(ws, '.ctbz-record', '取证'), {recursive: true});
   const plan = path.join(ws, 'docs', 'plan.md');
-  fs.writeFileSync(plan, `# 夹具计划\n\nreview_scale: ${scale}\n\n取证文件: .ctbz-record/取证/plan.md\n\n${LEDGER_OK}\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划仅含 review_scale | 无需外部断言 |\n`);
+  fs.writeFileSync(plan, `# 夹具计划\n\nreview_scale: ${scale}\n\n取证文件: .ctbz-record/取证/plan.md\n\n${LEDGER_OK}\n\n${sixOk('docs/plan.md:1')}\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划仅含 review_scale | 无需外部断言 |\n`);
   fs.writeFileSync(path.join(ws, '.ctbz-record', '取证', 'plan.md'), '# 取证原文（夹具）\n\n夹具计划无数量断言与 文件:行号，E2–E4 自动通过（E6）。\n');
   return {ws, plan};
 }
@@ -544,7 +544,7 @@ function makeEvWs(body, evidence = '# 取证原文（夹具）\n', rel = 'docs/�
   const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-ev-'));
   const plan = path.join(ws, 'docs', 'plan.md');
   fs.mkdirSync(path.dirname(plan), {recursive: true});
-  fs.writeFileSync(plan, `# 取证夹具计划\n\nreview_scale: 免审\n免审依据: 只读诊断，不写仓库\n取证文件: ${rel}\n\n${LEDGER_OK}\n\n## 现场核对\n\n${body}\n`);
+  fs.writeFileSync(plan, `# 取证夹具计划\n\nreview_scale: 免审\n免审依据: 只读诊断，不写仓库\n取证文件: ${rel}\n\n${LEDGER_OK}\n\n${sixOk('docs/plan.md:1')}\n\n## 现场核对\n\n${body}\n`);
   if (evidence !== null) {
     const ev = path.join(ws, rel);
     fs.mkdirSync(path.dirname(ev), {recursive: true});
@@ -642,7 +642,7 @@ function makeLedgerWs(ledger, scale = '中') {
   const plan = path.join(ws, 'docs', 'plan.md');
   fs.mkdirSync(path.dirname(plan), {recursive: true});
   fs.mkdirSync(path.join(ws, '.ctbz-record', '取证'), {recursive: true});
-  fs.writeFileSync(plan, `# 行动账夹具计划\n\nreview_scale: ${scale}\n\n取证文件: .ctbz-record/取证/plan.md\n\n${ledger ? ledger + '\n\n' : ''}## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划无数量断言 | 无需外部断言 |\n`);
+  fs.writeFileSync(plan, `# 行动账夹具计划\n\nreview_scale: ${scale}\n\n取证文件: .ctbz-record/取证/plan.md\n\n${ledger ? ledger + '\n\n' : ''}${sixOk('docs/plan.md:1')}\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划无数量断言 | 无需外部断言 |\n`);
   fs.writeFileSync(path.join(ws, '.ctbz-record', '取证', 'plan.md'), '# 取证原文（夹具）\n\n夹具计划无数量断言与 文件:行号，E2–E4 自动通过（E6）。\n');
   return {ws, plan};
 }
@@ -740,4 +740,154 @@ test('A2 转义竖线：列内 \\| 按占位符法还原、不切错列 → exit
   writeReceipts(l1Dir(ws), plan);
   const r = runGate(['--plan', plan, '--workspace', ws]);
   assert.equal(r.status, 0, r.out);
+});
+
+
+// 2.3.0：夹具补 `## 构建期六问`（l1 且 中/重 级必填）；反例/真实两行须带**本夹具 ws 内可达**的 文件:行号
+const sixOk = (ref) =>
+  '## 构建期六问\n\n| 问 | 本版自查 |\n|---|---|\n' +
+  '| 自指 | 夹具自指：本模板须过 sixProblems |\n' +
+  '| 反例 | 删本行后 sixProblems 判红（对照 ' + ref + '） |\n' +
+  '| 冲突 | 夹具冲突面由 T1 消解 |\n' +
+  '| 覆盖 | 覆盖以 grep 复算 |\n' +
+  '| 一致 | 签名与主文逐字对齐 |\n' +
+  '| 真实 | 本行锚点须可达（' + ref + '） |';
+
+// ---------- 2.3.0 构建期六问（l1 且 中/重 强制） ----------
+
+const stripSix = (plan) => fs.writeFileSync(plan, fs.readFileSync(plan, 'utf8').replace(sixOk('docs/plan.md:1') + '\n\n', ''));
+
+test('V9 中/重 级缺 `## 构建期六问` → exit 1，含缺节提示', () => {
+  const {ws, plan} = makeWs('中');
+  stripSix(plan);
+  writeReceipts(l1Dir(ws), plan);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /缺「## 构建期六问」小节/);
+  fs.writeFileSync(plan, fs.readFileSync(plan, 'utf8') + '\n' + sixOk('docs/plan.md:1') + '\n');
+  writeReceipts(l1Dir(ws), plan);
+  assert.equal(runGate(['--plan', plan, '--workspace', ws]).status, 0, '补上六问后应放行');
+});
+
+test('V10 六问缺一行 → exit 1；反例行无 文件:行号 → exit 1', () => {
+  const {ws, plan} = makeWs('中');
+  fs.writeFileSync(plan, fs.readFileSync(plan, 'utf8').replace('| 覆盖 | 覆盖以 grep 复算 |\n', ''));
+  writeReceipts(l1Dir(ws), plan);
+  assert.match(runGate(['--plan', plan, '--workspace', ws]).out, /构建期六问缺「覆盖」行/);
+
+  const {ws: ws2, plan: plan2} = makeWs('中');
+  fs.writeFileSync(plan2, fs.readFileSync(plan2, 'utf8').replace(/删本行后 sixProblems 判红（对照 [^）]*）/g, '删本行后判红'));
+  writeReceipts(l1Dir(ws2), plan2);
+  assert.match(runGate(['--plan', plan2, '--workspace', ws2]).out, /「反例」行须带 文件:行号/);
+});
+
+test('V11 轻级不填六问 → 放行', () => {
+  const {ws, plan} = makeWs('轻');
+  stripSix(plan);
+  writeReceipts(l1Dir(ws), plan, {camps: CAMPS.slice(0, 3)});
+  assert.equal(runGate(['--plan', plan, '--workspace', ws]).status, 0);
+});
+
+// ---------- 2.3.0 完工自审 l4 ----------
+
+const artDir = (ws) => path.join(ws, '.ctbz-record', '反审', '产物级', '清单');
+
+function makeArtWs(extra = null) {
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-art-'));
+  fs.mkdirSync(path.join(ws, 'docs'), {recursive: true});
+  fs.writeFileSync(path.join(ws, 'docs', 'art.md'), '# 产物\n');
+  const rows = [`docs/art.md ${sha256(path.join(ws, 'docs', 'art.md'))}`];
+  if (extra) rows.push(extra);
+  const manifest = path.join(ws, 'docs', '清单.md');
+  fs.writeFileSync(manifest, '# 产物清单\n\n' + rows.join('\n') + '\n');
+  return {ws, manifest};
+}
+
+function artReceipt(manifest, camp, patch = {}) {
+  return {
+    camp: camp.camp, camp_label: camp.label, provider: camp.provider, model: camp.model,
+    round: '1', plan: path.resolve(manifest), plan_sha256: sha256(manifest),
+    generated_at: new Date().toISOString(), verdict: null,
+    fresh_agent_test: {conclusion: '通过', blockers: []},
+    verdicts: SIX_VIEWS.map((v) => ({view: v, category: '可接受', evidence: 'fixture', conclusion: '接受', disposition: 'fixture'})),
+    implementer_camp: 'deepseek', reviewer_camp: camp.camp, blocking: 0,
+    summary: 'fixture', ...patch,
+  };
+}
+
+function writeArtReceipts(dir, manifest, camps, patch) {
+  fs.mkdirSync(dir, {recursive: true});
+  for (const c of camps) fs.writeFileSync(path.join(dir, `${c.camp}.json`), JSON.stringify(artReceipt(manifest, c, patch), null, 2));
+}
+
+const ART_CAMPS = CAMPS.filter((c) => c.camp !== 'deepseek');
+
+test('V12 l4 正常：3 独立阵营回执 + 清单 sha 相符 → exit 0', () => {
+  const {ws, manifest} = makeArtWs();
+  writeArtReceipts(artDir(ws), manifest, ART_CAMPS);
+  const r = runGate(['--plan', manifest, '--workspace', ws, '--level', 'l4']);
+  assert.equal(r.status, 0, r.out);
+  const b = JSON.parse(r.stdout);
+  assert.equal(b.review_level, 'l4');
+  assert.deepEqual(b.review_camps, ['zhipu', 'tencent', 'moonshot']);
+});
+
+test('V13 l4 反例矩阵：2 阵营 / blocking:1 / 缺 blocking / 同阵营 / sha 不符 → 各 exit 1', () => {
+  const {ws, manifest} = makeArtWs();
+  const dir = artDir(ws);
+  const run = () => runGate(['--plan', manifest, '--workspace', ws, '--level', 'l4']);
+  writeArtReceipts(dir, manifest, ART_CAMPS.slice(0, 2));
+  assert.equal(run().status, 1, run().out);
+  writeArtReceipts(dir, manifest, ART_CAMPS, {blocking: 1});
+  assert.match(run().out, /产物级阻塞数须为 0/);
+  writeArtReceipts(dir, manifest, ART_CAMPS, {blocking: undefined});
+  assert.match(run().out, /产物级阻塞数须为 0/);
+  writeArtReceipts(dir, manifest, ART_CAMPS, {implementer_camp: 'zhipu'});
+  assert.match(run().out, /隔离失效/);
+  writeArtReceipts(dir, manifest, ART_CAMPS);
+  fs.writeFileSync(path.join(ws, 'docs', 'art.md'), '# 产物（改过）\n');
+  assert.match(run().out, /sha 不符/);
+});
+
+test('V14 产物清单路径越出 workspace → exit 1', () => {
+  const {ws, manifest} = makeArtWs('../outside.md ' + 'a'.repeat(64));
+  writeArtReceipts(artDir(ws), manifest, ART_CAMPS);
+  const r = runGate(['--plan', manifest, '--workspace', ws, '--level', 'l4']);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /越出 workspace 边界/);
+});
+
+test('V15 符号链接越界：ws 内软链指向 ws 外 → exit 1；指向 ws 内 → exit 0', () => {
+  const {ws, manifest} = makeArtWs();
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-out-'));
+  fs.writeFileSync(path.join(outsideDir, 'out.txt'), '# 外部文件\n');
+  fs.symlinkSync(path.join(outsideDir, 'out.txt'), path.join(ws, 'link-out.txt'));
+  fs.symlinkSync(path.join(ws, 'docs', 'art.md'), path.join(ws, 'link-in.txt'));
+  const dir = artDir(ws);
+  const run = () => runGate(['--plan', manifest, '--workspace', ws, '--level', 'l4']);
+  fs.appendFileSync(manifest, `link-out.txt ${sha256(path.join(outsideDir, 'out.txt'))}\n`);
+  writeArtReceipts(dir, manifest, ART_CAMPS);
+  const bad = run();
+  assert.equal(bad.status, 1, bad.out);
+  assert.match(bad.out, /越出 workspace 边界（含符号链接解析）/);
+  fs.writeFileSync(manifest, fs.readFileSync(manifest, 'utf8').replace(/link-out\.txt [0-9a-f]{64}\n/, `link-in.txt ${sha256(path.join(ws, 'docs', 'art.md'))}\n`));
+  writeArtReceipts(dir, manifest, ART_CAMPS);
+  assert.equal(run().status, 0, 'ws 内软链不应误杀');
+});
+
+test('V16 清单异形行 fail-closed：序号表行／含空格路径行 → exit 1，不得静默跳过', () => {
+  const {ws, manifest} = makeArtWs();
+  const dir = artDir(ws);
+  const base = fs.readFileSync(manifest, 'utf8');
+  const row = base.trim().split('\n').pop();
+  const run = () => runGate(['--plan', manifest, '--workspace', ws, '--level', 'l4']);
+  fs.writeFileSync(manifest, base + `| 1 | ${row.split(' ')[0]} | ${row.split(' ')[1]} |\n`);
+  writeArtReceipts(dir, manifest, ART_CAMPS);
+  assert.match(run().out, /无法解析的行|文件不存在或不可读/);
+  fs.writeFileSync(manifest, base + `docs/a b/c.md ${'a'.repeat(64)}\n`);
+  writeArtReceipts(dir, manifest, ART_CAMPS);
+  assert.match(run().out, /无法解析的行/);
+  fs.writeFileSync(manifest, base);
+  writeArtReceipts(dir, manifest, ART_CAMPS);
+  assert.equal(run().status, 0, '恢复原清单应放行');
 });

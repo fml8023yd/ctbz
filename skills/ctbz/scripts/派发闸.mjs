@@ -3,19 +3,19 @@
 //   --level l1    计划反审回执（<ws>/.ctbz-record/反审/<slug>/）
 //   --level l2    任务级反审回执（<ws>/.ctbz-record/反审/任务级/<task>/）
 //   --level l3    项目级复查回执（<ws>/.ctbz-record/反审/项目级/<slug>/）
-//   --level audit 内审待办（<ws>/.ctbz-record/内审/pending.json）
+//   --level audit 内审待办（<ws>/.ctbz-record/内审/pending.json）；--level l4 产物级自审（--plan 传产物清单）
 // 约束：只读——不写任何文件；audit 仅 spawnSync 同目录 内审.mjs check（数组参数、无 shell、10s 超时）。
 // 中文路径一律 fileURLToPath / path API，输出不做 percent-encode。
 //
 // 用法：
 //   node 派发闸.mjs --plan <计划md绝对路径> --workspace <项目绝对路径>
-//        [--level l1|l2|l3|audit] [--task <T号>] [--json] [--host-model <模型名>]
+//        [--level l1|l2|l3|l4|audit] [--task <T号>] [--json] [--host-model <模型名>]
 //
 //   -h / --help 优先于 --json 与其余全部校验：打印人读用法到 stdout、exit 0、不输出 JSON。
 //
 // 退出码：0 通过 / 1 校验不通过（逐条列缺项 + 补齐命令） / 2 用法或环境错误
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { basename, dirname, join, resolve, sep } from "node:path";
@@ -47,7 +47,7 @@ const SAME_SOURCE_MODELS = new Set(["deepseek-flash", "deepseek-v4-pro"]);
 
 // §4.1 定级表：席位数 = 总回执数下限
 const SCALE_SEATS = { "免审": 0, "轻": 3, "中": 4, "重": 8 };
-const LEVELS = ["l1", "l2", "l3", "audit"];
+const LEVELS = ["l1", "l2", "l3", "l4", "audit"];
 const MAX_PENDING = 100;
 
 // §3.1 取证闸（2.1.0）：常量块逐字照计划；E1–E6 判定见 evidenceProblems。
@@ -71,12 +71,12 @@ const USAGE = `ctbz 派发闸（dsh 版，只读闸门）
 
 用法：
   node 派发闸.mjs --plan <计划md绝对路径> --workspace <项目绝对路径>
-       [--level l1|l2|l3|audit] [--task <T号>] [--json] [--host-model <模型名>]
+       [--level l1|l2|l3|l4|audit] [--task <T号>] [--json] [--host-model <模型名>]
 
 选项：
   --plan <路径>        计划文件绝对路径（l1/l2/l3 必填）
   --workspace <路径>   项目绝对路径（必填）
-  --level <级别>       l1 计划反审 / l2 任务级反审 / l3 项目级复查 / audit 内审待办；默认 l1
+  --level <级别>       l1 计划反审 / l2 任务级反审 / l3 项目级复查 / l4 产物级自审（--plan 传产物清单） / audit 内审待办；默认 l1
   --task <T号>         l2 必填，取值等于任务号字面量（T0–T5，如 T1）
   --json               开则 stdout 恒为单行 JSON
   --host-model <名>    主进程模型，默认 ${DEFAULT_HOST_MODEL}；不得取非豁免席位模型（DeepSeek 席同源已裁定接受）
@@ -536,14 +536,14 @@ function validate(it, ctx) {
 
   if (!nonEmpty(d.summary)) bad("summary 缺失或为空");
 
-  if (ctx.level === "l2") {
+  if (ctx.level === "l2" || ctx.level === "l4") {
     if (!nonEmpty(d.implementer_camp)) bad("implementer_camp 缺失或为空");
     if (!nonEmpty(d.reviewer_camp)) bad("reviewer_camp 缺失或为空");
     if (nonEmpty(d.reviewer_camp) && d.camp !== d.reviewer_camp) {
       bad(`camp 与 reviewer_camp 不一致：${JSON.stringify(d.camp)} ≠ ${JSON.stringify(d.reviewer_camp)}`);
-    }
+    } if (ctx.level === "l4") { const nb = Array.isArray(d.verdicts) ? d.verdicts.filter((v) => v && v.category === "阻塞").length : -1; if (d.blocking !== 0) bad(`产物级阻塞数须为 0（字段缺失或非数字同判）：${JSON.stringify(d.blocking)}`); if (d.blocking !== nb) bad(`blocking 与 verdicts 阻塞数不符：blocking=${JSON.stringify(d.blocking)}，verdicts 阻塞 ${nb} 条`); if (!CAMP_ORDER.includes(d.implementer_camp)) bad(`implementer_camp 未落阵营表：${JSON.stringify(d.implementer_camp)}（∈ ${CAMP_ORDER.join(",")}）`); }
     if (nonEmpty(d.implementer_camp) && d.implementer_camp === d.reviewer_camp) {
-      bad(`实施/复核同阵营（L2 隔离失效）：implementer_camp == reviewer_camp == ${d.implementer_camp}`);
+      bad(`实施/复核同阵营（隔离失效）：implementer_camp == reviewer_camp == ${d.implementer_camp}`);
     }
   }
 
@@ -586,8 +586,8 @@ function coverageProblems(level, scale, qualified, dir) {
         }
       }
     }
-  } else if (level === "l2") {
-    if (qualified.length < 1) out.push(`✗ ${dir}: 任务级合格回执 ${qualified.length} 份，l2 需 ≥1 份`);
+  } else if (level === "l2" || level === "l4") {
+    if (qualified.length < (level === "l4" ? 3 : 1) || (level === "l4" && new Set(qualified.map((it) => it.data.camp)).size < 3)) out.push(`✗ ${dir}: ${level === "l4" ? "产物级" : "任务级"}合格回执 ${qualified.length} 份、阵营 ${new Set(qualified.map((it) => it.data.camp)).size} 个，${level} 需 ≥${level === "l4" ? 3 : 1} 份` + (level === "l4" ? "且 ≥3 阵营" : ""));
   } else if (level === "l3") {
     for (const c of CAMP_ORDER) {
       if (!qualified.some((it) => it.data.camp === c && it.name === c + ".json")) {
@@ -599,7 +599,7 @@ function coverageProblems(level, scale, qualified, dir) {
 }
 
 function scaleNote(level, scale, qualified, camps) {
-  if (level === "l2") return `l2 定级 ${scale}：任务级回执需 ≥1 份；当前合格 ${qualified} 份`;
+  if (level === "l2" || level === "l4") return level === "l4" ? `l4 产物级：需 ≥3 份且 ≥3 阵营；当前合格 ${qualified} 份、覆盖 ${camps} 个阵营` : `l2 定级 ${scale}：任务级回执需 ≥1 份；当前合格 ${qualified} 份`;
   if (level === "l3") return `l3 定级 ${scale}：项目级需 4 阵营齐全；当前合格 ${qualified} 份、覆盖 ${camps} 个阵营`;
   if (scale === "轻") return `定级 轻：需 ≥3 份回执、≥3 个不同阵营；当前合格 ${qualified} 份、覆盖 ${camps} 个阵营`;
   return `定级 ${scale}：需 ${SCALE_SEATS[scale]} 份回执、4 阵营齐全；当前合格 ${qualified} 份、覆盖 ${camps} 个阵营`;
@@ -609,13 +609,13 @@ function runReviewLevel(a, ws, plan, planText, planSha) {
   const { json, level, task, hostModel } = a;
   const slug = basename(plan).replace(/\.md$/i, "");
   const record = join(ws, ".ctbz-record", "反审");
-  const dir = level === "l1" ? join(record, slug) : level === "l2" ? join(record, "任务级", task) : join(record, "项目级", slug);
+  const dir = level === "l1" ? join(record, slug) : level === "l2" ? join(record, "任务级", task) : level === "l4" ? join(record, "产物级", slug) : join(record, "项目级", slug);
   const receipt = dir.split(sep).join("/") + "/";
   const cmd = gateCmd(level, plan, ws, task);
   const evidence = declaredEvidence(planText);
   const ledger = ledgerScan(planText).rows.length;
 
-  const sc = readScale(planText);
+  const sc = level === "l4" ? { scale: "重" } : readScale(planText);
   const missing = [];
   if (sc.reason) missing.push(`✗ ${plan}: ${sc.reason}`);
 
@@ -624,8 +624,8 @@ function runReviewLevel(a, ws, plan, planText, planSha) {
     missing.push(`✗ ${plan}: 免审级需计划正文含非空 免审依据: 行`);
   }
 
-  missing.push(...evidenceProblems(planText, ws));
-  missing.push(...ledgerProblems(planText, ws));
+  if (level !== "l4") missing.push(...evidenceProblems(planText, ws));
+  if (level === "l4") missing.push(...artifactProblems(planText, ws)); else if (level === "l1") { missing.push(...ledgerProblems(planText, ws)); missing.push(...sixProblems(planText, sc.scale)); } else missing.push(...ledgerProblems(planText, ws));
 
   const items = scanReceipts(dir, level);
   const top = topRounds(items);
@@ -748,5 +748,56 @@ function main() {
   const planSha = createHash("sha256").update(buf).digest("hex");
   return runReviewLevel({ ...a, hostModel }, ws, plan, buf.toString("utf8"), planSha);
 }
+// §3.6 构建期六问（2.3.0，TD-23）：l1 且 中/重 级计划须含「## 构建期六问」；反例/真实两行须带 文件:行号
+const SIX_Q = ["自指", "反例", "冲突", "覆盖", "一致", "真实"];
+const SIX_HEAD = /^##\s*构建期六问.*$/m;
+const SIX_CITE_REQUIRED = ["反例", "真实"];
+function sixProblems(raw, scale) {
+  if (scale !== "中" && scale !== "重") return [];
+  const planText = stripFences(raw);   // 自指：围栏内的样例不得冒充真小节
+  if (!SIX_HEAD.test(planText)) return ["✗ 计划缺「## 构建期六问」小节（中/重 级必填）"];
+  const body = planText.split(SIX_HEAD)[1].split(/\n##\s/)[0];
+  const rows = body.split(/\r?\n/).filter((l) => l.trim().startsWith("|") && !/^\|[\s:|-]+\|$/.test(l.trim()));
+  const out = [];
+  for (const q of SIX_Q) {
+    const row = rows.find((l) => (l.split("|")[1] || "").trim() === q);
+    if (!row) { out.push(`✗ 构建期六问缺「${q}」行`); continue; }
+    if (SIX_CITE_REQUIRED.includes(q) && !new RegExp(FILE_LINE_RE.source).test(row)) {
+      out.push(`✗ 构建期六问「${q}」行须带 文件:行号`);
+    }
+  }
+  return out;
+}
+
+// §3.7 产物清单（2.3.0，l4）：每行「路径 sha256」或表格行；闸重算比对，产物在自审后被改即红
+// fail-closed：含 64 位 sha 却不符合条目格式的行一律判红，不得静默跳过（防漏列/异形行绕过）
+const MANIFEST_ROW_RE = /^[|\s]*(\S+)[|\s]+([0-9a-f]{64})[|\s]*$/;
+const HEX64_RE = /[0-9a-f]{64}/;
+function artifactProblems(manifestText, ws) {
+  const out = [];
+  let root = resolve(ws);
+  try { root = realpathSync(root); } catch { /* ws 不存在：后续读取自会报错 */ }
+  const seen = new Set();
+  for (const raw of manifestText.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || !HEX64_RE.test(line)) continue;
+    const m = line.match(MANIFEST_ROW_RE);
+    if (!m) { out.push(`✗ 产物清单无法解析的行（含 64 位 sha 却不合条目格式）：${line.slice(0, 60)}`); continue; }
+    const rel = m[1];
+    const want = m[2];
+    if (seen.has(rel)) continue;
+    seen.add(rel);
+    let abs = resolve(ws, rel);
+    try { abs = realpathSync(abs); } catch { /* 文件不存在：交给下方读取报错 */ }
+    if (abs !== root && !abs.startsWith(root + sep)) { out.push(`✗ 产物清单 ${rel}: 越出 workspace 边界（含符号链接解析）`); continue; }
+    let got = null;
+    try { got = createHash("sha256").update(readFileSync(abs)).digest("hex"); } catch { got = null; }
+    if (got === null) out.push(`✗ 产物清单 ${rel}: 文件不存在或不可读`);
+    else if (got !== want) out.push(`✗ 产物清单 ${rel}: sha 不符（清单 ${want.slice(0, 12)}… ≠ 实际 ${got.slice(0, 12)}…）＝清单后产物被改`);
+  }
+  if (seen.size === 0) out.push("✗ 产物清单 0 行有效条目：至少 1 行「路径 sha256」");
+  return out;
+}
+
 
 process.exitCode = main();

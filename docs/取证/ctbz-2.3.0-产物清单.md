@@ -1,0 +1,12 @@
+# ctbz 2.3.0 产物清单
+
+每行 `<路径> <sha256>`；闸按此逐行重算，产物在自审后被改即判红。含 64 位 sha 却不符合条目格式的行判红（fail-closed）。路径不得含空格。
+
+skills/ctbz/SKILL.md da49cbc47d5597e2d0cd29721b8aa3db904e59f0aa6d7accfc083f3ee1121a17
+skills/ctbz/scripts/派发闸.mjs 35b4cfcfd3917e0991c686c292db6fc37804512139122184d594f4599a45e0ad
+tests/派发闸.test.mjs da3954284b51df31deb302b4ae33443c6b270508491007b0fae3d0ecb1991f42
+tests/dsh-regression.test.mjs 003d11cb3c7d9313883fadbc6f0951aa7663fdbe16292ff68897cef0fecde228
+CHANGELOG.md cc51c6722aa9b11ad5adabe424e7cfe3d0c5ae021de88337425d4f1c49f37160
+docs/待办.md 937ea363d5b00580e796355e873a56ecc069aa8782bca34d01197e5659d2307c
+docs/ctbz-2.3.0-构建期六问与完工自审-计划.md 3e2e05f4f68d1e98522fa8ed6a50a158fccc8a188b55e5d17463618f22bf9425
+docs/取证/ctbz-2.3.0-构建期六问与完工自审.md 9bb572c1b269f0d0f3a49f65cb8648d433429f1cc91af4794f828aa045b15e4a

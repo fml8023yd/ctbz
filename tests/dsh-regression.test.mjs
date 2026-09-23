@@ -134,7 +134,7 @@ function writePlan(dir, name = 'plan.md', body = '# 计划\n\nreview_scale: 中\
   const plan = path.join(dir, name);
   const withEvidence = body.includes('现场核对')
     ? body
-    : body.trimEnd() + '\n\n取证文件: docs/取证/' + name + '\n\n' + LEDGER_OK + '\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划无数量断言 | E6 自动通过 |\n';
+    : body.trimEnd() + '\n\n取证文件: docs/取证/' + name + '\n\n' + LEDGER_OK + '\n\n' + sixOk('plan.md:1') + '\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划无数量断言 | E6 自动通过 |\n';
   fs.writeFileSync(plan, ev ? withEvidence : body, 'utf8');
   if (ev) {
     fs.mkdirSync(path.join(dir, 'docs', '取证'), {recursive: true});
@@ -365,3 +365,15 @@ test('T2 反修：损坏回执视为已占用，跳过覆盖且内容逐字不�
   assert.equal(fs.readFileSync(file, 'utf8'), broken, '损坏回执内容须逐字未变');
   assert.equal(fs.readdirSync(recordDir(ws, plan)).length, 4, '其余 3 份模板照常落盘');
 });
+
+
+// 2.3.0：夹具补 `## 构建期六问`（l1 且 中/重 级必填）；反例/真实两行须带**本夹具 ws 内可达**的 文件:行号
+const sixOk = (ref) =>
+  '## 构建期六问\n\n| 问 | 本版自查 |\n|---|---|\n' +
+  '| 自指 | 夹具自指：本模板须过 sixProblems |\n' +
+  '| 反例 | 删本行后 sixProblems 判红（对照 ' + ref + '） |\n' +
+  '| 冲突 | 夹具冲突面由 T1 消解 |\n' +
+  '| 覆盖 | 覆盖以 grep 复算 |\n' +
+  '| 一致 | 签名与主文逐字对齐 |\n' +
+  '| 真实 | 本行锚点须可达（' + ref + '） |';
+
