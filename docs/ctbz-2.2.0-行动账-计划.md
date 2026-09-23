@@ -20,6 +20,7 @@ review_level: l1
 | L8 | 段数 4→5 会打红既有夹具与主文断言 | 3 席一致 | 新增 §3.5 既有夹具迁移（逐字）+ §4 改动白名单 |
 | L9 | 覆盖口径未声明 | zhipu | §6 明列四条已知缺口 |
 | L10 | 围栏内文本会参与账行切分 | moonshot | 新增 A0：先剥离围栏再跑 A1–A4 |
+| L11 | **迁移清单漏第 4 个文件**：`tests/dsh-regression.test.mjs` 的 `writePlan()` 夹具无行动账节 → A1 上线后 `:308` 用例必红 | 实施 Agent 实测（本计划 §3.5 只列了 3 个） | §3.5 增该行；§4 write-set 扩为 8 文件、白名单增 ④ |
 
 ## 行动账
 
@@ -126,6 +127,7 @@ const LEDGER_FALSIFY_RE = /exit\s*[0-2]\b|pass\s*\d+|\d+\s*fail|[A-Za-z0-9_./\u4
 | `tests/内审.test.mjs` | `fumingText()` 骨架在 `自疑:` 段之后追加 `行动账增量:` + `无`；该文件内三处直拼清单（`:378`／`:386`／`:484` 附近）同步补同段（写 `无`） |
 | `tests/主文锚点.test.mjs` | 「四段均为必填」→「五段均为必填」 |
 | `tests/派发闸.test.mjs` | `makeWs()`（`:38` 附近）写入的计划正文在 `## 现场核对` 之前追加 `## 行动账` 节 + 一行四列齐全的合法账行（取舍含「否掉」，证伪含 `路径:行号`）；`:542` 附近免审夹具同法补节 |
+| `tests/dsh-regression.test.mjs` | `writePlan()`（`:134` 附近）的 `withEvidence` 拼接串在 `## 现场核对` 之前插入同款 `## 行动账` 节 + 一行合法账行；`:308` 附近用例断言 `r.status === 0` 依赖此项。**只改拼接串，不得改断言** |
 
 ### 3.6 版本号与 CHANGELOG
 
@@ -135,8 +137,8 @@ const LEDGER_FALSIFY_RE = /exit\s*[0-2]\b|pass\s*\d+|\d+\s*fail|[A-Za-z0-9_./\u4
 
 | 项 | 内容 |
 |---|---|
-| write-set | `skills/ctbz/scripts/{派发闸.mjs,内审.mjs}`、`skills/ctbz/SKILL.md`、`CHANGELOG.md`、`tests/{派发闸,内审,主文锚点}.test.mjs`、`docs/取证/ctbz-2.2.0-行动账.md` |
-| 既有测试改动白名单 | ①`tests/主文锚点.test.mjs`：「四段均为必填」→「五段均为必填」②`tests/内审.test.mjs`：`fumingText()` 与三处直拼清单各补 `行动账增量:` 段（写 `无`）③`tests/派发闸.test.mjs`：`makeWs()` 与免审夹具各补 `## 行动账` 节。**白名单外不得改任何断言** |
+| write-set（8 文件） | `skills/ctbz/scripts/{派发闸.mjs,内审.mjs}`、`skills/ctbz/SKILL.md`、`CHANGELOG.md`、`tests/{派发闸,内审,主文锚点,dsh-regression}.test.mjs`、`docs/取证/ctbz-2.2.0-行动账.md` |
+| 既有测试改动白名单 | ①`tests/主文锚点.test.mjs`：「四段均为必填」→「五段均为必填」②`tests/内审.test.mjs`：`fumingText()` 与三处直拼清单各补 `行动账增量:` 段（写 `无`）③`tests/派发闸.test.mjs`：`makeWs()` 与免审夹具各补 `## 行动账` 节 ④`tests/dsh-regression.test.mjs`：`writePlan()` 的 `withEvidence` 拼接串补 `## 行动账` 节（只改拼接串）。**白名单外不得改任何断言** |
 | 回滚点 | 改前 `git tag pre-2.2.0`；改坏 → `git revert` + `node skills/ctbz/scripts/部署.js` |
 | 约束 | 逐字誊写；硬门行一字不改；E1–E6 与 G1–G9 语义不动；历史计划不重跑 |
 | 验收 | V1–V7（§5） |
