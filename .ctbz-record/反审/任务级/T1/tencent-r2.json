@@ -1,0 +1,75 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "2",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.1-T1.md",
+  "plan_sha256": "6af0e133c5f3e1fed0aeeef59e19d5fc6499de753b5ae9fbf3998c4ccbfd5242",
+  "generated_at": "2026-09-29T19:16:35.498Z",
+  "verdict": "凭据前缀封闭匹配与席位降档证据自洽，附件注入面有条件接受，总体可合并",
+  "fresh_agent_test": {
+    "conclusion": "仅持计划无法开工，因计划引用的取证与diff均未内联，证据锚点不可核验",
+    "blockers": [
+      "计划指向 docs/取证/ctbz-2.1.1-凭据定位修复.md 但未内联",
+      "计划指向 docs/取证/ctbz-2.1.1-T1.diff 但未内联",
+      "无附件时无法验证 §现场核对 的 ↗C↗E 等锚点"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "计划 §行动账 A1/A2/A3；附件 diff 改 PROVIDER_BASE_HINTS 为列表且 baseMatches 封闭；取证 §9 测试7例全绿",
+      "conclusion": "接受",
+      "disposition": "改动与修复假凭据缺失及席位降档需求一致"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "附件 §11 preflight.mjs:55 baseMatches 封闭匹配；反审直连.mjs:79 同构；端点优先级：覆盖>配置命中>内置",
+      "conclusion": "接受",
+      "disposition": "多前缀候选与配置驱动端点解析架构清晰"
+    },
+    {
+      "view": "测试完整性",
+      "category": "可接受",
+      "evidence": "附件 §9 回归7例含后缀伪装与空值；§10 全量129例；§5 早期4例",
+      "conclusion": "接受",
+      "disposition": "单元与全量测试覆盖正向负向边界"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "附件 §9 负例：后缀伪装不命中、baseURL空不抛异常；§11 多前缀枚举序确定",
+      "conclusion": "接受",
+      "disposition": "空值、伪装、多命中顺序均已覆盖"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "计划 §复核要求2；附件 diff 反审直连.mjs attachBlock 仅加边界声明，未对附件内容沙箱",
+      "conclusion": "有条件接受",
+      "disposition": "建议对--attach内联内容做语法隔离或外部标记，当前靠提示边界缓解注入面"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "取证 §4 M2/M4 http200 计费正常；§8 hy3/kimi-k2.7 正常出文；CLI 增 --reasoning-effort/--attach",
+      "conclusion": "接受",
+      "disposition": "运维与反审员不再遇假缺失，超时降档提升成功率"
+    }
+  ],
+  "summary": "六视角均接受或条件接受，凭据修复与席位降档证据充分，仅附件注入需后续加固",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 20751,
+    "model_echo": "hy3"
+  },
+  "implementer_camp": "deepseek",
+  "reviewer_camp": "tencent",
+  "blocking": 0
+}

@@ -1,0 +1,72 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.1-计划.md",
+  "plan_sha256": "d130d420d4711992c0296b6aec868a96b0bb515adf3f1e6a8864fb5ed376dfa1",
+  "generated_at": "2026-09-29T19:08:46.959Z",
+  "verdict": "主修复逻辑完备且测试充分，内审机制缺口已透明登记，轻级定级成立",
+  "fresh_agent_test": {
+    "conclusion": "不能独立开工，计划单独交付时缺乏源码与具体前缀数据",
+    "blockers": [
+      "计划未内联 preflight.mjs 等脚本现状，无法定位精确改动点",
+      "前缀白名单具体条目仅在附件实测中，计划单独无此数据",
+      "验收命令依赖仓库内现有脚本与运行环境，fresh agent 无上下文无法执行"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划全文验收段'内审修改项（部署链反审覆盖检查）登记为未实现，随下批实施'；内审附件'实现状态: 未实现'",
+      "conclusion": "有条件接受",
+      "disposition": "记录主会话先改后审偏差，机制补丁延至下批，不阻塞当前发布"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "计划反审重点1'前缀白名单是否足够收口'；附件§9'后缀伪装前缀不命中（白名单封闭，负例）'",
+      "conclusion": "接受",
+      "disposition": "白名单封闭性已测，端点取配置无注入风险"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "计划现场核对↗E引取证§5§6全量126例；内审附件'实现状态: 未实现'且计划明示部署闸测试未做",
+      "conclusion": "有条件接受",
+      "disposition": "主修复回归测试全绿，内审链覆盖检查测试待下批补"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "附件§9多前缀命中确定性、baseURL空值不抛异常、后缀伪装负例",
+      "conclusion": "接受",
+      "disposition": "边界用例覆盖充分"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "附件§1 note'凭据不打印不落盘'；计划反审重点1端点源改宿主配置",
+      "conclusion": "接受",
+      "disposition": "无性能劣化，凭据处理安全"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "取证§4修复后M2/M4 http=200；计划前言根因锁定假失败",
+      "conclusion": "接受",
+      "disposition": "初始化自检不再误报凭据缺失"
+    }
+  ],
+  "summary": "凭据定位修复主体达标，轻级反审三席可签，内审机制欠账已透明登记",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 38047,
+    "model_echo": "hy3"
+  }
+}

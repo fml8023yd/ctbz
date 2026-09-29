@@ -1,0 +1,72 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "2",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.1-计划.md",
+  "plan_sha256": "e889b29e0d6886d94d02a6574dd52b9946b766cd79f7f99409d8fa2562a8907d",
+  "generated_at": "2026-09-29T19:12:33.867Z",
+  "verdict": "轻级修复完整可信，过程机制补丁延后下批，DeepSeek席缺席已明示不伪造",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工",
+    "blockers": [
+      "计划未内联取证实测数据，需读取 docs/取证/ctbz-2.1.1-凭据定位修复.md 方可核验锚点",
+      "源码改动仅提供行号（取证§11）未附完整diff，新 Agent 无法直接 edit",
+      "内审修改项（部署闸反审覆盖）仅描述验收命令，无具体实现代码，无法当日落地"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划前言根因描述与取证 §1(假失败)、§4(修复后200)一致；附录反审意见1修正计数矛盾",
+      "conclusion": "接受",
+      "disposition": "计划已同步129例/7例并锚定取证§9§10"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "取证§11 preflight.mjs:44-47及反审直连.mjs:68-71前缀列表；baseMatches封闭匹配",
+      "conclusion": "接受",
+      "disposition": "端点取宿主配置命中值，白名单收口无注入风险"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "内审附件实现状态:未实现；计划验收明示部署链反审覆盖检查登记未实现",
+      "conclusion": "有条件接受",
+      "disposition": "核心回归7例全绿；部署闸测试随下批实施并补tests/部署闸.test.mjs"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "取证§9后缀伪装/空值/多前缀确定性负例；计划↗G指向§11",
+      "conclusion": "接受",
+      "disposition": "边界用例覆盖白名单封闭与枚举序确定"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "取证§8 hy3 40s/kimi-k2.7 61s正常，§7 DeepSeek 402欠费；计划反审重点2旧前缀保留",
+      "conclusion": "接受",
+      "disposition": "席位模型按实测调优，旧前缀向后兼容保留"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "计划前言初始化自检误报消除；取证§4 M2/M4探活200",
+      "conclusion": "接受",
+      "disposition": "启动不再假凭据缺失，dry-run可打印端点"
+    }
+  ],
+  "summary": "凭据定位修复需求/架构/边界/性能/体验均接受，测试完整性有条件接受待补部署闸",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 71104,
+    "model_echo": "hy3"
+  }
+}

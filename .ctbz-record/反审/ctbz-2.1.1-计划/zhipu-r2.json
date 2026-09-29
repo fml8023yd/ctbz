@@ -1,0 +1,71 @@
+{
+  "camp": "zhipu",
+  "camp_label": "智谱",
+  "provider": "workbuddy",
+  "model": "glm-5.3-flash",
+  "round": "2",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.1-计划.md",
+  "plan_sha256": "e889b29e0d6886d94d02a6574dd52b9946b766cd79f7f99409d8fa2562a8907d",
+  "generated_at": "2026-09-29T19:12:00.354Z",
+  "verdict": "计划证据链完整、验收命令可执行，可开工；遗留项均为非阻塞，唯一实质风险是实施已先于反审完成导致本轮反审沦为事后确认而非门禁。",
+  "fresh_agent_test": {
+    "conclusion": "基本能直接开工。任务契约给了明确 write-set、7 例回归测试的语义清单、验收命令与回滚路径，取证附件补齐了行号锚点（§11）与实测输出，凭据定位逻辑（baseMatches、PROVIDER_BASE_HINTS、枚举序优先级）可从附件原文重建。卡点集中在两处：T1 中「--reasoning-effort/--attach」改动夹带在凭据定位修复里，无独立验收口径，我无法确定这两项的验收标准是复用 A1 的测试还是另立；dependencies.lock.json 的「重算」只有发布检查命令，没有说明改了哪些依赖字段、预期 diff 形态，只能盲跑 exit 0 验收。",
+    "blockers": [
+      "T1 的 --reasoning-effort 与 --attach 属于功能新增，夹带在凭据定位修复任务内，无独立验收标准与测试锚点，实施范围靠猜",
+      "dependencies.lock.json 重算：未说明重算什么字段、预期改动量，验收只有「发布检查 exit 0」一条间接信号"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "计划前言明确根因（旧前缀 101.133.151.121:18890 vs 宿主配置 127.0.0.1:7864），取证 §1（假失败复现）与 §4（修复后 ok=2）前后呼应；现场核对 ↗A–↗H 均能在附件正文定位到对应段落",
+      "conclusion": "接受",
+      "disposition": "无需处置，需求与证据闭环"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "反审直连.mjs 与 preflight.mjs 各自复制了一份相同的 baseMatches/PROVIDER_BASE_HINTS（取证 §11 两处 grep 输出完全一致），同一白名单逻辑双份维护，前缀再变更时需同步改两处，测试却只有一个文件覆盖",
+      "conclusion": "有条件接受",
+      "disposition": "本轮不阻塞（轻级定级下改动面已声明），建议下批抽公共模块；若本轮合入则两文件的 hints 数组需在回归测试中显式断言一致，防止漂移"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "tests/凭据定位.test.mjs 7 例（取证 §9 行摘录与测试名单逐一对应），含正例、负例（后缀伪装、无关前缀）、边界（baseURL 为空）、确定性（多前缀枚举序）；全量 129 例 §10 全绿。缺口：反审直连.mjs 新增的 --reasoning-effort 参数解析（取证 §11 grep 可见 333-336 行）与 --attach（325 行）无任何测试条目",
+      "conclusion": "有条件接受",
+      "disposition": "凭据定位部分测试充分；--reasoning-effort 的格式校验分支（badArg 路径）与 --attach 可重复性为零覆盖，登记为下批补测项，不阻塞本轮"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "baseMatches 采用「恰等或后跟 / 分段」（§11 第 56 行），后缀伪装负例与空 baseURL 边界均有测试（§9 第 4、5 例）；多前缀命中取配置枚举序首条已文档化并有用例（§9 末段）",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "端点改取宿主配置值即引入配置注入面，计划以封闭前缀白名单收口（反审重点 1，§11 白名单实现），凭据不打印不落盘（§1/§4 note 字段），§2 输出已脱敏（key=y/n）。残留风险：白名单中 http:// 明文地址（101.133.151.121、127.0.0.1）为设计事实，API key 经本地网关转发路径未在本轮验证范围内",
+      "conclusion": "有条件接受",
+      "disposition": "白名单封闭性已由测试保证；明文 http 前缀属既有通道属性，本轮保留（A2 依据），记录为已知接受项"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "内审附件（2026-09-30-主会话直改脚本未过L1.md）自述实施先于反审、根因为「机制不拦，自觉不可依赖」，修改项实现状态为「未实现」；计划 A5 已补内审并挂机制补丁（部署链反审链覆盖检查），验收段明示「登记为未实现，随下批实施」",
+      "conclusion": "有条件接受",
+      "disposition": "诚实披露合格，但意味着当前轮次反审门禁实际未生效，本回执属事后确认；机制补丁落地前，下一批仍存在同类直改风险，须在部署.js 补丁合入前人工盯守"
+    }
+  ],
+  "summary": "129 例全绿、证据锚点可核、回滚路径明确，接受计划；保留条件：机制补丁（部署链反审覆盖检查）未实现前门禁靠自觉，--reasoning-effort/--attach 夹带改动与依赖锁重算缺独立验收口径，登记下批跟踪。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 37625,
+    "model_echo": "glm-5.3-flash"
+  }
+}

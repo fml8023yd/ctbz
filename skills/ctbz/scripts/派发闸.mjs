@@ -34,11 +34,12 @@ const CHECK_IDS = ["集成一致性", "调用名统一", "main未污染", "安�
 
 // §4.3 席位表：camp → 唯一 provider / 允许 model
 // deepseek 席 v4-pro 为历史兼容值（2.0.6/2.0.7/2.0.8 旧回执），新回执一律 deepseek-flash。
+// moonshot 席 2026-09-30 扩 kimi-k2.7/kimi-k2.6：kimi-k2.8-preview 与 kimi-k3 在本机网关超 ~120s 硬上限断流，同厂商降档（先例：zhipu 席扩 glm-5.3）。
 const SEAT_TABLE = {
   deepseek: { provider: "deepseek-official", models: ["deepseek-flash", "deepseek-v4-pro"] },
   zhipu:    { provider: "workbuddy",         models: ["glm-5.3-flash", "glm-5.3"] },
   tencent:  { provider: "workbuddy",         models: ["hy4-preview-f", "hy3"] },
-  moonshot: { provider: "workbuddy",         models: ["kimi-k2.8-preview"] },
+  moonshot: { provider: "workbuddy",         models: ["kimi-k2.8-preview", "kimi-k2.7", "kimi-k2.6"] },
 };
 const CAMP_ORDER = Object.keys(SEAT_TABLE);
 const SEAT_MODELS = new Set(CAMP_ORDER.flatMap((c) => SEAT_TABLE[c].models));

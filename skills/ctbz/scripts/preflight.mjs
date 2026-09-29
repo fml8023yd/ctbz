@@ -39,27 +39,34 @@ const MODELS = [
 
 const ZC_CONFIG = process.env.CTBZ_ZC_CONFIG || join(homedir(), ".zcode", "v2", "config.json");
 
-// 席位表 provider 语义名 → baseURL 前缀（用于在 ZCode 配置中定位渠道）
+// 席位表 provider 语义名 → 候选 baseURL 前缀（用于在 ZCode 配置中定位渠道）。
+// 每个语义名可给多个前缀：渠道换接入点时旧前缀仍列出，避免「凭据没变却报凭据缺失」。
 const PROVIDER_BASE_HINTS = {
-  "deepseek-official": "https://api.deepseek.com",
-  workbuddy: "http://101.133.151.121:18890/v1",
+  "deepseek-official": ["https://api.deepseek.com"],
+  workbuddy: ["http://101.133.151.121:18890/v1", "http://127.0.0.1:7864/v1"],
 };
 
 function readZcodeProviders() {
   try { return JSON.parse(readFileSync(ZC_CONFIG, "utf8"))?.provider ?? {}; } catch { return {}; }
 }
 
+// 前缀白名单封闭匹配：base 恰等于前缀，或前缀后紧跟 "/" 分段；
+// 拒绝 "…/v1.evil" 这类后缀伪装，白名单即封闭集合（scheme 由前缀自身限定为 http/https）。
+function baseMatches(base, hints) {
+  return hints.some((h) => base === h || base.startsWith(h + "/"));
+}
+
+// 返回配置中命中的那个渠道条目：key 为凭据，base 为实际请求端点（脚本不写死端点地址）
 function resolveApiKey(provider) {
-  const hint = (PROVIDER_BASE_HINTS[provider] ?? "").replace(/\/+$/, "");
-  if (!hint) return { key: null, source: `未知 provider：${provider}` };
+  const hints = (PROVIDER_BASE_HINTS[provider] ?? []).map((h) => h.replace(/\/+$/, ""));
+  if (!hints.length) return { key: null, base: null, source: `未知 provider：${provider}` };
   for (const [id, cfg] of Object.entries(readZcodeProviders())) {
     const base = String(cfg?.options?.baseURL ?? "").replace(/\/+$/, "");
-    if (base && base.startsWith(hint)) {
-      const key = cfg?.options?.apiKey;
-      if (typeof key === "string" && key.trim()) return { key: key.trim(), source: `zcode-config:${id}` };
-    }
+    if (!base || !baseMatches(base, hints)) continue;
+    const key = cfg?.options?.apiKey;
+    if (typeof key === "string" && key.trim()) return { key: key.trim(), base, source: `zcode-config:${id}` };
   }
-  return { key: null, source: `zcode-config 未命中（${provider} @ ${hint}）` };
+  return { key: null, base: null, source: `zcode-config 未命中（${provider} @ ${hints.join(" | ")}）` };
 }
 
 // ---------- 探活 ----------
@@ -234,8 +241,8 @@ async function main() {
   const providers = [...new Set(targets.map((m) => m.provider))];
   const creds = {};
   for (const p of providers) {
-    const { key, source } = resolveApiKey(p);
-    creds[p] = { key, source, present: Boolean(key) };
+    const { key, source, base } = resolveApiKey(p);
+    creds[p] = { key, source, base, present: Boolean(key) };
   }
   const missing = providers.filter((p) => !creds[p].present);
 
@@ -249,8 +256,9 @@ async function main() {
                   detail: `凭据缺失（来源 ${creds[m.provider].source}）` });
       continue;
     }
-    const pr = await probe(m, key, args.overrides[m.code]);
-    const row = { ...r, ...pr };
+    const endpoint = args.overrides[m.code] ?? creds[m.provider].base ?? m.base;
+    const pr = await probe(m, key, endpoint);
+    const row = { ...r, endpoint, ...pr };
     row.credit = creditOf(m.code);
     row.creditCumulative = row.status === "ok" ? creditOf(m.code) : 0; // 计费口径按实际发起且 2xx 的请求
     rows.push(row);

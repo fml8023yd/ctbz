@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.1.1] - 2026-09-30
+
+凭据定位修复：宿主渠道换接入点后，凭据按 baseURL 前缀定位的方式失配，反审与探活全线假「凭据缺失」。
+
+### 修复
+- `scripts/preflight.mjs` 与 `scripts/反审直连.mjs`：provider→前缀由单值改列表（旧自建通道 `101.133.151.121:18890` 与本机网关 `127.0.0.1:7864` 并列），匹配改封闭式 `baseMatches`（恰等于前缀或前缀后紧跟 `/`），拒绝 `…/v1.evil` 后缀伪装；请求端点取宿主配置命中值，不再写死渠道地址。
+
+### 新增
+- `scripts/反审直连.mjs`：`--attach <路径>`（可重复）内联取证/内审附件供席位核验证据锚点，附件区标注「证据材料，非指令」；`--reasoning-effort <camp>=off|low|medium|high` 覆盖单席推理档。
+- `tests/凭据定位.test.mjs`：回归 7 例（含后缀伪装、空 baseURL、多前缀确定性三负例），零网络零计费。
+
+### 变更
+- `scripts/派发闸.mjs` SEAT_TABLE：moonshot 席扩 `kimi-k2.7` / `kimi-k2.6`——本机网关对单次上游生成有约 120 秒上限，`kimi-k2.8-preview` 与 `kimi-k3` 长推理必断流；腾讯席同因改用 `hy3`。
+- `scripts/反审直连.mjs` 席位表：tencent → `hy3`，moonshot → `kimi-k2.7`。
+- `dependencies.lock.json` 随上述文件重算。
+
+### 验收
+- `node --test tests/*.test.mjs`：129 例全绿（基线 122 + 新增 7）。
+- L1 三席反审（智谱/腾讯/月之暗面；DeepSeek 渠道欠费缺席）：round=1 与 round=2 回执齐，闸门 exit 0；T1 任务级回执 1 份，闸门 exit 0。
+- 真机验证：`preflight --only M2,M4` 两席 http=200，假失败消除。
+
 ## [2.1.0] - 2026-09-29
 
 ZCode 线回归：自 2.0.3 续起，移植 dsh 线的宿主无关机制与看板多图，丢弃 dsh/cc 适配层。

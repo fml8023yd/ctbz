@@ -1,0 +1,74 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "2",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.1-计划.md",
+  "plan_sha256": "e889b29e0d6886d94d02a6574dd52b9946b766cd79f7f99409d8fa2562a8907d",
+  "generated_at": "2026-09-29T19:13:24.475Z",
+  "verdict": "有条件通过：凭据定位修复证据闭环，但部署链反审覆盖检查、依赖锁 diff 及席位模型回归用例未在本次内完整落地，需下批补齐。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工",
+    "blockers": [
+      "计划未内联待改脚本完整源码，只提供 grep 行摘录，无法在无上下文环境下写出可编译补丁",
+      "dependencies.lock.json 的变更点未在计划或附件中展示，fresh agent 不知 verifyBundle 期望哪些条目",
+      "tests/凭据定位.test.mjs 的夹具与配置注入结构未给出，无法独立复刻零网络回归",
+      "--reasoning-effort 与 --attach 的解析逻辑、参数格式仅在 help 行出现，缺少实现约定",
+      "派发闸.mjs SEAT_TABLE 席位模型调整（hy3/kimi-k2.7）与 120s 超时阈值之间的决策表未内联"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "计划 §前言 明确根因为 WB 渠道地址写死；§2 宿主配置事实显示 baseURL 为 http://127.0.0.1:7864/v1；任务契约 T1 与 附录 #1 处置已将计数修正为 129/7 并锚定取证 §9/§10",
+      "conclusion": "接受",
+      "disposition": "维持当前范围；将派发闸席位调整在任务契约中单列为独立子项，避免与'凭据定位'标题混淆"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "附件 §11 显示 baseMatches 函数在 skills/ctbz/scripts/preflight.mjs:55 与 skills/ctbz/scripts/反审直连.mjs:79 完全重复；PROVIDER_BASE_HINTS 也在两文件分别硬编码",
+      "conclusion": "有条件接受",
+      "disposition": "建议后续提取公共凭据定位模块；本次两脚本独立运行，重复可接受"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "附件 §9 凭据定位回归 7 例全绿、§10 全量 129 例全绿；但任务契约 T1 对 派发闸.mjs 的 SEAT_TABLE 变更未列出专属回归用例，且 dependencies.lock.json diff 未在附件中展示",
+      "conclusion": "有条件接受",
+      "disposition": "补充 派发闸.mjs 席位/模型映射回归测试，并在记录中附 dependencies.lock.json 变更 diff"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "附件 §11 baseMatches 要求 base === hint 或 base.startsWith(hint+'/')；§9 仅覆盖空 baseURL、后缀伪装、多前缀命中，未覆盖 baseURL 带尾斜杠或协议差异",
+      "conclusion": "有条件接受",
+      "disposition": "增加 baseURL 尾斜杠与大小写/协议归一化测试，或代码内统一 normalize"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "附件 §11 显示 PROVIDER_BASE_HINTS 为封闭前缀列表；§9 负例'后缀伪装前缀不命中'验证白名单封闭性",
+      "conclusion": "接受",
+      "disposition": "维持当前白名单匹配，必要时补充 URL 解析校验"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "附件 §11 显示 反审直连.mjs 新增 --reasoning-effort 与 --attach 帮助文本；附录 #6 处置说明超时模型已切至 hy3/kimi-k2.7",
+      "conclusion": "接受",
+      "disposition": "保持；在回执中记录席位模型选择对用户可见"
+    }
+  ],
+  "summary": "月之暗面席 round-2 反审：有条件通过；凭据定位闭环，但重复代码、席位测试覆盖、尾斜杠边界及未实现的部署链反审检查仍需后续补齐。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 121710,
+    "model_echo": "kimi-k2.7"
+  }
+}
