@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "f6112291b1f18669091fea80ec0a80e1fca261b1a0410f3ecbae340d0e484d79"
+      "sha256": "8333a8bb1168902ff95a0abf25b50a654a2edc972f01ca6daddb324615120202"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -160,6 +160,10 @@
     {
       "path": "methods/templates/task-review.md",
       "sha256": "2ee7bd46321a6bff9745de5822e0b84ee7297d054d414720d709773dbc03f46f"
+    },
+    {
+      "path": "models.json",
+      "sha256": "91c199b82398e3ebc8579e35eb5c6ed8f33a54b148577cc555c036a15b2c2f44"
     },
     {
       "path": "references/configuration.md",

@@ -6,7 +6,7 @@ description: 草台班子——领导身边懂领导所想的骨干：接到问�
 
 ## 开发工作区（1.8.2 起生效）
 
-- **唯一源**：`/Users/maolong/Betty/草台班子/源码/`（git 仓库，main=权威 main）。一切代码改动在这里进行。
+- **唯一源**：`/Users/maolong/Betty/草台班子/ctbz/`（git 仓库，main=权威 main）。一切代码改动在这里进行。
 - **部署产物**：`~/.agents/skills/ctbz/` 只被 `node <源码>/skills/ctbz/scripts/部署.js` 写入（rsync 镜像 + 发布检查），禁止手改安装目录——改坏一半的代码不再影响正在跑的班子。
 - **发布链**：源码改动 → commit → `部署.js`（同步+检查）→ tag → Release（附件=ctbz-pack-v<版本>-<日期>.tar.gz）→ 阿里云。
 - 旧镜像 `/Users/maolong/ctbz` 已退役（.git 历史已并入本仓库）；旧 `发布/草台班子-1.2.x` 血统已归档。
