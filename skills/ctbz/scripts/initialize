@@ -119,11 +119,15 @@ try{
     const s=read(statePath),loaded=read(a['--loaded'],'--loaded');
     // 1.9.2 死锁修复：installRoot 一致而指纹不一致 = 版本升级（awaiting-new-session 的正常语义），放行并刷新指纹；
     // installRoot 不一致 = 副本劫持，继续拦截。
+    // 2.1.2 修复：刷新只写 methodFingerprint（bundle 绑定）。registryHash 是「角色清单内容哈希」，
+    //   语义与 bundle 指纹不同；旧写法把它一并覆盖成 methods.fingerprint，会让随后每次 select
+    //   都撞上「角色版本漂移」（selectProfile 用 registryHash 比对角色清单）。角色清单真变了
+    //   就该由 select 拦下并要求重新 prepare，不能在此静默掩盖。
     if(path.resolve(s.bundle.installRoot)!==path.resolve(root)){
       requireBundleBinding(s.bundle,methods);
     }else{
       try{requireBundleBinding(s.bundle,methods);}catch(e){
-        s.bundle={...s.bundle,registryHash:methods.fingerprint,methodFingerprint:methods.fingerprint};
+        s.bundle={...s.bundle,methodFingerprint:methods.fingerprint};
         atomic(statePath,s);
       }
     }

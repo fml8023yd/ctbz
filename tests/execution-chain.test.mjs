@@ -70,3 +70,32 @@ test('isolated CLI prepare blocks unactivated dispatch and invalid activation co
   assert.equal(JSON.parse(status.stdout).initialized, false);
   console.log(`Isolated evidence retained: ${temp}`);
 });
+
+// 2.1.2 回归：activate 的指纹漂移修复只刷新 bundle 绑定，不得改写 registryHash。
+// 旧写法把 registryHash 覆盖成 methods.fingerprint，随后每次 select 都撞「角色版本漂移」。
+test('activation fingerprint repair preserves the role-registry hash', () => {
+  const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-repair-')));
+  const home = path.join(temp, 'state'), agents = path.join(temp, 'agents');
+  const cat = path.join(temp, 'catalog.json'), load = path.join(temp, 'loaded.json');
+  fs.writeFileSync(cat, JSON.stringify(catalog));
+  fs.writeFileSync(load, JSON.stringify(loaded));
+  const cli = (cmd, args=[]) => spawnSync(process.execPath, [path.join(root,'scripts/initialize'), cmd, '--home', home, '--agents', agents, ...args], {encoding:'utf8'});
+  const prepared = cli('prepare', ['--catalog',cat,'--session','repair-session']);
+  assert.equal(prepared.status, 0, prepared.stderr);
+
+  const statePath = path.join(home, '初始化状态.json');
+  const before = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+  const registryHashFromPrepare = before.bundle.registryHash;
+  // 模拟「版本升级后首次 activate」：只让 bundle 指纹漂移，installRoot 保持不变。
+  fs.writeFileSync(statePath, JSON.stringify({...before, bundle: {...before.bundle, methodFingerprint: 'stale-fingerprint'}}));
+
+  cli('activate', ['--session','repair-session','--loaded',load,'--config',cat]);
+
+  const after = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+  assert.equal(after.bundle.registryHash, registryHashFromPrepare, 'activate 不得改写 registryHash');
+  assert.notEqual(after.bundle.methodFingerprint, 'stale-fingerprint', 'activate 应刷新 bundle 绑定');
+  // 修复过的 bundle 必须仍可派发（旧缺陷在此处抛「角色版本漂移」）。
+  const chosen = selectProfile(after.bundle, registry, {defaultOrder: models}, 'implementer', loaded);
+  assert.ok(chosen.name.startsWith('team-ctbz-'));
+});
+

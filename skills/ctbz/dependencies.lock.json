@@ -235,7 +235,7 @@
     },
     {
       "path": "scripts/initialize",
-      "sha256": "b46f8b10aa65323967686e414a865b0c78fabadf26aa5d9a286681598762b765"
+      "sha256": "eaf89f23d43bb0818e17433caf9a4573bbdca82f3088620fb6fdde24dacfa007"
     },
     {
       "path": "scripts/lib/dashboard-artifacts.mjs",
