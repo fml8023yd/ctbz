@@ -16,7 +16,7 @@
   };
   const navItems = [['overview','总览','layout-dashboard'],['tasks','任务与研究','git-fork'],['rounds','轮次记录','history'],['results','成果','table-2'],['knowledge','知识','book-open'],['reports','汇报','chart-no-axes-combined']];
   const state = {
-    projects:[], board:null, projectId:'', view:'overview', taskView:'tree', query:'', statusFilter:'all', showArchived:false,
+    projects:[], board:null, projectId:'', view:'overview', taskView:'tree', overviewView:'progress', query:'', statusFilter:'all', showArchived:false,
     knowledgeTier:'confirmed', knowledgeQuery:'', knowledgeHistory:false, audience:'owner', selectedNode:null,
     selectedRound:null, collapsed:new Set(), collapsedProject:null, transform:null, graphBounds:null, readOnly:false, error:'', loading:false,
     token:sessionStorage.getItem('ctbz-token') || '', authNeeded:false, busy:false, graphMovedAt:0, projectRequest:0,
@@ -146,6 +146,7 @@
     } catch { /* A blocked storage area does not prevent browsing. */ }
     if (!navItems.some(([view]) => view === state.view)) state.view = 'overview';
     if (!['tree','table'].includes(state.taskView)) state.taskView = 'tree';
+    if (!['progress','gantt','deps','timeline'].includes(state.overviewView)) state.overviewView = 'progress';
     if (!['owner','leader'].includes(state.audience)) state.audience = 'owner';
   }
 
@@ -290,6 +291,7 @@
     const views = {overview:renderOverview,tasks:renderTasks,rounds:renderRounds,results:renderResults,knowledge:renderKnowledge,reports:renderReports};
     $('#content').innerHTML = views[state.view]();
     if (state.view === 'overview') {
+      if (state.overviewView !== 'progress') drawOverviewGraph();
       $('#content').insertAdjacentHTML('afterbegin',renderExecutionContext());
       const closed = state.board.questions.filter(question => question.status === 'void');
       if (closed.length) $('#content').insertAdjacentHTML('beforeend',`<section class="section-rule"><details><summary class="details-summary">已作废问题（${closed.length}）</summary>${closed.map(questionMarkup).join('')}</details></section>`);
@@ -423,15 +425,106 @@
     const progress = Number(stats.progress || 0);
     const percentage = progress;
     const events = [...state.board.events].reverse().slice(0,8).map(event => ({...event,summary:eventSummary(event)}));
-    return `<div class="view-heading"><h2>项目总览</h2><div class="button-row"><button class="button" data-action="note-add"${disabled()}>${icon('notebook-pen')}记一笔</button><button class="button primary" data-action="node-add"${disabled()}>${icon('plus')}添加任务</button></div></div>
+    const overviewViews = [['progress','概览','layout-dashboard','总览'],['gantt','甘特','calendar-clock','甘特图'],['deps','依赖图','git-fork','依赖图'],['timeline','里程碑','milestone','里程碑时间线']];
+    const overviewActive = overviewViews.find(item => item[0] === state.overviewView) || overviewViews[0];
+    const header = `<div class="view-heading"><h2>项目总览</h2><div class="button-row"><button class="button" data-action="note-add"${disabled()}>${icon('notebook-pen')}记一笔</button><button class="button primary" data-action="node-add"${disabled()}>${icon('plus')}添加任务</button></div></div>
       <p class="goal-line">${escape(project.goal || '尚未记录项目目标')}</p>
       <div class="phase-track" aria-label="当前阶段：${escape(label(project.phase))}">${phases.map((phase,index) => `<span class="phase-step${index < phaseIndex ? ' done' : index === phaseIndex ? ' current' : ''}">${icon(index < phaseIndex ? 'circle-check' : index === phaseIndex ? 'circle-dot' : 'circle')}${label(phase)}</span>`).join('')}</div>
+      <div class="segmented overview-switch" aria-label="总览视图">${overviewViews.map(item => `<button class="${state.overviewView === item[0] ? 'active' : ''}" data-action="overview-view" data-view="${item[0]}" aria-pressed="${state.overviewView === item[0]}">${icon(item[2])}${item[1]}</button>`).join('')}</div>
       <div class="stats-strip"><div class="stat"><span class="stat-label">任务完成</span><strong>${Number(stats.completed || 0)}<small>/ ${Number(stats.total || 0)}</small></strong><progress class="progress-line" aria-label="任务完成比例" value="${Math.min(100,Math.max(0,percentage))}" max="100"></progress></div><div class="stat"><span class="stat-label">进行中</span><strong>${Number(stats.active || 0)}</strong></div><div class="stat"><span class="stat-label">待开展</span><strong>${Number(stats.planned || 0)}</strong></div><div class="stat"><span class="stat-label">受阻</span><strong>${Number(stats.blocked || 0)}</strong></div><div class="stat"><span class="stat-label">待决定</span><strong>${openQuestions.length}</strong></div></div>
-      ${project.mode === 'loop' ? `<div class="budget-strip"><span>当前第 <strong class="number">${project.round || 0}</strong> 轮</span><span>轮次上限：${project.budget?.maxRounds ?? '未设定'}</span><span>时间预算：${project.budget?.minutes ? `${project.budget.minutes} 分钟` : '未设定'}</span><span>可执行候选：${ranking().filter(item => item.eligible).length}</span></div>` : ''}
-      <div class="overview-columns"><div><section><div class="section-heading"><h3>当前关注 <span class="count-label">${focusNodes.length}</span></h3><button class="text-button" data-action="navigate" data-view="tasks">全部任务 ${icon('arrow-right')}</button></div>${focusNodes.length ? taskTable(focusNodes,{compact:true}) : emptyState('当前没有进行中或受阻任务','list-checks','',true)}</section>
+      ${project.mode === 'loop' ? `<div class="budget-strip"><span>当前第 <strong class="number">${project.round || 0}</strong> 轮</span><span>轮次上限：${project.budget?.maxRounds ?? '未设定'}</span><span>时间预算：${project.budget?.minutes ? `${project.budget.minutes} 分钟` : '未设定'}</span><span>可执行候选：${ranking().filter(item => item.eligible).length}</span></div>` : ''}`;
+    if (state.overviewView !== 'progress') return `${header}<div class="graph-wrap"><svg id="overview-svg" class="tree-svg" role="group" aria-label="${escape(overviewActive[3])}" tabindex="0"></svg></div>${graphLegend(state.overviewView)}`;
+    return `${header}<div class="overview-columns"><div><section><div class="section-heading"><h3>当前关注 <span class="count-label">${focusNodes.length}</span></h3><button class="text-button" data-action="navigate" data-view="tasks">全部任务 ${icon('arrow-right')}</button></div>${focusNodes.length ? taskTable(focusNodes,{compact:true}) : emptyState('当前没有进行中或受阻任务','list-checks','',true)}</section>
       <section class="section-rule"><div class="section-heading"><h3>待决事项 <span class="count-label">${openQuestions.length}</span></h3><button class="text-button" data-action="question-add"${disabled()}>${icon('plus')}新增决策</button></div>${openQuestions.length ? openQuestions.map(questionMarkup).join('') : emptyState('当前没有待决事项','circle-check','',true)}${state.board.questions.some(question => question.status === 'resolved') ? `<details><summary class="details-summary">已确认决定（${state.board.questions.filter(question => question.status === 'resolved').length}）</summary>${state.board.questions.filter(question => question.status === 'resolved').map(questionMarkup).join('')}</details>` : ''}</section>
       <section class="section-rule"><div class="section-heading"><h3>最近完成</h3></div>${completed.length ? taskTable(completed,{compact:true}) : emptyState('尚无已完成任务','check-check','',true)}</section></div>
       <aside class="overview-secondary"><div class="section-heading"><h3>项目动态</h3><span class="count-label">最近 ${events.length} 条</span></div>${events.length ? `<ol class="activity-list">${events.map(event => `<li class="activity-item"><div><p>${escape(event.summary || event.type)}</p><time datetime="${escape(event.at)}">${escape(formattedDate(event.at))} · ${escape(label(event.actor))}</time></div></li>`).join('')}</ol>` : emptyState('尚无动态','activity','',true)}<div class="section-rule"><div class="section-heading"><h3>知识积累</h3><button class="text-button" data-action="navigate" data-view="knowledge">查看 ${icon('arrow-right')}</button></div><div class="mini-facts"><span>用户确认 <strong class="number">${state.board.knowledge.filter(entry => entry.tier === 'confirmed' && entry.status === 'active').length}</strong></span><span>AI 经验 <strong class="number">${state.board.knowledge.filter(entry => entry.tier === 'experience' && entry.status === 'active').length}</strong></span></div></div></aside></div>`;
+  }
+
+  function graphLegend(view) {
+    const note = view === 'gantt' ? '甘特条 = 创建 → 最近更新，非计划工期' : '';
+    return `<div class="graph-legend"><span class="legend-key"><i class="done"></i>已完成</span><span class="legend-key"><i class="doing"></i>进行中</span><span class="legend-key"><i class="hold"></i>受阻</span><span class="legend-key"><i></i>待开展</span><span class="legend-key"><i class="cancel"></i>已取消</span>${note ? `<span class="legend-note">${escape(note)}</span>` : ''}</div>`;
+  }
+
+  function drawOverviewGraph() {
+    const svg = $('#overview-svg');
+    if (!svg) return;
+    if (state.overviewView === 'gantt') renderGantt(svg);
+    else if (state.overviewView === 'deps') renderDepsGraph(svg);
+    else if (state.overviewView === 'timeline') renderMilestone(svg);
+  }
+
+  function renderGantt(host) {
+    if (!window.CTBZGraphMath) return;
+    const nodes = currentNodes().filter(node => !node.archived);
+    if (!nodes.length) { host.outerHTML = emptyState('暂无节点','calendar-clock','',true); return; }
+    const domain = window.CTBZGraphMath.ganttDomain(nodes);
+    const rows = window.CTBZGraphMath.ganttRows(nodes, domain);
+    const W = 960, padL = 160, padR = 40, span = Math.max(1, domain.t1 - domain.t0);
+    const x = time => padL + (time - domain.t0) / span * (W - padL - padR);
+    const count = span < 86400000 ? 2 : span <= 604800000 ? Math.floor(span / 86400000) + 1 : 7;
+    const day = time => { const date = new Date(time), pad = value => String(value).padStart(2,'0'); return span < 2592000000 ? `${pad(date.getMonth()+1)}-${pad(date.getDate())}` : `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`; };
+    const ticks = Array.from({length:count},(_, index) => { const at = domain.t0 + span * index / (count - 1); return `<line x1="${x(at)}" y1="20" x2="${x(at)}" y2="26"></line><text x="${x(at)}" y="14" text-anchor="middle">${escape(day(at))}</text>`; }).join('');
+    const bars = rows.map(row => {
+      const title = String(row.title ?? ''), top = row.y + 40;
+      return `<g class="gantt-row"><title>${escape(title)}：${escape(formattedDate(row.start,true))} → ${escape(formattedDate(row.end,true))}</title><text class="gantt-label" x="0" y="${top + 19}">${escape(title.length > 20 ? `${title.slice(0,20)}…` : title)}</text><rect class="gantt-bar ${escape(row.status)}" x="${row.x}" y="${top + 6}" width="${row.width}" height="18" rx="3"></rect><text class="gantt-bar-text" x="${row.x + 6}" y="${top + 19}">${escape(title.length > 24 ? `${title.slice(0,24)}…` : title)}</text></g>`;
+    }).join('');
+    host.setAttribute('viewBox', `0 0 ${W} ${rows.length * 30 + 40}`);
+    host.setAttribute('width', '100%');
+    host.innerHTML = `<g class="gantt-axis"><line x1="${padL}" y1="20" x2="${W - padR}" y2="20"></line>${ticks}</g><g class="gantt-rows">${bars}</g>`;
+  }
+
+  function renderDepsGraph(host) {
+    if (!window.CTBZGraphMath) return;
+    const nodes = currentNodes().filter(node => !node.archived);
+    if (!nodes.length) { host.outerHTML = emptyState('暂无节点','git-fork','',true); return; }
+    const ids = new Set(nodes.map(node => node.id));
+    const missing = nodes.flatMap(node => (node.dependsOn || []).filter(target => !ids.has(target)).map(target => `${target} → ${node.id}`));
+    if (missing.length) console.warn('依赖图：跳过指向不存在节点的依赖边',missing);
+    const edges = window.CTBZGraphMath.depsEdges(nodes);
+    if (!edges.length) { host.outerHTML = emptyState('任务间暂无依赖','git-fork','',true); return; }
+    const {layer,invalid} = window.CTBZGraphMath.depsLayers(nodes);
+    const cyclic = new Set(invalid);
+    const drawable = edges.filter(edge => !(cyclic.has(edge.from) && cyclic.has(edge.to)));
+    if (drawable.length < edges.length) console.warn('依赖图：跳过成环的依赖边',edges.filter(edge => !drawable.includes(edge)));
+    const W = 960, nodeW = 150, nodeH = 52, layerH = 110;
+    const groups = new Map();
+    for (const node of nodes) { const level = layer.get(node.id) ?? 0; if (!groups.has(level)) groups.set(level,[]); groups.get(level).push(node); }
+    const maxLevel = Math.max(...groups.keys());
+    const position = new Map();
+    for (const [level,items] of groups) {
+      items.sort((a,b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+      items.forEach((node,index) => position.set(node.id,{x:W / (items.length + 1) * (index + 1) - nodeW / 2,y:20 + level * layerH}));
+    }
+    const lines = drawable.map(edge => {
+      const from = position.get(edge.from), to = position.get(edge.to);
+      return from && to ? `<line class="deps-edge" x1="${from.x + nodeW / 2}" y1="${from.y + nodeH}" x2="${to.x + nodeW / 2}" y2="${to.y - 4}" marker-end="url(#arrow)"></line>` : '';
+    }).join('');
+    const cards = nodes.map(node => {
+      const spot = position.get(node.id);
+      if (!spot) return '';
+      const title = String(node.title ?? '');
+      return `<g class="deps-node ${escape(node.status)}" transform="translate(${spot.x},${spot.y})"><title>${escape(title)}</title><rect width="${nodeW}" height="${nodeH}" rx="5"></rect><text class="deps-title" x="10" y="22">${escape(title.length > 12 ? `${title.slice(0,12)}…` : title)}</text><text class="deps-meta" x="10" y="40">${escape(label(node.status))}</text></g>`;
+    }).join('');
+    host.setAttribute('viewBox', `0 0 ${W} ${20 + maxLevel * layerH + nodeH + 20}`);
+    host.setAttribute('width', '100%');
+    host.innerHTML = `<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#8b939e"></path></marker></defs><g class="deps-edges">${lines}</g><g class="deps-nodes">${cards}</g>`;
+  }
+
+  function renderMilestone(host) {
+    if (!window.CTBZGraphMath) return;
+    const items = window.CTBZGraphMath.milestoneItems(state.board).map(item => ({...item,time:Date.parse(item.at)})).filter(item => Number.isFinite(item.time));
+    if (!items.length) { host.outerHTML = emptyState('暂无里程碑','milestone','',true); return; }
+    const W = 960, rowH = 46, now = Date.now();
+    const stamp = time => { const date = new Date(time), pad = value => String(value).padStart(2,'0'); return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`; };
+    const relative = time => { const days = Math.floor((now - time) / 86400000); return days < 0 ? '即将' : days < 7 ? `${days} 天前` : stamp(time); };
+    const timeline = items.length > 1 ? `<line class="milestone-line" x1="24" y1="30" x2="24" y2="${30 + (items.length - 1) * rowH}"></line>` : '';
+    const rows = items.map((item,index) => {
+      const y = 30 + index * rowH;
+      return `<g class="milestone-item ${escape(item.kind)}"><title>${escape(item.label)} · ${escape(stamp(item.time))}</title><circle class="milestone-dot" cx="24" cy="${y}" r="5"></circle><text class="milestone-label" x="44" y="${y - 2}">${escape(item.label)}</text><text class="milestone-time" x="44" y="${y + 15}">${escape(relative(item.time))}</text></g>`;
+    }).join('');
+    host.setAttribute('viewBox', `0 0 ${W} ${items.length * rowH + 30}`);
+    host.setAttribute('width', '100%');
+    host.innerHTML = `${timeline}${rows}`;
   }
 
   function filteredNodes() {
@@ -904,6 +997,8 @@
       state.token = ''; sessionStorage.removeItem('ctbz-token'); $('#auth-form').reset(); $('#auth-dialog').close(); await loadBoard({force:true});
     } else if (action === 'task-view') {
       state.taskView = button.dataset.view; render(); rememberView();
+    } else if (action === 'overview-view') {
+      state.overviewView = button.dataset.view; render(); refreshIcons();
     } else if (action === 'node-detail') {
       if (Date.now() - state.graphMovedAt < 250) return;
       if (!getNode(id)) { toast('关联节点暂不可用'); return; }

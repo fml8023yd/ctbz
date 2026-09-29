@@ -1,0 +1,82 @@
+{
+  "camp": "zhipu",
+  "camp_label": "智谱",
+  "provider": "workbuddy",
+  "model": "glm-5.3-flash",
+  "round": "1",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
+  "plan_sha256": "4e3f8ad60ea265a0dec8c8d50def3523e91d4d7fa0b957692e2cc699ce0fc68c",
+  "generated_at": "2026-09-29T07:07:09.256Z",
+  "verdict": "有条件通过：清单化与取证锚点齐备、移植主体可机械施工，但 app.js 合并策略在 T2 与行动账 A5 间自相矛盾构成阻塞项，连同凭据文件名不一致等澄清修正后方可派发。",
+  "fresh_agent_test": {
+    "conclusion": "大体能直接开工：13 项移植文件清单、源仓 HEAD、目标路径、验收命令齐备，T1/T2 均为机械操作；但 app.js 合并策略三处互斥必须先问人裁决，另有凭据文件名、主文锚点测试预案、dashboard show 命令来源、6 个 dsh tag 名单四处欠具体，需执行者现场查证才能继续。",
+    "blockers": [
+      "app.js 合并策略互斥：T2 具体改动 2 称「已实测差异全为多图，可整文件复制，无需人工 hunk 合并」，T2 风险称「差异较大，合并须逐 hunk 判断，只取多图」，行动账 A5 称「hunk 级人工合并，不整文件覆盖，否掉整文件复制」——执行者无法确定按哪条执行",
+      "凭据文件名两处不一致：T1 改动 2 写「~/.dsh/settings.yaml（反审直连的凭据读取路径，保留原样）」，自疑 2 写「~/.dsh/.credentials.yaml」，去 dsh 化时不知以哪个为准",
+      "tests/主文锚点.test.mjs 从 dsh 线逐字节复制，但断言目标是否匹配移植后 ZCode 版 SKILL.md 未验证；T1 风险节的夹具预案只覆盖派发闸与内审测试，主文锚点测试若红是改测试还是改 SKILL.md 无预案",
+      "T2 验收 3 依赖 dashboard show 输出 9 节点/2 轮/1 待决，但计划未断言该命令 main 既有，write-set 亦不含其实现，无法确认该验收可执行",
+      "T3 待删 6 个 dsh tag 仅给区间 v2.0.7–v2.3.0 未逐个列名，删除远程 tag 属破坏性操作，无法机械执行",
+      "背景段将 2.0.4（fad75e6）的阉割动作与「main 分支从未被阉割」并列陈述但未直陈 fad75e6 仅在 dsh 线，新 Agent 需自行拼读 ↗C/↗D/↗E 才能确信无需恢复动作"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "阻塞",
+      "evidence": "T2 具体改动 2「故可整文件复制，无需人工 hunk 合并」；T2 风险「合并须逐 hunk 判断，只取多图」；行动账 A5「hunk 级人工合并，不整文件覆盖……否掉整文件复制」。三处互斥，且 A5 依据「两版基线差异含非多图改动」与现场核对 ↗P「app.js 差异恰 8 hunk 且全为多图」互斥。",
+      "conclusion": "有条件接受",
+      "disposition": "定一条规则消除歧义：执行前重跑 diff，hunk 清单与取证 §5 一致方可整文件复制，否则逐 hunk 挑选；同步修正 T2 风险与 A5 依据文字，两个互相否定的指令不得同时存在于派发稿。"
+    },
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "背景段「2.0.4（2026-09-21 fad75e6）把 ZCode 注册链整体退役以适配 dsh 宿主」与「main 分支从未被阉割」并列，未直陈 fad75e6 属 dsh 线提交、main 无此提交；需拼读 ↗C（分叉原因）与 ↗D/↗E（main 原生节在位）才自洽。",
+      "conclusion": "有条件接受",
+      "disposition": "背景段补一句「fad75e6 仅存在于 dsh 线，main 无此提交」，防止执行者误判需要恢复动作。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "T1 改动 1 声明「不改逻辑」，但改动 2 包含「~/.dsh/AGENTS.md → ~/.zcode/AGENTS.md」——读写目标变更属行为变更而非措辞替换；↗M 实测 ~/.zcode/AGENTS.md 镜像块计数 0，移植机制首跑遇到无镜像块目标文件时 fail-open 还是 fail-close 未定义。",
+      "conclusion": "有条件接受",
+      "disposition": "将「去 dsh 化替换」重新定性为「含行为变更的替换」并列出行为影响清单（尤其 AGENTS.md 路径）；读源码确认镜像块缺失时派发闸行为，并在 T1 验收补一条缺块场景的预期结果。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "取证 §2 四测试件（↗K：派发闸/内审/主文锚点/看板视图）不含 preflight.mjs（↗I，341 行）与反审直连.mjs（↗H，494 行），二者移植后无自动化回归；T1 验收 4 的去 dsh 化 grep 自查仅覆盖 skills/ctbz/SKILL.md，scripts/references/tests 的 dsh 残留无验收标准。",
+      "conclusion": "有条件接受",
+      "disposition": "①grep 自查范围扩至 skills/ctbz/scripts、references 与 tests；②preflight 与反审直连各补一条最小冒烟断言，或在 CHANGELOG 明记「本版无回归网」；③主文锚点测试红时的处置：先核对断言锚点与移植后 SKILL.md 实际节名，改测试须在复命中记录理由。"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "T1 改动 1 指定源 HEAD 00e1951（↗N 仅短哈希带省略号），复制步骤无「复制前校验源仓 HEAD 仍为 00e1951」前置闸，源仓若有新提交则复制物与 ↗O 的 13 项 sha256 悄然失配；T3 重打 v2.1.0（A4：迁移 dsh 线已占 tag 让位）未处置已拉取过 dsh 线 v2.1.0 的下游环境 tag 冲突。",
+      "conclusion": "有条件接受",
+      "disposition": "①T1 加前置闸：git rev-parse 源仓 HEAD 以 00e1951 开头，否则停止并更新取证；②T3 删 tag 前逐个列出 6 个完整 tag 名单供确认，部署节提示已克隆环境需删本地 v2.1.0 tag 后重取。"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "凭据文件名两处不一致：T1 改动 2「~/.dsh/settings.yaml → 保留原样（反审直连的凭据读取路径）」vs 自疑 2「反审直连的凭据读取（~/.dsh/.credentials.yaml）」，同一职能两个文件名至少一处误标，路径写错反审直连即不可用；↗Q 仅断言「共用同一份凭据文件」，未向 ZCode 线最终用户披露对 ~/.dsh/ 目录凭据文件的依赖。",
+      "conclusion": "有条件接受",
+      "disposition": "读源码定名并统一计划两处表述；在 CHANGELOG/部署节披露该凭据文件的来源、用途与权限要求；测试输出与日志不得回显凭据内容。"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "T2 验收 4「起 serve 后四视图切换成功（浏览器实测或 curl 静态资源 200）」：四视图未列名单，且 curl 静态资源 200 无法证明视图切换逻辑可用，验收项与声称能力不等价；对照 T2 验收 3 的「9 节点 / 2 轮 / 1 待决」为可机械判定项。",
+      "conclusion": "有条件接受",
+      "disposition": "列出四视图名称；验收 4 拆为可机械判定项（四份视图静态资源各 200 + 切换逻辑由 tests/看板视图.test.mjs 断言覆盖），浏览器目测降为补充验证。"
+    }
+  ],
+  "summary": "计划清单化程度高、取证锚点齐备，移植主体可直接机械施工；唯一阻塞项是 app.js 合并策略在 T2 与 A5 间自相矛盾，连同凭据文件名不一致、主文锚点测试无预案、tag 名单未列全等澄清修正后即可派发。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://101.133.151.121:18890/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 563598,
+    "model_echo": "glm-5.3-flash"
+  }
+}

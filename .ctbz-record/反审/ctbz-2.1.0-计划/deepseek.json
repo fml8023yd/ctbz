@@ -1,0 +1,77 @@
+{
+  "camp": "deepseek",
+  "camp_label": "DeepSeek",
+  "provider": "deepseek-official",
+  "model": "deepseek-flash",
+  "round": "1",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
+  "plan_sha256": "d3a14c7bc65d694cda76e7e0b7d79045f1f2234df4593c95b5d27ea1c6f44439",
+  "generated_at": "2026-09-29T06:51:27.265Z",
+  "verdict": "方向正确但当前不可直接实施：凭据路径自相矛盾构成阻塞，且关键源仓/取证内容未内联，需补齐替换映射、hunk 合并清单、回滚与验收后再开工。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工。计划把大量可执行输入放在未内联的取证文件和 dsh 仓中，新鲜 Agent 无法核验锚点、复制文件或执行合并。",
+    "blockers": [
+      "现场核对表 ↗A–↗O 的出处均为未内联的取证文件，计划自身无法核验这些断言。",
+      "T1 要求从 dsh 仓 HEAD 00e1951 逐字节复制 13 项文件，但未附文件内容、哈希或逐项清单明细。",
+      "去 dsh 化替换规则不完整：shebang 现状未知，references/派发.md 原三通道表未给，SKILL.md 九节原文未给。",
+      "T2 的 app.js 需与 dsh 版做 hunk 级人工合并，但 2.0.3 与 2.4.0 的 diff/hunk 清单未给。",
+      "测试夹具可能引用 dsh 路径，具体文件和替换映射未列，验收只要求全绿。",
+      "凭据路径在 T1 第 2 条与自疑 2 中不一致（~/.dsh/settings.yaml vs ~/.dsh/.credentials.yaml）。",
+      "T3 部署、tag/Release 删除与迁移的具体命令、备份和回滚未给。",
+      "T2 验收 4 的 serve 命令、端口和静态资源路径未指定。"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划 §前言·用户原话要求『从 2.0.3 作为基础版，更新一个 2.1』；计划 §行动账 A1 写『从 main 建 ctbz-2.1 分支施工，不直接改 main』；正文未给出 main 与 v2.0.3 的差异核对。",
+      "conclusion": "有条件接受",
+      "disposition": "实施前补 main 与 v2.0.3 的 diff 核对；若 main 不等于 2.0.3，改从 v2.0.3 建分支，或记录差异并让用户确认基线。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "阻塞",
+      "evidence": "计划 §任务契约 T1 第 2 条称『~/.dsh/settings.yaml → 保留原样（反审直连的凭据读取路径，属实际路径不改）』；计划 §自疑 2 称反审直连凭据读取『~/.dsh/.credentials.yaml』。两处路径不一致。",
+      "conclusion": "有条件接受",
+      "disposition": "澄清反审直连真实凭据路径与读取逻辑，统一 T1 与自疑描述；补 dry-run 只读验证，确认路径后再放行。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "计划 §任务契约 T1 风险称『派发闸.test.mjs 与内审.test.mjs 内嵌夹具可能引用 dsh 专有路径（如 ~/.dsh），跑测试时若红则同步改夹具路径』；T1 验收标准 2/3 只要求全绿，未定义夹具替换后的预期与回归范围。",
+      "conclusion": "有条件接受",
+      "disposition": "先跑 dsh 线与本机基线，列出所有失败夹具路径；改为 ZCode 路径后跑全量测试，并把夹具差异纳入人工 hunk 审查，不得只以全绿为通过。"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "计划 §任务契约 T3 写『删 ctbz 仓 6 个 dsh tag+Release → 打 v2.1.0 → push main』；计划 §行动账 A1 写『从 main 建 ctbz-2.1 分支施工，不直接改 main』；正文未写 ctbz-2.1 合并回 main 的步骤，也未给远端 tag/Release 删除前的备份与回滚。",
+      "conclusion": "有条件接受",
+      "disposition": "补充分支合并回 main 的步骤；删除远端 tag/Release 前导出引用与附件，提供回滚命令；确认 v2.1.0 与迁移 tag 不冲突。"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "计划 §任务契约 T1 第 2 条保留 ~/.dsh/settings.yaml / §自疑 2 提到 ~/.dsh/.credentials.yaml，但未说明凭据文件权限、是否随 skill 分发、dry-run 输出是否脱敏；计划 §任务契约 T2 具体改动 2 新增三图函数，未给大数据量性能预算。",
+      "conclusion": "有条件接受",
+      "disposition": "明确凭据权限与分发边界，dry-run 输出脱敏；为看板多图补节点数/轮次上限或性能冒烟测试。"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "计划 §反审重点 3 指出丢弃 反审.mjs 后，SKILL.md 中『反审一律走 pick-profile 取样 → 反审.mjs 生成骨架 → workflow.agent() 执行』需同步改写；计划 §任务契约 T1 具体改动第 4 条只笼统写 SKILL.md 增补多节与替换 1.8.2 节，未列全量引用点与验收。",
+      "conclusion": "有条件接受",
+      "disposition": "在 T1 增加 grep -rn 反审.mjs skills/ctbz/ 与 workflow.agent 相关表述的整改清单；验收时检查用户可见文档无死引用，并核对 CHANGELOG 丢弃项。"
+    }
+  ],
+  "summary": "六视角核查后，需求方向与处置分类基本一致，但架构凭据路径矛盾构成阻塞，且外部取证/源仓未内联、合并与回滚细节缺失；补齐后可条件放行，当前新鲜 Agent 不能直接开工。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "https://api.deepseek.com/chat/completions",
+    "http_status": 200,
+    "latency_ms": 49949,
+    "model_echo": "deepseek-flash"
+  }
+}

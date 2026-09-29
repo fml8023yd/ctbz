@@ -1,0 +1,893 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import crypto from 'node:crypto';
+import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
+
+// 硬约束：node 用 /usr/local/bin/node（缺失时退回当前进程）。
+const NODE = fs.existsSync('/usr/local/bin/node') ? '/usr/local/bin/node' : process.execPath;
+const repoRoot = fileURLToPath(new URL('../', import.meta.url));
+const scripts = path.join(repoRoot, 'skills', 'ctbz', 'scripts');
+const GATE = path.join(scripts, '派发闸.mjs');
+
+const SIX_VIEWS = ['需求一致性', '架构合理性', '测试完整性', '边界条件', '性能安全', '用户体验'];
+const CHECK_IDS = ['集成一致性', '调用名统一', 'main未污染', '安装副本分支标识'];
+// §4.3 席位表：每 camp 首个允许组合（§9.12）
+const CAMPS = [
+  {camp: 'deepseek', label: 'DeepSeek', provider: 'deepseek-official', model: 'deepseek-flash'},
+  {camp: 'zhipu', label: '智谱', provider: 'workbuddy', model: 'glm-5.3-flash'},
+  {camp: 'tencent', label: '腾讯', provider: 'workbuddy', model: 'hy4-preview-f'},
+  {camp: 'moonshot', label: '月之暗面', provider: 'workbuddy', model: 'kimi-k2.8-preview'},
+];
+
+function runGate(args, opts = {}) {
+  const script = opts.script || GATE;
+  const r = spawnSync(NODE, [script, ...args], {encoding: 'utf8', ...opts.spawn});
+  return {status: r.status, stdout: r.stdout, stderr: r.stderr, out: r.stdout + r.stderr};
+}
+
+const sha256 = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+const l1Dir = (ws, slug = 'plan') => path.join(ws, '.ctbz-record', '反审', slug);
+const l2Dir = (ws, task) => path.join(ws, '.ctbz-record', '反审', '任务级', task);
+const l3Dir = (ws, slug = 'plan') => path.join(ws, '.ctbz-record', '反审', '项目级', slug);
+
+// 2.2.0 §3.5：既有夹具补 `## 行动账` 节 + 一行四列齐全的合法账行（取舍含「否掉」、证伪含 路径:行号）
+const LEDGER_ROW =
+  '| A1 | 夹具动作 | 命令: 无外部断言 | 否掉「不做」：无据可依 | `docs/plan.md:1` 无命中 → 失效 |';
+const LEDGER_OK = `## 行动账\n\n| A# | 动作 | 依据 | 取舍 | 证伪 |\n|---|---|---|---|---|\n${LEDGER_ROW}`;
+
+// 夹具项目：mkdtemp 内 docs/plan.md（含 review_scale）
+function makeWs(scale = '中') {
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-gate-'));
+  fs.mkdirSync(path.join(ws, 'docs'), {recursive: true});
+  fs.mkdirSync(path.join(ws, '.ctbz-record', '取证'), {recursive: true});
+  const plan = path.join(ws, 'docs', 'plan.md');
+  fs.writeFileSync(plan, `# 夹具计划\n\nreview_scale: ${scale}\n\n取证文件: .ctbz-record/取证/plan.md\n\n${LEDGER_OK}\n\n${sixOk('docs/plan.md:1')}\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划仅含 review_scale | 无需外部断言 |\n`);
+  fs.writeFileSync(path.join(ws, '.ctbz-record', '取证', 'plan.md'), '# 取证原文（夹具）\n\n夹具计划无数量断言与 文件:行号，E2–E4 自动通过（E6）。\n');
+  return {ws, plan};
+}
+
+function receipt(plan, camp, round = '1', patch = {}) {
+  return {
+    camp: camp.camp,
+    camp_label: camp.label,
+    provider: camp.provider,
+    model: camp.model,
+    round,
+    plan: path.resolve(plan),
+    plan_sha256: sha256(plan),
+    generated_at: new Date().toISOString(),
+    verdict: null,
+    fresh_agent_test: {conclusion: '通过', blockers: []},
+    verdicts: SIX_VIEWS.map((v) => ({view: v, category: '可接受', evidence: 'fixture', conclusion: '接受', disposition: 'fixture'})),
+    summary: 'fixture',
+    ...patch,
+  };
+}
+
+function writeReceipts(dir, plan, {camps = CAMPS, rounds = ['1'], patch} = {}) {
+  fs.mkdirSync(dir, {recursive: true});
+  const files = [];
+  for (const c of camps) {
+    for (const r of rounds) {
+      const p = path.join(dir, r === '1' ? `${c.camp}.json` : `${c.camp}-r${r}.json`);
+      fs.writeFileSync(p, JSON.stringify(receipt(plan, c, r, typeof patch === 'function' ? patch(c, r) : patch), null, 2));
+      files.push(p);
+    }
+  }
+  return files;
+}
+
+const cmdLines = (text) => text.split('\n').filter((l) => l.startsWith('node '));
+
+function snapTree(root) {
+  const out = [];
+  const walk = (dir, rel) => {
+    for (const name of fs.readdirSync(dir).sort()) {
+      const p = path.join(dir, name);
+      const st = fs.lstatSync(p);
+      const r = rel ? `${rel}/${name}` : name;
+      if (st.isDirectory()) { out.push(`D ${r}`); walk(p, r); }
+      else out.push(`F ${r} ${st.size} ${crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex')}`);
+    }
+  };
+  walk(root, '');
+  return out.join('\n');
+}
+
+// audit 夹具：把 派发闸.mjs 与 stub 内审.mjs 复制进夹具同目录（验证「同目录解析」）
+function copyGateInto(ws) {
+  const bin = path.join(ws, 'bin');
+  fs.mkdirSync(bin, {recursive: true});
+  fs.copyFileSync(GATE, path.join(bin, '派发闸.mjs'));
+  return bin;
+}
+
+function writeInnerStub(bin, code) {
+  const p = path.join(bin, '内审.mjs');
+  const body = code === 0
+    ? '#!/usr/bin/env node\nif (process.argv[2] !== "check" || !process.argv[3] || !process.argv.includes("--json")) process.exit(9);\nprocess.exit(0);\n'
+    : '#!/usr/bin/env node\nprocess.exit(1);\n';
+  fs.writeFileSync(p, body, {mode: 0o755});
+  return p;
+}
+
+function writePending(ws, entries) {
+  const dir = path.join(ws, '.ctbz-record', '内审');
+  fs.mkdirSync(dir, {recursive: true});
+  fs.writeFileSync(path.join(dir, 'pending.json'), JSON.stringify({pending: entries}, null, 2));
+}
+
+// ---------- 用法 / 退出码 2 ----------
+
+test('无参数：exit 2 且打印用法', () => {
+  const r = runGate([]);
+  assert.equal(r.status, 2, r.out);
+  assert.match(r.out, /用法：/);
+  assert.match(r.out, /--workspace/);
+  assert.match(r.out, /退出码：0 通过 \/ 1 校验不通过 \/ 2 用法或环境错误/);
+});
+
+test('用法错误：缺 --task / 非法 --level / --plan 不存在 → exit 2', () => {
+  const {ws, plan} = makeWs();
+  assert.equal(runGate(['--plan', plan, '--workspace', ws, '--level', 'l2']).status, 2, 'l2 缺 --task');
+  assert.equal(runGate(['--plan', plan, '--workspace', ws, '--level', 'l9']).status, 2, '非法 level');
+  assert.equal(runGate(['--plan', path.join(ws, 'nope.md'), '--workspace', ws]).status, 2, 'plan 不存在');
+  assert.equal(runGate(['--plan', plan, '--workspace', ws, '--level', 'l2', '--task', '../x']).status, 2, 'task 越界');
+});
+
+test('-h/--help 优先于 --json：用法打到 stdout、exit 0、不输出 JSON', () => {
+  for (const args of [['-h'], ['--help'], ['--json', '-h'], ['-h', '--json'], ['--json', '--help']]) {
+    const r = runGate(args);
+    const tag = args.join(' ');
+    assert.equal(r.status, 0, `${tag} → ${r.out}`);
+    assert.equal(r.stderr, '', `${tag} 用法应只进 stdout`);
+    assert.match(r.stdout.split('\n')[0], /^ctbz 派发闸/, `${tag} stdout 首行应为用法标题`);
+    assert.match(r.stdout, /用法：/, `${tag} 应含用法正文`);
+    assert.match(r.stdout, /--workspace/, tag);
+    assert.notEqual(r.stdout.trim().split('\n').length, 1, `${tag} 不得是单行输出`);
+    assert.throws(() => JSON.parse(r.stdout.trim()), `${tag} 不得输出 JSON`);
+  }
+});
+
+// ---------- V2 ----------
+
+test('V2 无回执 → exit 1 且输出含可直接执行的补齐命令；补 4 份合格 → exit 0', () => {
+  const {ws, plan} = makeWs('中');
+  const empty = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(empty.status, 1, empty.out);
+  assert.match(empty.out, /✗/);
+  const cmds = cmdLines(empty.out);
+  assert.ok(cmds.length >= 2, `补齐命令应 ≥2 行，实际 ${cmds.length}`);
+  assert.ok(cmds.some((l) => l.includes('反审.mjs')), '应有生成骨架的补齐命令');
+  assert.ok(cmds.some((l) => l.includes('派发闸.mjs') && l.includes('--level l1')), '应有复跑闸门命令');
+  for (const c of cmds) {
+    assert.ok(c.includes(plan) && c.includes(ws), `占位符未替换为绝对路径：${c}`);
+  }
+  assert.doesNotMatch(empty.out, /--plan\s*</);
+  assert.doesNotMatch(empty.out, /--workspace\s*</);
+
+  writeReceipts(l1Dir(ws), plan);
+  const okRun = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(okRun.status, 0, okRun.out);
+  const block = JSON.parse(okRun.stdout);
+  assert.equal(block.ok, true);
+  assert.equal(block.review_scale, '中');
+  assert.equal(block.review_level, 'l1');
+  assert.equal(block.review_receipt, path.join(ws, '.ctbz-record', '反审', 'plan') + '/');
+  assert.deepEqual(block.review_camps, ['deepseek', 'zhipu', 'tencent', 'moonshot']);
+  assert.equal(block.plan_sha256, sha256(plan));
+  assert.equal(block.seats, 4);
+});
+
+test('空模板（verdict:null + verdicts:[]）＝没审，单独计数并与没写同判', () => {
+  const {ws, plan} = makeWs('中');
+  writeReceipts(l1Dir(ws), plan, {patch: {verdicts: []}});
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /空模板 4 份（= 没审，与没写同判）/);
+  assert.match(r.out, /verdict:null 且 verdicts:\[\]/);
+});
+
+test('免审级：缺 免审依据 行 → exit 1；补上 → exit 0（seats 0）', () => {
+  const {ws, plan} = makeWs('免审');
+  assert.equal(runGate(['--plan', plan, '--workspace', ws]).status, 1);
+  fs.appendFileSync(plan, '\n免审依据: 只读诊断，不写仓库\n');
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
+  assert.equal(JSON.parse(r.stdout).seats, 0);
+  assert.deepEqual(JSON.parse(r.stdout).review_camps, []);
+});
+
+// ---------- V3 ----------
+
+test('V3 同源豁免：deepseek 席放行、其余三席同源仍拒、--host-model 取非豁免席位模型 exit 2', () => {
+  const {ws, plan} = makeWs('中');
+
+  // ① deepseek 席 model=deepseek-flash（同源豁免）→ exit 0
+  writeReceipts(l1Dir(ws), plan, {patch: (c) => (c.camp === 'deepseek' ? {model: 'deepseek-flash'} : {})});
+  assert.equal(runGate(['--plan', plan, '--workspace', ws]).status, 0);
+
+  // ② deepseek 席 model=deepseek-v4-pro（历史兼容值）→ exit 0
+  fs.rmSync(l1Dir(ws), {recursive: true, force: true});
+  writeReceipts(l1Dir(ws), plan, {patch: (c) => (c.camp === 'deepseek' ? {model: 'deepseek-v4-pro'} : {})});
+  assert.equal(runGate(['--plan', plan, '--workspace', ws]).status, 0);
+
+  // ③ zhipu 席 model=deepseek-flash（camp≠deepseek 但同源模型）→ exit 1
+  fs.rmSync(l1Dir(ws), {recursive: true, force: true});
+  writeReceipts(l1Dir(ws), plan, {patch: (c) => (c.camp === 'zhipu' ? {model: 'deepseek-flash'} : {})});
+  const bad = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(bad.status, 1, bad.out);
+  assert.match(bad.out, /同模型自审：model 与 --host-model 逐字相等/);
+
+  // ④ 恢复席位表内组合，再验 --host-model 取值语义
+  fs.rmSync(l1Dir(ws), {recursive: true, force: true});
+  writeReceipts(l1Dir(ws), plan);
+  for (const m of ['glm-5.3-flash', 'hy4-preview-f', 'hy3', 'kimi-k2.8-preview']) {
+    const r = runGate(['--plan', plan, '--workspace', ws, '--host-model', m]);
+    assert.equal(r.status, 2, `--host-model ${m} 应 exit 2`);
+  }
+  assert.equal(runGate(['--plan', plan, '--workspace', ws, '--host-model', 'deepseek-chat']).status, 0);
+});
+
+// ---------- V4 ----------
+
+test('V4 旧计划不可复用：改计划后仅最高轮回执被判 sha 不符', () => {
+  const {ws, plan} = makeWs('重');
+  writeReceipts(l1Dir(ws), plan, {rounds: ['1', '2']});
+  assert.equal(runGate(['--plan', plan, '--workspace', ws]).status, 0);
+
+  fs.appendFileSync(plan, '\n<!-- 回修：字节改变 -->\n');
+  const stale = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(stale.status, 1, stale.out);
+  assert.match(stale.out, /plan_sha256 与当前计划不符/);
+  const dir = l1Dir(ws);
+  assert.ok(stale.out.includes(path.join(dir, 'deepseek-r2.json')), '最高轮 r2 应被报');
+  for (const f of ['deepseek.json', 'zhipu.json', 'tencent.json', 'moonshot.json']) {
+    assert.ok(!stale.out.includes(path.join(dir, f) + ':'), `低轮回执 ${f} 不应被 sha 判（仅格式校验）`);
+  }
+});
+
+// ---------- V5 ----------
+
+test('V5 L2 隔离可判：implementer_camp == reviewer_camp 拒；不同阵营过', () => {
+  const {ws, plan} = makeWs('中');
+  const dir = l2Dir(ws, 'T1');
+  writeReceipts(dir, plan, {camps: [CAMPS[0]], patch: {implementer_camp: 'deepseek', reviewer_camp: 'deepseek'}});
+  const bad = runGate(['--plan', plan, '--workspace', ws, '--level', 'l2', '--task', 'T1']);
+  assert.equal(bad.status, 1, bad.out);
+  assert.match(bad.out, /实施\/复核同阵营/);
+
+  fs.rmSync(dir, {recursive: true, force: true});
+  writeReceipts(dir, plan, {camps: [CAMPS[0]], patch: {implementer_camp: 'zhipu', reviewer_camp: 'deepseek'}});
+  const ok = runGate(['--plan', plan, '--workspace', ws, '--level', 'l2', '--task', 'T1']);
+  assert.equal(ok.status, 0, ok.out);
+  const block = JSON.parse(ok.stdout);
+  assert.equal(block.review_level, 'l2');
+  assert.equal(block.review_receipt, dir + '/');
+
+  fs.rmSync(dir, {recursive: true, force: true});
+  writeReceipts(dir, plan, {camps: [CAMPS[0]], patch: {camp: 'zhipu', implementer_camp: 'zhipu', reviewer_camp: 'deepseek'}});
+  const mismatch = runGate(['--plan', plan, '--workspace', ws, '--level', 'l2', '--task', 'T1']);
+  assert.equal(mismatch.status, 1, 'camp != reviewer_camp 应拒');
+  assert.match(mismatch.out, /camp 与 reviewer_camp 不一致/);
+});
+
+// ---------- V15 ----------
+
+test('V15 L3 三分支：缺阵营 → 1；checks 缺项 → 1；四阵营 + 四项齐全 → 0', () => {
+  const {ws, plan} = makeWs('中');
+  const dir = l3Dir(ws);
+  const checks = CHECK_IDS.map((id) => ({id, conclusion: '通过', evidence: 'fixture'}));
+
+  writeReceipts(dir, plan, {camps: CAMPS.slice(0, 3), patch: {checks}});
+  const missCamp = runGate(['--plan', plan, '--workspace', ws, '--level', 'l3']);
+  assert.equal(missCamp.status, 1, missCamp.out);
+  assert.match(missCamp.out, /项目级缺 moonshot 阵营回执/);
+
+  fs.rmSync(dir, {recursive: true, force: true});
+  writeReceipts(dir, plan, {patch: {checks: checks.filter((c) => c.id !== '集成一致性')}});
+  const missCheck = runGate(['--plan', plan, '--workspace', ws, '--level', 'l3']);
+  assert.equal(missCheck.status, 1, missCheck.out);
+  assert.match(missCheck.out, /checks 缺项：集成一致性/);
+
+  fs.rmSync(dir, {recursive: true, force: true});
+  writeReceipts(dir, plan, {patch: {checks}});
+  const ok = runGate(['--plan', plan, '--workspace', ws, '--level', 'l3']);
+  assert.equal(ok.status, 0, ok.out);
+  const block = JSON.parse(ok.stdout);
+  assert.equal(block.review_level, 'l3');
+  assert.equal(block.review_receipt, dir + '/');
+  assert.equal(block.review_camps.length, 4);
+});
+
+// ---------- 重级 / round 一致性 ----------
+
+test('重级：需 8 份且每阵营含 round=2；缺 -r2 → exit 1', () => {
+  const {ws, plan} = makeWs('重');
+  const dir = l1Dir(ws);
+  writeReceipts(dir, plan, {rounds: ['1']});
+  const thin = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(thin.status, 1, thin.out);
+  assert.match(thin.out, /重级需 8 份/);
+  assert.match(thin.out, /deepseek-r2\.json: 重级需每阵营 1 份 round=2 回执/);
+
+  writeReceipts(dir, plan, {rounds: ['2']});
+  const ok = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(ok.status, 0, ok.out);
+  const block = JSON.parse(ok.stdout);
+  assert.equal(block.review_scale, '重');
+  assert.equal(block.seats, 8);
+});
+
+test('round 与文件名后缀不一致 → 不合格', () => {
+  const {ws, plan} = makeWs('中');
+  const dir = l1Dir(ws);
+  writeReceipts(dir, plan, {patch: (c) => (c.camp === 'deepseek' ? {round: '2'} : {})});
+  const a = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(a.status, 1, a.out);
+  assert.match(a.out, /round 与文件名后缀不一致：文件名要求 "1"，字段为 "2"/);
+
+  fs.rmSync(dir, {recursive: true, force: true});
+  writeReceipts(dir, plan, {rounds: ['2'], patch: (c) => (c.camp === 'tencent' ? {round: '1'} : {})});
+  const b = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(b.status, 1, b.out);
+  assert.match(b.out, /round 与文件名后缀不一致：文件名要求 "2"，字段为 "1"/);
+});
+
+test('schema 破口逐项被拦：删 fresh_agent_test / 破席位表 / 少视角', () => {
+  const {ws, plan} = makeWs('中');
+  const dir = l1Dir(ws);
+  writeReceipts(dir, plan, {patch: (c) => (c.camp === 'zhipu' ? {fresh_agent_test: undefined} : {})});
+  const a = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(a.status, 1, a.out);
+  assert.match(a.out, /fresh_agent_test 缺失或非对象/);
+
+  fs.rmSync(dir, {recursive: true, force: true});
+  writeReceipts(dir, plan, {patch: (c) => (c.camp === 'tencent' ? {model: 'gpt-9'} : {})});
+  const b = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(b.status, 1, b.out);
+  assert.match(b.out, /model 未落席位表/);
+
+  fs.rmSync(dir, {recursive: true, force: true});
+  writeReceipts(dir, plan, {patch: (c) => (c.camp === 'moonshot' ? {verdicts: receipt(plan, c).verdicts.slice(0, 4)} : {})});
+  const c = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(c.status, 1, c.out);
+  assert.match(c.out, /verdicts 长度 4 < 6/);
+});
+
+test('回执 plan 字段 ≠ --plan → 不合格（每例只破一处）', () => {
+  const {ws, plan} = makeWs('中');
+  const dir = l2Dir(ws, 'T1');
+  const other = path.join(ws, 'docs', 'plan-旧.md');
+  fs.writeFileSync(other, '# 另一份计划\n\nreview_scale: 中\n');
+  const args = ['--plan', plan, '--workspace', ws, '--level', 'l2', '--task', 'T1'];
+  const base = {implementer_camp: 'zhipu', reviewer_camp: 'deepseek'};
+
+  writeReceipts(dir, plan, {camps: [CAMPS[0]], patch: base});
+  const ok = runGate(args);
+  assert.equal(ok.status, 0, '合格基线须 exit 0（防用例恒红）：' + ok.out);
+
+  fs.rmSync(dir, {recursive: true, force: true});
+  // 唯一破口：plan 指向另一份计划；plan_sha256 仍取当前 --plan 的 sha（最高轮 sha 校验不参与本破口）
+  writeReceipts(dir, plan, {camps: [CAMPS[0]], patch: {...base, plan: other}});
+  const bad = runGate(args);
+  assert.equal(bad.status, 1, bad.out);
+  assert.match(bad.out, /plan 与 --plan 不一致/);
+
+  const badJson = runGate([...args, '--json']);
+  assert.equal(badJson.status, 1, badJson.out);
+  assert.equal(badJson.stdout.trim().split('\n').length, 1, '--json 下 exit 1 仍须单行 JSON');
+  const payload = JSON.parse(badJson.stdout);
+  assert.equal(payload.ok, false);
+  assert.ok(payload.missing.some((m) => m.includes('plan 与 --plan 不一致')), badJson.stdout);
+});
+
+test('回执 camp 非法（"openai"）→ 不合格（每例只破一处）', () => {
+  const {ws, plan} = makeWs('中');
+  const dir = l2Dir(ws, 'T1');
+  const args = ['--plan', plan, '--workspace', ws, '--level', 'l2', '--task', 'T1'];
+  const base = {implementer_camp: 'zhipu', reviewer_camp: 'deepseek'};
+
+  writeReceipts(dir, plan, {camps: [CAMPS[0]], patch: base});
+  assert.equal(runGate(args).status, 0, '合格基线须 exit 0（防用例恒红）');
+
+  fs.rmSync(dir, {recursive: true, force: true});
+  // 唯一破口：camp 置席位表外值；随之必然并发的 camp≠reviewer_camp 是同一次破口的机械后果
+  writeReceipts(dir, plan, {camps: [CAMPS[0]], patch: {...base, camp: 'openai'}});
+  const bad = runGate(args);
+  assert.equal(bad.status, 1, bad.out);
+  assert.match(bad.out, /camp 非法："openai"/);
+
+  const badJson = runGate([...args, '--json']);
+  assert.equal(badJson.status, 1, badJson.out);
+  assert.equal(badJson.stdout.trim().split('\n').length, 1, '--json 下 exit 1 仍须单行 JSON');
+  const payload = JSON.parse(badJson.stdout);
+  assert.equal(payload.ok, false);
+  assert.ok(payload.missing.some((m) => m.includes('camp 非法："openai"')), badJson.stdout);
+});
+
+// ---------- audit（M11） ----------
+
+test('audit：pending 缺失或为空 → exit 0（单行 JSON）', () => {
+  const {ws} = makeWs('中');
+  const bin = copyGateInto(ws);
+  const gate = path.join(bin, '派发闸.mjs');
+
+  const none = runGate(['--workspace', ws, '--level', 'audit'], {script: gate});
+  assert.equal(none.status, 0, none.out);
+  assert.equal(none.stdout.trim().split('\n').length, 1, 'stdout 须单行 JSON');
+  assert.deepEqual(JSON.parse(none.stdout), {ok: true, review_level: 'audit', pending: 0});
+
+  writePending(ws, []);
+  const empty = runGate(['--workspace', ws, '--level', 'audit'], {script: gate});
+  assert.equal(empty.status, 0, empty.out);
+  assert.equal(JSON.parse(empty.stdout).pending, 0);
+});
+
+test('audit：同目录 stub 内审.mjs —— check 过 → 0；不过 → 1（fix 指向同目录脚本）', () => {
+  const {ws} = makeWs('中');
+  const bin = copyGateInto(ws);
+  const gate = path.join(bin, '派发闸.mjs');
+  const file = path.join(ws, 'docs', '内审', '2026-09-22-主题.md');
+  fs.mkdirSync(path.dirname(file), {recursive: true});
+  fs.writeFileSync(file, '# 内审 2026-09-22-主题\n');
+  writePending(ws, [{id: '2026-09-22-主题', file, subject: '主题', checked: false}]);
+
+  const stubOk = writeInnerStub(bin, 0);
+  const ok = runGate(['--workspace', ws, '--level', 'audit'], {script: gate});
+  assert.equal(ok.status, 0, ok.out);
+  assert.deepEqual(JSON.parse(ok.stdout), {ok: true, review_level: 'audit', pending: 1});
+
+  writeInnerStub(bin, 1);
+  const bad = runGate(['--workspace', ws, '--level', 'audit'], {script: gate});
+  assert.equal(bad.status, 1, bad.out);
+  assert.ok(bad.out.includes(`✗ ${file}:`), '应逐条列未通过项');
+  const cmds = cmdLines(bad.out);
+  assert.ok(cmds.some((c) => c.includes(stubOk) && c.includes('check') && c.includes(file)), `fix 应指向同目录 内审.mjs：${cmds.join(' | ')}`);
+
+  const badJson = runGate(['--workspace', ws, '--level', 'audit', '--json'], {script: gate});
+  assert.equal(badJson.status, 1, badJson.out);
+  assert.equal(badJson.stdout.trim().split('\n').length, 1);
+  const payload = JSON.parse(badJson.stdout);
+  assert.equal(payload.ok, false);
+  assert.ok(payload.missing[0].startsWith('✗ '));
+  assert.ok(payload.fix.every((f) => f.startsWith('node ')));
+});
+
+test('audit：路径越界 → exit 2；pending 过载 → exit 2；内审.mjs 缺失 → exit 2', () => {
+  const {ws} = makeWs('中');
+  const bin = copyGateInto(ws);
+  const gate = path.join(bin, '派发闸.mjs');
+  writeInnerStub(bin, 0);
+
+  writePending(ws, [{id: 'x', file: path.join(ws, 'docs', 'x.md'), subject: 'x', checked: false}]);
+  const esc = runGate(['--workspace', ws, '--level', 'audit', '--json'], {script: gate});
+  assert.equal(esc.status, 2, esc.out);
+  assert.equal(JSON.parse(esc.stdout).ok, false);
+  assert.match(JSON.parse(esc.stdout).error, /路径越界/);
+
+  writePending(ws, [{id: 'x', file: path.join(ws, 'docs', '内审', '..', '..', 'etc', 'passwd'), subject: 'x'}]);
+  assert.equal(runGate(['--workspace', ws, '--level', 'audit'], {script: gate}).status, 2, '.. 穿越应越界');
+
+  const many = Array.from({length: 101}, (_, i) => ({id: `n${i}`, file: path.join(ws, 'docs', '内审', `n${i}.md`), subject: 'x'}));
+  writePending(ws, many);
+  const over = runGate(['--workspace', ws, '--level', 'audit'], {script: gate});
+  assert.equal(over.status, 2, over.out);
+  assert.match(over.out, /pending 过载：101 条 > 100/);
+
+  writePending(ws, [{id: 'x', file: path.join(ws, 'docs', '内审', 'n0.md'), subject: 'x'}]);
+  fs.rmSync(path.join(bin, '内审.mjs'));
+  const noInner = runGate(['--workspace', ws, '--level', 'audit'], {script: gate});
+  assert.equal(noInner.status, 2, noInner.out);
+  assert.match(noInner.out, /内审\.mjs 缺失/);
+});
+
+// ---------- --json / V14 ----------
+
+test('--json：成功与失败 stdout 均为单行 JSON', () => {
+  const {ws, plan} = makeWs('中');
+  const fail = runGate(['--plan', plan, '--workspace', ws, '--json']);
+  assert.equal(fail.status, 1, fail.out);
+  assert.equal(fail.stdout.trim().split('\n').length, 1, '失败也须单行 JSON');
+  const fj = JSON.parse(fail.stdout);
+  assert.equal(fj.ok, false);
+  assert.ok(fj.missing.every((m) => m.startsWith('✗ ')));
+  assert.ok(fj.fix.length >= 1);
+  assert.ok(fj.fix.every((f) => f.startsWith('node ')));
+
+  writeReceipts(l1Dir(ws), plan);
+  const ok = runGate(['--plan', plan, '--workspace', ws, '--json']);
+  assert.equal(ok.status, 0, ok.out);
+  assert.equal(ok.stdout.trim().split('\n').length, 1);
+  assert.equal(JSON.parse(ok.stdout).ok, true);
+
+  const usage = runGate(['--plan', plan, '--workspace', ws, '--level', 'l9', '--json']);
+  assert.equal(usage.status, 2);
+  assert.equal(usage.stdout.trim().split('\n').length, 1);
+  assert.match(JSON.parse(usage.stdout).error, /非法 --level/);
+});
+
+test('V14 闸门只读：l1 通过与 audit 两条路径均不改动夹具任何字节', () => {
+  const {ws, plan} = makeWs('重');
+  writeReceipts(l1Dir(ws), plan, {rounds: ['1', '2']});
+  const before = snapTree(ws);
+  assert.equal(runGate(['--plan', plan, '--workspace', ws]).status, 0);
+  assert.equal(runGate(['--plan', plan, '--workspace', ws, '--json']).status, 0);
+  assert.equal(snapTree(ws), before, 'l1 分支不得写文件');
+
+  const empty = makeWs('中');
+  const eBefore = snapTree(empty.ws);
+  assert.equal(runGate(['--plan', empty.plan, '--workspace', empty.ws]).status, 1);
+  assert.equal(snapTree(empty.ws), eBefore, '不通过分支同样不得写文件');
+
+  const bin = copyGateInto(empty.ws);
+  const file = path.join(empty.ws, 'docs', '内审', '2026-09-22-主题.md');
+  fs.mkdirSync(path.dirname(file), {recursive: true});
+  fs.writeFileSync(file, '# 内审 2026-09-22-主题\n');
+  writePending(empty.ws, [{id: '2026-09-22-主题', file, subject: '主题', checked: false}]);
+  writeInnerStub(bin, 0);
+  const aBefore = snapTree(empty.ws);
+  const audit = runGate(['--workspace', empty.ws, '--level', 'audit'], {script: path.join(bin, '派发闸.mjs')});
+  assert.equal(audit.status, 0, audit.out);
+  assert.equal(snapTree(empty.ws), aBefore, 'audit 分支不得写文件（含 pending.json）');
+});
+
+// ---------- 取证闸（§3.6 C1–C8） ----------
+
+// C 用例夹具：计划正文自定；evidence=null → 不落取证文件。
+// C1 取证文件按 E1「存在、非空」写最小非空内容（§3.6 表内「为空」与 §3.1 E1 冲突，以 E1 为准）。
+function makeEvWs(body, evidence = '# 取证原文（夹具）\n', rel = 'docs/取证/ev.md') {
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-ev-'));
+  const plan = path.join(ws, 'docs', 'plan.md');
+  fs.mkdirSync(path.dirname(plan), {recursive: true});
+  fs.writeFileSync(plan, `# 取证夹具计划\n\nreview_scale: 免审\n免审依据: 只读诊断，不写仓库\n取证文件: ${rel}\n\n${LEDGER_OK}\n\n${sixOk('docs/plan.md:1')}\n\n## 现场核对\n\n${body}\n`);
+  if (evidence !== null) {
+    const ev = path.join(ws, rel);
+    fs.mkdirSync(path.dirname(ev), {recursive: true});
+    fs.writeFileSync(ev, evidence);
+  }
+  return {ws, plan};
+}
+
+// E2 解析顺序含 <ws>/skills/ctbz/scripts/：C3/C4 需夹具内可解析到真闸
+function copyGateScript(ws) {
+  const dir = path.join(ws, 'skills', 'ctbz', 'scripts');
+  fs.mkdirSync(dir, {recursive: true});
+  fs.copyFileSync(GATE, path.join(dir, '派发闸.mjs'));
+  return dir;
+}
+
+test('C1 零断言计划：取证齐全 → exit 0（E6）且 payload 带 evidence', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| 无数量断言、无 文件:行号 | 无需外部断言 |\n');
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
+  assert.equal(JSON.parse(r.stdout).evidence, 'docs/取证/ev.md');
+});
+
+test('C2 数量断言未标 ↗ → exit 1 含「未标取证锚点」', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| 路线图共 35 处数量断言 | 未标锚点 |\n');
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /未标取证锚点/);
+});
+
+test('C3 横表数据行含可达 文件:行号 → exit 0（表格行不误判）', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| `派发闸.mjs:50` 定义 LEVELS | ↗ #1（grep 输出 50:const LEVELS） |\n');
+  copyGateScript(ws);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
+});
+
+test('C4 文件:行号 不可达 → exit 1 含「不可达」', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| `派发闸.mjs:9999` 不存在 | 无 |\n');
+  copyGateScript(ws);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /不可达/);
+});
+
+test('C5 缺取证文件 → exit 1 含「缺取证文件」', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| 数量断言 3 处 ↗ #1 | 取证文件不存在 |\n', null);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /缺取证文件/);
+});
+
+test('C6 l2 路径：取证齐全 + 1 份合格回执 → exit 0 且 stdout 含 "evidence"', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| 无数量断言 | 无 |\n');
+  writeReceipts(l2Dir(ws, 'T1'), plan, {camps: [CAMPS[0]], patch: {implementer_camp: 'zhipu', reviewer_camp: 'deepseek'}});
+  const r = runGate(['--plan', plan, '--workspace', ws, '--level', 'l2', '--task', 'T1']);
+  assert.equal(r.status, 0, r.out);
+  assert.ok(r.stdout.includes('"evidence"'), r.stdout);
+  assert.equal(JSON.parse(r.stdout).evidence, 'docs/取证/ev.md');
+});
+
+test('C7 词边界：取证含 335: 但不含独立 35 → exit 1 含「找不到数字 35」', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| 共 35 处 ↗ #1 | 见取证 |\n', '命令: grep -n "x" f\n335:  foo\n');
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /找不到数字 35/);
+});
+
+test('C8 中文散文无锚点不误报 → exit 0（CJK 左边界）', () => {
+  const {ws, plan} = makeEvWs('| 断言 | 依据 |\n|---|---|\n| 每个文件各加一行注释 | 无需外部断言 |\n');
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
+});
+
+// C9：跳过节只在同级/更高级标题出现前生效（其后小节的断言仍入闸面）
+test('C9 取证：跳过节遇同级标题即恢复扫描', () => {
+  const {ws, plan} = makeWs('中');
+  fs.appendFileSync(plan, '\n## 6 不做\n\n本节免检\n\n## 7 附录\n\n共 7 处未标锚点\n');
+  const r = runGate(['--plan', plan, '--workspace', ws, '--level', 'l1']);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr + r.stdout, /未标取证锚点/);
+});
+
+// ---------- 行动账（§3.3 A0–A4，2.2.0） ----------
+
+// 账行/计划夹具：只坏一处，其余取自合法基线
+function ledgerRow({action = '夹具动作', rely = '命令: 无外部断言', trade = '否掉「不做」：无据可依', falsify = '`docs/plan.md:1` 无命中 → 失效'} = {}) {
+  return `| A1 | ${action} | ${rely} | ${trade} | ${falsify} |`;
+}
+
+const LEDGER_BLOCK = (row) => `## 行动账\n\n| A# | 动作 | 依据 | 取舍 | 证伪 |\n|---|---|---|---|---|\n${row}`;
+
+function makeLedgerWs(ledger, scale = '中') {
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-ledger-'));
+  const plan = path.join(ws, 'docs', 'plan.md');
+  fs.mkdirSync(path.dirname(plan), {recursive: true});
+  fs.mkdirSync(path.join(ws, '.ctbz-record', '取证'), {recursive: true});
+  fs.writeFileSync(plan, `# 行动账夹具计划\n\nreview_scale: ${scale}\n\n取证文件: .ctbz-record/取证/plan.md\n\n${ledger ? ledger + '\n\n' : ''}${sixOk('docs/plan.md:1')}\n\n## 现场核对\n\n| 断言 | 依据 |\n|---|---|\n| 夹具计划无数量断言 | 无需外部断言 |\n`);
+  fs.writeFileSync(path.join(ws, '.ctbz-record', '取证', 'plan.md'), '# 取证原文（夹具）\n\n夹具计划无数量断言与 文件:行号，E2–E4 自动通过（E6）。\n');
+  return {ws, plan};
+}
+
+test('V1 账齐备通过：合法账行 + 4 份合格回执 → exit 0 且 payload 带 ledger', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK(ledgerRow()));
+  writeReceipts(l1Dir(ws), plan);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
+  assert.ok(r.stdout.includes('"ledger"'), r.stdout);
+  assert.equal(JSON.parse(r.stdout).ledger, 1);
+});
+
+test('V2 缺账被拦：删 ## 行动账 小节 → exit 1 含「缺「行动账」小节」', () => {
+  const {ws, plan} = makeLedgerWs(null);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /缺「行动账」小节/);
+});
+
+test('V3 空话取舍被拦；反例「否掉了『无缓存』方案」放行', () => {
+  const empty = makeLedgerWs(LEDGER_BLOCK(ledgerRow({trade: '无'})));
+  const a = runGate(['--plan', empty.plan, '--workspace', empty.ws]);
+  assert.equal(a.status, 1, a.out);
+  assert.match(a.out, /取舍为空话/);
+
+  const ok = makeLedgerWs(LEDGER_BLOCK(ledgerRow({trade: '否掉了「无缓存」方案'})));
+  writeReceipts(l1Dir(ok.ws), ok.plan);
+  const b = runGate(['--plan', ok.plan, '--workspace', ok.ws]);
+  assert.equal(b.status, 0, b.out);
+});
+
+test('V4 依据不可达被拦：派发闸.mjs:9999 → exit 1 含「依据不可达」', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK(ledgerRow({rely: '`派发闸.mjs:9999`（`NUM_CLAIM_RE`）'})));
+  copyGateScript(ws);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /依据不可达/);
+});
+
+test('V5 免审短路前接入：免审级缺行动账 → exit 1 含「缺「行动账」小节」', () => {
+  const {ws, plan} = makeLedgerWs(null, '免审');
+  fs.appendFileSync(plan, '\n免审依据: 只读诊断，不写仓库\n');
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /缺「行动账」小节/);
+  assert.doesNotMatch(r.out, /免审依据/);
+});
+
+test('V8 取舍未含被否候选被拦：「方案A 更好」→ exit 1 含「取舍未含被否候选」', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK(ledgerRow({trade: '方案A 更好'})));
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /取舍未含被否候选/);
+});
+
+test('V9 证伪不可执行被拦：「若不行则失效」→ exit 1 含「证伪不可执行」', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK(ledgerRow({falsify: '若不行则失效'})));
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /证伪不可执行/);
+});
+
+test('V10 围栏内账行不计入（A0）', () => {
+  const {ws, plan} = makeLedgerWs(`## 行动账\n\n\`\`\`\n${ledgerRow()}\n\`\`\``);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /行动账小节内无账行/);
+});
+
+test('V11 行号真内容假被拦：派发闸.mjs:520（NUM_CLAIM_RE）→ exit 1 含「依据原文不符」', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK(ledgerRow({rely: '`派发闸.mjs:520`（`NUM_CLAIM_RE`）'})));
+  copyGateScript(ws);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /依据原文不符/);
+});
+
+test('A3 正例：依据 文件:行号 + 紧跟括号原文且该行命中 → exit 0（不误杀真内容）', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK(ledgerRow({rely: '`docs/plan.md:1`（`# 行动账夹具计划`）'})));
+  writeReceipts(l1Dir(ws), plan);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
+});
+
+test('A2 未转义竖线：列内含裸 | 致段数 6 → exit 1 含「列含未转义竖线」', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK('| A1 | 夹具动作 | 命令: a | b | 否掉「不做」：无据可依 | `docs/plan.md:1` 无命中 → 失效 |'));
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /列含未转义竖线/);
+});
+
+test('A2 转义竖线：列内 \\| 按占位符法还原、不切错列 → exit 0', () => {
+  const {ws, plan} = makeLedgerWs(LEDGER_BLOCK('| A1 | 夹具动作 | 命令: grep -c x \\| wc -l | 否掉「不做」：无据可依 | `docs/plan.md:1` 无命中 → 失效 |'));
+  writeReceipts(l1Dir(ws), plan);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 0, r.out);
+});
+
+
+// 2.3.0：夹具补 `## 构建期六问`（l1 且 中/重 级必填）；反例/真实两行须带**本夹具 ws 内可达**的 文件:行号
+const sixOk = (ref) =>
+  '## 构建期六问\n\n| 问 | 本版自查 |\n|---|---|\n' +
+  '| 自指 | 夹具自指：本模板须过 sixProblems |\n' +
+  '| 反例 | 删本行后 sixProblems 判红（对照 ' + ref + '） |\n' +
+  '| 冲突 | 夹具冲突面由 T1 消解 |\n' +
+  '| 覆盖 | 覆盖以 grep 复算 |\n' +
+  '| 一致 | 签名与主文逐字对齐 |\n' +
+  '| 真实 | 本行锚点须可达（' + ref + '） |';
+
+// ---------- 2.3.0 构建期六问（l1 且 中/重 强制） ----------
+
+const stripSix = (plan) => fs.writeFileSync(plan, fs.readFileSync(plan, 'utf8').replace(sixOk('docs/plan.md:1') + '\n\n', ''));
+
+test('V9 中/重 级缺 `## 构建期六问` → exit 1，含缺节提示', () => {
+  const {ws, plan} = makeWs('中');
+  stripSix(plan);
+  writeReceipts(l1Dir(ws), plan);
+  const r = runGate(['--plan', plan, '--workspace', ws]);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /缺「## 构建期六问」小节/);
+  fs.writeFileSync(plan, fs.readFileSync(plan, 'utf8') + '\n' + sixOk('docs/plan.md:1') + '\n');
+  writeReceipts(l1Dir(ws), plan);
+  assert.equal(runGate(['--plan', plan, '--workspace', ws]).status, 0, '补上六问后应放行');
+});
+
+test('V10 六问缺一行 → exit 1；反例行无 文件:行号 → exit 1', () => {
+  const {ws, plan} = makeWs('中');
+  fs.writeFileSync(plan, fs.readFileSync(plan, 'utf8').replace('| 覆盖 | 覆盖以 grep 复算 |\n', ''));
+  writeReceipts(l1Dir(ws), plan);
+  assert.match(runGate(['--plan', plan, '--workspace', ws]).out, /构建期六问缺「覆盖」行/);
+
+  const {ws: ws2, plan: plan2} = makeWs('中');
+  fs.writeFileSync(plan2, fs.readFileSync(plan2, 'utf8').replace(/删本行后 sixProblems 判红（对照 [^）]*）/g, '删本行后判红'));
+  writeReceipts(l1Dir(ws2), plan2);
+  assert.match(runGate(['--plan', plan2, '--workspace', ws2]).out, /「反例」行须带 文件:行号/);
+});
+
+test('V11 轻级不填六问 → 放行', () => {
+  const {ws, plan} = makeWs('轻');
+  stripSix(plan);
+  writeReceipts(l1Dir(ws), plan, {camps: CAMPS.slice(0, 3)});
+  assert.equal(runGate(['--plan', plan, '--workspace', ws]).status, 0);
+});
+
+// ---------- 2.3.0 完工自审 l4 ----------
+
+const artDir = (ws) => path.join(ws, '.ctbz-record', '反审', '产物级', '清单');
+
+function makeArtWs(extra = null) {
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-art-'));
+  fs.mkdirSync(path.join(ws, 'docs'), {recursive: true});
+  fs.writeFileSync(path.join(ws, 'docs', 'art.md'), '# 产物\n');
+  const rows = [`docs/art.md ${sha256(path.join(ws, 'docs', 'art.md'))}`];
+  if (extra) rows.push(extra);
+  const manifest = path.join(ws, 'docs', '清单.md');
+  fs.writeFileSync(manifest, '# 产物清单\n\n' + rows.join('\n') + '\n');
+  return {ws, manifest};
+}
+
+function artReceipt(manifest, camp, patch = {}) {
+  return {
+    camp: camp.camp, camp_label: camp.label, provider: camp.provider, model: camp.model,
+    round: '1', plan: path.resolve(manifest), plan_sha256: sha256(manifest),
+    generated_at: new Date().toISOString(), verdict: null,
+    fresh_agent_test: {conclusion: '通过', blockers: []},
+    verdicts: SIX_VIEWS.map((v) => ({view: v, category: '可接受', evidence: 'fixture', conclusion: '接受', disposition: 'fixture'})),
+    implementer_camp: 'deepseek', reviewer_camp: camp.camp, blocking: 0,
+    summary: 'fixture', ...patch,
+  };
+}
+
+function writeArtReceipts(dir, manifest, camps, patch) {
+  fs.mkdirSync(dir, {recursive: true});
+  for (const c of camps) fs.writeFileSync(path.join(dir, `${c.camp}.json`), JSON.stringify(artReceipt(manifest, c, patch), null, 2));
+}
+
+const ART_CAMPS = CAMPS.filter((c) => c.camp !== 'deepseek');
+
+test('V12 l4 正常：3 独立阵营回执 + 清单 sha 相符 → exit 0', () => {
+  const {ws, manifest} = makeArtWs();
+  writeArtReceipts(artDir(ws), manifest, ART_CAMPS);
+  const r = runGate(['--plan', manifest, '--workspace', ws, '--level', 'l4']);
+  assert.equal(r.status, 0, r.out);
+  const b = JSON.parse(r.stdout);
+  assert.equal(b.review_level, 'l4');
+  assert.deepEqual(b.review_camps, ['zhipu', 'tencent', 'moonshot']);
+});
+
+test('V13 l4 反例矩阵：2 阵营 / blocking:1 / 缺 blocking / 同阵营 / sha 不符 → 各 exit 1', () => {
+  const {ws, manifest} = makeArtWs();
+  const dir = artDir(ws);
+  const run = () => runGate(['--plan', manifest, '--workspace', ws, '--level', 'l4']);
+  writeArtReceipts(dir, manifest, ART_CAMPS.slice(0, 2));
+  assert.equal(run().status, 1, run().out);
+  writeArtReceipts(dir, manifest, ART_CAMPS, {blocking: 1});
+  assert.match(run().out, /产物级阻塞数须为 0/);
+  writeArtReceipts(dir, manifest, ART_CAMPS, {blocking: undefined});
+  assert.match(run().out, /产物级阻塞数须为 0/);
+  writeArtReceipts(dir, manifest, ART_CAMPS, {implementer_camp: 'zhipu'});
+  assert.match(run().out, /隔离失效/);
+  writeArtReceipts(dir, manifest, ART_CAMPS);
+  fs.writeFileSync(path.join(ws, 'docs', 'art.md'), '# 产物（改过）\n');
+  assert.match(run().out, /sha 不符/);
+});
+
+test('V14 产物清单路径越出 workspace → exit 1', () => {
+  const {ws, manifest} = makeArtWs('../outside.md ' + 'a'.repeat(64));
+  writeArtReceipts(artDir(ws), manifest, ART_CAMPS);
+  const r = runGate(['--plan', manifest, '--workspace', ws, '--level', 'l4']);
+  assert.equal(r.status, 1, r.out);
+  assert.match(r.out, /越出 workspace 边界/);
+});
+
+test('V15 符号链接越界：ws 内软链指向 ws 外 → exit 1；指向 ws 内 → exit 0', () => {
+  const {ws, manifest} = makeArtWs();
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-out-'));
+  fs.writeFileSync(path.join(outsideDir, 'out.txt'), '# 外部文件\n');
+  fs.symlinkSync(path.join(outsideDir, 'out.txt'), path.join(ws, 'link-out.txt'));
+  fs.symlinkSync(path.join(ws, 'docs', 'art.md'), path.join(ws, 'link-in.txt'));
+  const dir = artDir(ws);
+  const run = () => runGate(['--plan', manifest, '--workspace', ws, '--level', 'l4']);
+  fs.appendFileSync(manifest, `link-out.txt ${sha256(path.join(outsideDir, 'out.txt'))}\n`);
+  writeArtReceipts(dir, manifest, ART_CAMPS);
+  const bad = run();
+  assert.equal(bad.status, 1, bad.out);
+  assert.match(bad.out, /越出 workspace 边界（含符号链接解析）/);
+  fs.writeFileSync(manifest, fs.readFileSync(manifest, 'utf8').replace(/link-out\.txt [0-9a-f]{64}\n/, `link-in.txt ${sha256(path.join(ws, 'docs', 'art.md'))}\n`));
+  writeArtReceipts(dir, manifest, ART_CAMPS);
+  assert.equal(run().status, 0, 'ws 内软链不应误杀');
+});
+
+test('V16 清单异形行 fail-closed：序号表行／含空格路径行 → exit 1，不得静默跳过', () => {
+  const {ws, manifest} = makeArtWs();
+  const dir = artDir(ws);
+  const base = fs.readFileSync(manifest, 'utf8');
+  const row = base.trim().split('\n').pop();
+  const run = () => runGate(['--plan', manifest, '--workspace', ws, '--level', 'l4']);
+  fs.writeFileSync(manifest, base + `| 1 | ${row.split(' ')[0]} | ${row.split(' ')[1]} |\n`);
+  writeArtReceipts(dir, manifest, ART_CAMPS);
+  assert.match(run().out, /无法解析的行|文件不存在或不可读/);
+  fs.writeFileSync(manifest, base + `docs/a b/c.md ${'a'.repeat(64)}\n`);
+  writeArtReceipts(dir, manifest, ART_CAMPS);
+  assert.match(run().out, /无法解析的行/);
+  fs.writeFileSync(manifest, base);
+  writeArtReceipts(dir, manifest, ART_CAMPS);
+  assert.equal(run().status, 0, '恢复原清单应放行');
+});

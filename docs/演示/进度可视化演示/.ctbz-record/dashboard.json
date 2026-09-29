@@ -1,0 +1,870 @@
+{
+  "schemaVersion": 2,
+  "revision": 17,
+  "project": {
+    "id": "project-3b97da23d92b51d0",
+    "title": "示例：电商风控策略上线",
+    "goal": "上线反欺诈策略",
+    "mode": "loop",
+    "phase": "review",
+    "status": "active",
+    "isExample": false,
+    "createdAt": "2026-09-29T07:10:21.468Z",
+    "updatedAt": "2026-09-29T07:10:22.195Z",
+    "round": 2,
+    "budget": {
+      "maxRounds": null,
+      "minutes": null
+    },
+    "control": {
+      "requestedAction": null,
+      "requestedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgement": ""
+    },
+    "owner": null,
+    "lastHeartbeat": null,
+    "planRevision": 10,
+    "checkpoint": null
+  },
+  "nodes": [
+    {
+      "id": "plan",
+      "parentId": null,
+      "kind": "group",
+      "title": "策略上线",
+      "description": "",
+      "status": "active",
+      "outcome": "unknown",
+      "owner": "",
+      "model": "",
+      "dependsOn": [],
+      "score": 50,
+      "scoreReason": "",
+      "result": "",
+      "evidence": [],
+      "method": "",
+      "pitfalls": "",
+      "nextSteps": "",
+      "createdAt": "2026-09-29T07:10:21.512Z",
+      "updatedAt": "2026-09-29T07:10:21.512Z",
+      "completedRound": null,
+      "archived": false
+    },
+    {
+      "id": "d1",
+      "parentId": "plan",
+      "kind": "task",
+      "title": "数据准备",
+      "description": "",
+      "status": "completed",
+      "outcome": "unknown",
+      "owner": "",
+      "model": "",
+      "dependsOn": [],
+      "score": 60,
+      "scoreReason": "前置",
+      "result": "完成底层数据接入与清洗",
+      "evidence": [
+        "数据质量抽查通过"
+      ],
+      "method": "",
+      "pitfalls": "",
+      "nextSteps": "",
+      "createdAt": "2026-09-29T07:10:21.567Z",
+      "updatedAt": "2026-09-29T07:10:21.567Z",
+      "completedRound": 0,
+      "archived": false
+    },
+    {
+      "id": "d2",
+      "parentId": "plan",
+      "kind": "task",
+      "title": "特征衍生",
+      "description": "",
+      "status": "completed",
+      "outcome": "unknown",
+      "owner": "",
+      "model": "",
+      "dependsOn": [],
+      "score": 70,
+      "scoreReason": "",
+      "result": "生成风控特征宽表",
+      "evidence": [
+        "特征覆盖率报告"
+      ],
+      "method": "",
+      "pitfalls": "",
+      "nextSteps": "",
+      "createdAt": "2026-09-29T07:10:21.611Z",
+      "updatedAt": "2026-09-29T07:10:21.611Z",
+      "completedRound": 0,
+      "archived": false
+    },
+    {
+      "id": "d3",
+      "parentId": "plan",
+      "kind": "task",
+      "title": "规则引擎",
+      "description": "",
+      "status": "completed",
+      "outcome": "unknown",
+      "owner": "",
+      "model": "",
+      "dependsOn": [
+        "d1",
+        "d2"
+      ],
+      "score": 80,
+      "scoreReason": "依赖已就绪，最高优先级",
+      "result": "规则引擎开发完成并通过单测",
+      "evidence": [
+        "单测全绿"
+      ],
+      "method": "",
+      "pitfalls": "",
+      "nextSteps": "",
+      "createdAt": "2026-09-29T07:10:21.655Z",
+      "updatedAt": "2026-09-29T07:10:21.971Z",
+      "completedRound": 1,
+      "archived": false
+    },
+    {
+      "id": "d4",
+      "parentId": "plan",
+      "kind": "task",
+      "title": "离线回测",
+      "description": "",
+      "status": "completed",
+      "outcome": "unknown",
+      "owner": "",
+      "model": "",
+      "dependsOn": [
+        "d3"
+      ],
+      "score": 75,
+      "scoreReason": "",
+      "result": "离线回测指标达标",
+      "evidence": [
+        "回测报告"
+      ],
+      "method": "",
+      "pitfalls": "",
+      "nextSteps": "",
+      "createdAt": "2026-09-29T07:10:21.699Z",
+      "updatedAt": "2026-09-29T07:10:22.104Z",
+      "completedRound": 2,
+      "archived": false
+    },
+    {
+      "id": "d5",
+      "parentId": "plan",
+      "kind": "task",
+      "title": "AB实验",
+      "description": "",
+      "status": "planned",
+      "outcome": "unknown",
+      "owner": "",
+      "model": "",
+      "dependsOn": [
+        "d4"
+      ],
+      "score": 70,
+      "scoreReason": "",
+      "result": "",
+      "evidence": [],
+      "method": "",
+      "pitfalls": "",
+      "nextSteps": "",
+      "createdAt": "2026-09-29T07:10:21.745Z",
+      "updatedAt": "2026-09-29T07:10:21.745Z",
+      "completedRound": null,
+      "archived": false
+    },
+    {
+      "id": "d6",
+      "parentId": "plan",
+      "kind": "task",
+      "title": "灰度放量",
+      "description": "",
+      "status": "planned",
+      "outcome": "unknown",
+      "owner": "",
+      "model": "",
+      "dependsOn": [
+        "d5"
+      ],
+      "score": 65,
+      "scoreReason": "",
+      "result": "",
+      "evidence": [],
+      "method": "",
+      "pitfalls": "",
+      "nextSteps": "",
+      "createdAt": "2026-09-29T07:10:21.791Z",
+      "updatedAt": "2026-09-29T07:10:21.791Z",
+      "completedRound": null,
+      "archived": false
+    },
+    {
+      "id": "d7",
+      "parentId": "plan",
+      "kind": "task",
+      "title": "监控告警",
+      "description": "等待风控平台埋点权限",
+      "status": "blocked",
+      "outcome": "unknown",
+      "owner": "",
+      "model": "",
+      "dependsOn": [],
+      "score": 50,
+      "scoreReason": "",
+      "result": "",
+      "evidence": [],
+      "method": "",
+      "pitfalls": "",
+      "nextSteps": "",
+      "createdAt": "2026-09-29T07:10:21.836Z",
+      "updatedAt": "2026-09-29T07:10:21.836Z",
+      "completedRound": null,
+      "archived": false
+    },
+    {
+      "id": "d8",
+      "parentId": "plan",
+      "kind": "task",
+      "title": "全量上线",
+      "description": "",
+      "status": "planned",
+      "outcome": "unknown",
+      "owner": "",
+      "model": "",
+      "dependsOn": [
+        "d6",
+        "d7"
+      ],
+      "score": 60,
+      "scoreReason": "",
+      "result": "",
+      "evidence": [],
+      "method": "",
+      "pitfalls": "",
+      "nextSteps": "",
+      "createdAt": "2026-09-29T07:10:21.880Z",
+      "updatedAt": "2026-09-29T07:10:21.880Z",
+      "completedRound": null,
+      "archived": false
+    }
+  ],
+  "questions": [
+    {
+      "context": "首轮放量按 5% 还是 10% 起步",
+      "answer": "",
+      "status": "open",
+      "scopeId": null,
+      "history": [],
+      "selectedOptionId": null,
+      "createdAt": "2026-09-29T07:10:22.195Z",
+      "id": "q1",
+      "title": "AB 实验流量切分比例",
+      "options": [
+        {
+          "id": "o1",
+          "label": "5% 灰度",
+          "reason": "风险低，观察周期短"
+        },
+        {
+          "id": "o2",
+          "label": "10% 灰度",
+          "reason": "样本积累快"
+        }
+      ],
+      "recommendedOptionId": "o1",
+      "updatedAt": "2026-09-29T07:10:22.195Z"
+    }
+  ],
+  "rounds": [
+    {
+      "scopeId": null,
+      "number": 1,
+      "startedAt": "2026-09-29T07:10:21.925Z",
+      "finishedAt": "2026-09-29T07:10:22.014Z",
+      "nodeId": "d3",
+      "summary": "完成规则引擎开发与联调",
+      "method": "规则 DSL 编排 + 单元测试回归",
+      "pitfalls": "规则优先级冲突需人工复核",
+      "conclusion": "规则引擎具备离线回测条件",
+      "nextSteps": "启动离线回测",
+      "rankingSnapshot": [
+        {
+          "id": "d3",
+          "title": "规则引擎",
+          "score": 80,
+          "scoreReason": "依赖已就绪，最高优先级",
+          "eligible": true,
+          "blockedReason": "",
+          "share": 100
+        },
+        {
+          "id": "d4",
+          "title": "离线回测",
+          "score": 75,
+          "scoreReason": "",
+          "eligible": false,
+          "blockedReason": "Dependencies incomplete: d3",
+          "share": 0
+        },
+        {
+          "id": "d5",
+          "title": "AB实验",
+          "score": 70,
+          "scoreReason": "",
+          "eligible": false,
+          "blockedReason": "Dependencies incomplete: d4",
+          "share": 0
+        },
+        {
+          "id": "d6",
+          "title": "灰度放量",
+          "score": 65,
+          "scoreReason": "",
+          "eligible": false,
+          "blockedReason": "Dependencies incomplete: d5",
+          "share": 0
+        },
+        {
+          "id": "d8",
+          "title": "全量上线",
+          "score": 60,
+          "scoreReason": "",
+          "eligible": false,
+          "blockedReason": "Dependencies incomplete: d6, d7",
+          "share": 0
+        },
+        {
+          "id": "d7",
+          "title": "监控告警",
+          "score": 50,
+          "scoreReason": "",
+          "eligible": false,
+          "blockedReason": "Node is blocked",
+          "share": 0
+        }
+      ],
+      "completedNodeIds": [
+        "d3"
+      ],
+      "nodeSnapshot": {
+        "id": "d3",
+        "parentId": "plan",
+        "kind": "task",
+        "title": "规则引擎",
+        "description": "",
+        "status": "completed",
+        "outcome": "unknown",
+        "owner": "",
+        "model": "",
+        "dependsOn": [
+          "d1",
+          "d2"
+        ],
+        "score": 80,
+        "scoreReason": "依赖已就绪，最高优先级",
+        "result": "规则引擎开发完成并通过单测",
+        "evidence": [
+          "单测全绿"
+        ],
+        "method": "",
+        "pitfalls": "",
+        "nextSteps": "",
+        "createdAt": "2026-09-29T07:10:21.655Z",
+        "updatedAt": "2026-09-29T07:10:21.971Z",
+        "completedRound": 1,
+        "archived": false
+      },
+      "completedNodeSnapshots": [
+        {
+          "id": "d3",
+          "parentId": "plan",
+          "kind": "task",
+          "title": "规则引擎",
+          "description": "",
+          "status": "completed",
+          "outcome": "unknown",
+          "owner": "",
+          "model": "",
+          "dependsOn": [
+            "d1",
+            "d2"
+          ],
+          "score": 80,
+          "scoreReason": "依赖已就绪，最高优先级",
+          "result": "规则引擎开发完成并通过单测",
+          "evidence": [
+            "单测全绿"
+          ],
+          "method": "",
+          "pitfalls": "",
+          "nextSteps": "",
+          "createdAt": "2026-09-29T07:10:21.655Z",
+          "updatedAt": "2026-09-29T07:10:21.971Z",
+          "completedRound": 1,
+          "archived": false
+        }
+      ],
+      "snapshotAvailable": true
+    },
+    {
+      "scopeId": null,
+      "number": 2,
+      "startedAt": "2026-09-29T07:10:22.057Z",
+      "finishedAt": "2026-09-29T07:10:22.149Z",
+      "nodeId": "d4",
+      "summary": "完成离线回测与指标核对",
+      "method": "历史样本回放 + 指标对比",
+      "pitfalls": "样本时间窗偏差需在结论中说明",
+      "conclusion": "策略指标达标，可进入实验阶段",
+      "nextSteps": "设计 AB 实验流量切分",
+      "rankingSnapshot": [
+        {
+          "id": "d4",
+          "title": "离线回测",
+          "score": 75,
+          "scoreReason": "",
+          "eligible": true,
+          "blockedReason": "",
+          "share": 100
+        },
+        {
+          "id": "d5",
+          "title": "AB实验",
+          "score": 70,
+          "scoreReason": "",
+          "eligible": false,
+          "blockedReason": "Dependencies incomplete: d4",
+          "share": 0
+        },
+        {
+          "id": "d6",
+          "title": "灰度放量",
+          "score": 65,
+          "scoreReason": "",
+          "eligible": false,
+          "blockedReason": "Dependencies incomplete: d5",
+          "share": 0
+        },
+        {
+          "id": "d8",
+          "title": "全量上线",
+          "score": 60,
+          "scoreReason": "",
+          "eligible": false,
+          "blockedReason": "Dependencies incomplete: d6, d7",
+          "share": 0
+        },
+        {
+          "id": "d7",
+          "title": "监控告警",
+          "score": 50,
+          "scoreReason": "",
+          "eligible": false,
+          "blockedReason": "Node is blocked",
+          "share": 0
+        }
+      ],
+      "completedNodeIds": [
+        "d4"
+      ],
+      "nodeSnapshot": {
+        "id": "d4",
+        "parentId": "plan",
+        "kind": "task",
+        "title": "离线回测",
+        "description": "",
+        "status": "completed",
+        "outcome": "unknown",
+        "owner": "",
+        "model": "",
+        "dependsOn": [
+          "d3"
+        ],
+        "score": 75,
+        "scoreReason": "",
+        "result": "离线回测指标达标",
+        "evidence": [
+          "回测报告"
+        ],
+        "method": "",
+        "pitfalls": "",
+        "nextSteps": "",
+        "createdAt": "2026-09-29T07:10:21.699Z",
+        "updatedAt": "2026-09-29T07:10:22.104Z",
+        "completedRound": 2,
+        "archived": false
+      },
+      "completedNodeSnapshots": [
+        {
+          "id": "d4",
+          "parentId": "plan",
+          "kind": "task",
+          "title": "离线回测",
+          "description": "",
+          "status": "completed",
+          "outcome": "unknown",
+          "owner": "",
+          "model": "",
+          "dependsOn": [
+            "d3"
+          ],
+          "score": 75,
+          "scoreReason": "",
+          "result": "离线回测指标达标",
+          "evidence": [
+            "回测报告"
+          ],
+          "method": "",
+          "pitfalls": "",
+          "nextSteps": "",
+          "createdAt": "2026-09-29T07:10:21.699Z",
+          "updatedAt": "2026-09-29T07:10:22.104Z",
+          "completedRound": 2,
+          "archived": false
+        }
+      ],
+      "snapshotAvailable": true
+    }
+  ],
+  "knowledge": [],
+  "requests": [],
+  "events": [
+    {
+      "id": "d5190969-784f-4f1d-b5c3-3182553d9580",
+      "at": "2026-09-29T07:10:21.468Z",
+      "type": "project.init",
+      "actor": "agent",
+      "summary": "Initialized project: 示例：电商风控策略上线",
+      "data": {
+        "title": "示例：电商风控策略上线",
+        "goal": "上线反欺诈策略",
+        "mode": "loop",
+        "isExample": false
+      }
+    },
+    {
+      "id": "d236809c-79f3-40fa-8bf1-ff017cdb2589",
+      "at": "2026-09-29T07:10:21.512Z",
+      "type": "node.upsert",
+      "actor": "agent",
+      "summary": "Added node: 策略上线",
+      "data": {
+        "node": {
+          "id": "plan",
+          "parentId": null,
+          "kind": "group",
+          "title": "策略上线",
+          "status": "active"
+        },
+        "scopeId": null,
+        "planRevision": 1
+      }
+    },
+    {
+      "id": "4b67a5a5-87d8-4723-9398-4b089d8638d4",
+      "at": "2026-09-29T07:10:21.567Z",
+      "type": "node.upsert",
+      "actor": "agent",
+      "summary": "Added node: 数据准备",
+      "data": {
+        "node": {
+          "id": "d1",
+          "parentId": "plan",
+          "kind": "task",
+          "title": "数据准备",
+          "status": "completed",
+          "score": 60,
+          "scoreReason": "前置",
+          "dependsOn": [],
+          "result": "完成底层数据接入与清洗",
+          "evidence": [
+            "数据质量抽查通过"
+          ]
+        },
+        "scopeId": null,
+        "planRevision": 2
+      }
+    },
+    {
+      "id": "b4cd5fa1-7ea5-4704-9f42-8c970f99ff5d",
+      "at": "2026-09-29T07:10:21.611Z",
+      "type": "node.upsert",
+      "actor": "agent",
+      "summary": "Added node: 特征衍生",
+      "data": {
+        "node": {
+          "id": "d2",
+          "parentId": "plan",
+          "kind": "task",
+          "title": "特征衍生",
+          "status": "completed",
+          "score": 70,
+          "dependsOn": [],
+          "result": "生成风控特征宽表",
+          "evidence": [
+            "特征覆盖率报告"
+          ]
+        },
+        "scopeId": null,
+        "planRevision": 3
+      }
+    },
+    {
+      "id": "1d53da7f-de3f-483b-b31d-b26740160531",
+      "at": "2026-09-29T07:10:21.655Z",
+      "type": "node.upsert",
+      "actor": "agent",
+      "summary": "Added node: 规则引擎",
+      "data": {
+        "node": {
+          "id": "d3",
+          "parentId": "plan",
+          "kind": "task",
+          "title": "规则引擎",
+          "status": "planned",
+          "dependsOn": [
+            "d1",
+            "d2"
+          ],
+          "score": 80,
+          "scoreReason": "依赖已就绪，最高优先级"
+        },
+        "scopeId": null,
+        "planRevision": 4
+      }
+    },
+    {
+      "id": "d247e5b0-976a-4b57-9d9c-f80fb485a713",
+      "at": "2026-09-29T07:10:21.699Z",
+      "type": "node.upsert",
+      "actor": "agent",
+      "summary": "Added node: 离线回测",
+      "data": {
+        "node": {
+          "id": "d4",
+          "parentId": "plan",
+          "kind": "task",
+          "title": "离线回测",
+          "status": "planned",
+          "dependsOn": [
+            "d3"
+          ],
+          "score": 75
+        },
+        "scopeId": null,
+        "planRevision": 5
+      }
+    },
+    {
+      "id": "d8f7f0e4-f0d3-440c-9d2c-8c4e0bdfce22",
+      "at": "2026-09-29T07:10:21.745Z",
+      "type": "node.upsert",
+      "actor": "agent",
+      "summary": "Added node: AB实验",
+      "data": {
+        "node": {
+          "id": "d5",
+          "parentId": "plan",
+          "kind": "task",
+          "title": "AB实验",
+          "status": "planned",
+          "dependsOn": [
+            "d4"
+          ],
+          "score": 70
+        },
+        "scopeId": null,
+        "planRevision": 6
+      }
+    },
+    {
+      "id": "412cc586-f409-440f-8fde-aaf0535a40ee",
+      "at": "2026-09-29T07:10:21.791Z",
+      "type": "node.upsert",
+      "actor": "agent",
+      "summary": "Added node: 灰度放量",
+      "data": {
+        "node": {
+          "id": "d6",
+          "parentId": "plan",
+          "kind": "task",
+          "title": "灰度放量",
+          "status": "planned",
+          "dependsOn": [
+            "d5"
+          ],
+          "score": 65
+        },
+        "scopeId": null,
+        "planRevision": 7
+      }
+    },
+    {
+      "id": "6e27d6ff-0d6a-41b8-819c-8e4873270795",
+      "at": "2026-09-29T07:10:21.836Z",
+      "type": "node.upsert",
+      "actor": "agent",
+      "summary": "Added node: 监控告警",
+      "data": {
+        "node": {
+          "id": "d7",
+          "parentId": "plan",
+          "kind": "task",
+          "title": "监控告警",
+          "status": "blocked",
+          "dependsOn": [],
+          "description": "等待风控平台埋点权限",
+          "score": 50
+        },
+        "scopeId": null,
+        "planRevision": 8
+      }
+    },
+    {
+      "id": "d6409d8a-7c76-40bc-a99c-da038b1825cf",
+      "at": "2026-09-29T07:10:21.880Z",
+      "type": "node.upsert",
+      "actor": "agent",
+      "summary": "Added node: 全量上线",
+      "data": {
+        "node": {
+          "id": "d8",
+          "parentId": "plan",
+          "kind": "task",
+          "title": "全量上线",
+          "status": "planned",
+          "dependsOn": [
+            "d6",
+            "d7"
+          ],
+          "score": 60
+        },
+        "scopeId": null,
+        "planRevision": 9
+      }
+    },
+    {
+      "id": "085942ed-3b55-4f0c-bea5-8b0b48f42684",
+      "at": "2026-09-29T07:10:21.925Z",
+      "type": "round.start",
+      "actor": "agent",
+      "summary": "Started round 1: 规则引擎",
+      "data": {
+        "scopeId": null
+      }
+    },
+    {
+      "id": "7e1f7b86-6df6-44be-ac16-79222ad25d15",
+      "at": "2026-09-29T07:10:21.971Z",
+      "type": "node.upsert",
+      "actor": "agent",
+      "summary": "Updated node: 规则引擎",
+      "data": {
+        "node": {
+          "id": "d3",
+          "status": "completed",
+          "result": "规则引擎开发完成并通过单测",
+          "evidence": [
+            "单测全绿"
+          ]
+        },
+        "scopeId": null
+      }
+    },
+    {
+      "id": "9e4abf8c-f223-4f7f-8321-4aee71fc637f",
+      "at": "2026-09-29T07:10:22.014Z",
+      "type": "round.finish",
+      "actor": "agent",
+      "summary": "Finished round 1: 完成规则引擎开发与联调",
+      "data": {
+        "summary": "完成规则引擎开发与联调",
+        "method": "规则 DSL 编排 + 单元测试回归",
+        "pitfalls": "规则优先级冲突需人工复核",
+        "conclusion": "规则引擎具备离线回测条件",
+        "nextSteps": "启动离线回测",
+        "scopeId": null
+      }
+    },
+    {
+      "id": "e823844b-0c37-4165-98ca-a9c62e5b1707",
+      "at": "2026-09-29T07:10:22.058Z",
+      "type": "round.start",
+      "actor": "agent",
+      "summary": "Started round 2: 离线回测",
+      "data": {
+        "scopeId": null
+      }
+    },
+    {
+      "id": "53b0be75-a4fe-4dcc-8e2a-fc11afc08415",
+      "at": "2026-09-29T07:10:22.104Z",
+      "type": "node.upsert",
+      "actor": "agent",
+      "summary": "Updated node: 离线回测",
+      "data": {
+        "node": {
+          "id": "d4",
+          "status": "completed",
+          "result": "离线回测指标达标",
+          "evidence": [
+            "回测报告"
+          ]
+        },
+        "scopeId": null
+      }
+    },
+    {
+      "id": "42d3a020-9735-43cd-a016-71a4925d535e",
+      "at": "2026-09-29T07:10:22.149Z",
+      "type": "round.finish",
+      "actor": "agent",
+      "summary": "Finished round 2: 完成离线回测与指标核对",
+      "data": {
+        "summary": "完成离线回测与指标核对",
+        "method": "历史样本回放 + 指标对比",
+        "pitfalls": "样本时间窗偏差需在结论中说明",
+        "conclusion": "策略指标达标，可进入实验阶段",
+        "nextSteps": "设计 AB 实验流量切分",
+        "scopeId": null
+      }
+    },
+    {
+      "id": "6809a597-e191-4868-9da9-379a4d35fc2f",
+      "at": "2026-09-29T07:10:22.195Z",
+      "type": "question.upsert",
+      "actor": "agent",
+      "summary": "Decision question: AB 实验流量切分比例",
+      "data": {
+        "question": {
+          "id": "q1",
+          "title": "AB 实验流量切分比例",
+          "context": "首轮放量按 5% 还是 10% 起步",
+          "options": [
+            {
+              "id": "o1",
+              "label": "5% 灰度",
+              "reason": "风险低，观察周期短"
+            },
+            {
+              "id": "o2",
+              "label": "10% 灰度",
+              "reason": "样本积累快"
+            }
+          ],
+          "recommendedOptionId": "o1"
+        },
+        "scopeId": null,
+        "planRevision": 10
+      }
+    }
+  ]
+}

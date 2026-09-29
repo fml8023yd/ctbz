@@ -1,0 +1,75 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy4-preview-f",
+  "round": "1",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
+  "plan_sha256": "4e3f8ad60ea265a0dec8c8d50def3523e91d4d7fa0b957692e2cc699ce0fc68c",
+  "generated_at": "2026-09-29T07:06:36.233Z",
+  "verdict": "计划方向符合用户意图，但因 app.js 合并策略矛盾、源仓/哈希不可自证、去 dsh 化不彻底等阻塞点，退回澄清前不能直接施工。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工；会先卡在源仓/哈希核验、app.js 合并口径、基线版本确认、凭据路径与测试夹具清单、以及发布的破坏性步骤可执行性上。",
+    "blockers": [
+      "T1/T2 只给源仓绝对路径 /Users/maolong/Betty/草台班子/ctbz-dsh 与 HEAD 00e1951，无 clone/fetch 或存在性校验，也无法核验 13 项文件 sha256（计划未内联取证 §4 哈希）",
+      "app.js 合并策略自相矛盾：T2 第 2 条说可整文件复制且无需人工 hunk 合并，但 T2 Risk 与行动账 A5 要求 hunk 级人工合并且不整文件覆盖，未指明以何者为准",
+      "未把用户要求的 2.0.3 基线映射到 main 的具体 tag/commit（只提 main d24c2f5 冻结行号），开工分支基线不明确",
+      "凭据路径处理不一致：保留 ~/.dsh/settings.yaml 却将 ~/.dsh/AGENTS.md 改为 ~/.zcode/AGENTS.md，且未校验后者存在/内容（现场核对 M 称其无镜像块）",
+      "测试夹具迁移未定义：若 tests 内嵌 dsh 夹具路径，计划只说红则改夹具，未给允许改的路径清单，且 dsh 自查只覆盖 SKILL.md",
+      "T3 发布含删除远端 6 个 tag/Release 与覆盖部署，虽有授权但未给出 dry-run、备份可恢复校验和回滚命令，无法安全执行"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划 §前言 用户原话与 §处置清单 四类；计划 §T1/T2 目标与 A1 仅说从 main 建分支，未把 main 当前版本/基线提交映射到用户要求的 2.0.3（冻结行号处仅提 main d24c2f5，计划 §构建期六问 真实 行）",
+      "conclusion": "有条件接受",
+      "disposition": "开工前核实 main 的当前 tag/commit 是否即 2.0.3 基线并在计划写明 A1 的 base commit；确认后再施工。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "阻塞",
+      "evidence": "计划 §T2 具体改动 第 2 条称 app.js 等差异全为多图故可整文件复制且无需人工 hunk 合并；但同节 Risk 与 §行动账 A5 明确说 2.0.3/2.4.0 差异含非多图改动、须 hunk 级人工合并且不整文件覆盖；另 §T1 具体改动 第 2 条保留 ~/.dsh/settings.yaml 而仅改 AGENTS.md 路径，与去 dsh 化目标冲突",
+      "conclusion": "不接受",
+      "disposition": "统一 app.js 合并策略（若坚持 P 证据则删除/改写 T2 风险与 A5，若按 A5 则补充逐 hunk 挑选操作步骤与验收 hunk 清单）；将凭据路径参数化或改为 ZCode 等价路径，并把 dsh 自查扩展到 scripts/tests/references。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "计划 §T1 验收标准 4 仅 grep SKILL.md 的 dsh 字样；§T1 风险承认测试夹具可能含 dsh 路径但只允许红灯后改夹具，未列出夹具路径迁移清单；§行动账 A3 的 grep 反审.mjs 只覆盖 skills/ctbz/ 未覆盖 tests/docs/CHANGELOG；四个脚本仅 node --check，未校验 shebang/可执行",
+      "conclusion": "有条件接受",
+      "disposition": "补充测试夹具 dsh→ZCode 路径替换清单并纳入 write-set/risk；把 dsh 自查扩展到 scripts/tests/references（或设白名单）；反审.mjs 引用 grep 扩到全仓；增加 ./script.mjs 冒烟与 shebang 检查。"
+    },
+    {
+      "view": "边界条件",
+      "category": "阻塞",
+      "evidence": "计划 §T1/T2 第 1 条依赖本地绝对路径 /Users/maolong/Betty/草台班子/ctbz-dsh HEAD 00e1951 逐字节复制，未提供 clone/fetch 或可用性检查；§现场核对 ↗O 的 13 项 sha256 与取证 §4 哈希在本计划未内联，无法核验；~/.zcode/AGENTS.md 按 ↗M 无镜像块，但 T1 第 2 条把 AGENTS.md 路径改到该文件且未给存在性/内容前置校验",
+      "conclusion": "不接受",
+      "disposition": "增加源仓获取命令或绝对路径 existence/HEAD 校验，并将证据 §4 的 sha256 清单内联或要求施工前逐一比对后再改逻辑/写测试；施工前校验 ~/.zcode/AGENTS.md 与 ~/.dsh/settings.yaml 的存在与所需内容，缺失则先补环境前置。"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "计划 §T3 与 §行动账 A4：迁移/删除 ctbz 仓 6 个 dsh tag+Release、覆盖部署前仅备份到 ~/Documents/.ctbz/备份/；§T1 改动第 2 条保留 ~/.dsh/settings.yaml 作为反审直连凭据路径，存在跨项目路径依赖与潜在凭据外露/迁移失败风险",
+      "conclusion": "有条件接受",
+      "disposition": "T3 破坏性步骤必须先 dry-run、列出待删 tag 清单并确认备份目录可恢复；凭据路径改为可配置或 ZCode 路径并审查是否含密钥、禁止写入版本库；发布脚本需二次确认。"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "计划 §T1 具体改动 4/5：SKILL.md 增补九节并替换原反审硬门(1.8.2)，但验收仅 grep dsh 与 node/tests，无文档结构/陈旧引用复核；§T2 验收 4 用浏览器或 curl 验收四视图，无 curl 失败时排障与回滚判定",
+      "conclusion": "有条件接受",
+      "disposition": "增加 SKILL.md 文档复核步骤（章节清单、旧 1.8.2 是否已替换、无悬空引用）与 dashboard 服务冒烟失败排查/回退路径，再标记完成。"
+    }
+  ],
+  "summary": "需求一致性与架构大致对齐但遗漏基线映射，测试/体验可条件接受，架构/边界/发布安全需先修正阻塞后方可开工。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://101.133.151.121:18890/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 530561,
+    "model_echo": "hy4-preview-f"
+  }
+}

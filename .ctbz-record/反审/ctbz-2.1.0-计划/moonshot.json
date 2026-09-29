@@ -1,0 +1,110 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.8-preview",
+  "round": "1",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
+  "plan_sha256": "d3a14c7bc65d694cda76e7e0b7d79045f1f2234df4593c95b5d27ea1c6f44439",
+  "generated_at": "2026-09-29T06:53:19.627Z",
+  "verdict": "有条件放行：证据链与「逐字节复制+措辞替换」策略成立，T1 可直接开工；须补三处——T3 验收与操作细节、反审.mjs 残留引用零命中验收（现行 grep 只查 dsh 查不到它）、T2 人工合并的耦合升级路径——之后全量实施。",
+  "fresh_agent_test": {
+    "conclusion": "T1 核对源仓 HEAD 后可直接开工；T2 的 app.js 人工合并与 SKILL.md 九节定位、T3 的发布操作均会卡住，整体不能'不问就开工'，与计划反审重点 4 的自评（'无创作环节'）不符。",
+    "blockers": [
+      "源稳定性未自证：全部移植依赖 /Users/maolong/Betty/草台班子/ctbz-dsh HEAD=00e1951，计划未给出核对命令（如 git rev-parse HEAD），新鲜 Agent 须自行补这一步，且工作区脏状态会使'逐字节复制'结果漂移",
+      "锚点悬空：现场核对表止于 ↗M，但 T2 验收标准 3 引用 ↗N（demo 预期节点/轮次/待决的具体值）、行动账 A4 引用 ↗O（用户裁决记录），均需翻开取证文件才能补全，计划本体信息不全",
+      "T2 不是纯机械任务：'只并入多图段，不带入 dsh 其他改动'依赖现场 diff 比对与人工判断，计划只给了要素清单（state.overviewView/drawOverviewGraph/三图函数/overview-view 分支/script 标签/CSS 类），未给两版纠缠时的判定与升级标准",
+      "SKILL.md 九节移植缺定位信息：dsh 线 SKILL.md 中这九个对应节的行号/节标题锚点未给出，新鲜 Agent 需在 dsh 仓全文中自行逐节搜寻",
+      "references/派发.md 整节重写是创作环节：'ZCode 原生描述（Agent 工具 + profile 派发 + 反审直连）'无成稿样例，与反审重点 4'无创作环节'的自述矛盾",
+      "T3 无操作级细节：备份命令、删 tag/Release 的具体命令、Release 附件来源、阿里云部署方式全部未写，到达 T3 时只能自由发挥"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "计划「前言」第 1 段用户原话（回到原逻辑、以 2.0.3 为基础、不认 2.3/2.4、评估其内容、dsh/cc 已独立）与「处置清单」四类处置逐条对应；「行动账 A4」版本号 2.1.0 与用户『更新一个 2.1』一致",
+      "conclusion": "接受",
+      "disposition": "直接执行；处置清单已声明四类为用户确认结论，无需再议"
+    },
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "T2 具体改动 2 称『2.4.0 看板多图』，但行动账 A4 与 T3 写明 dsh 线已占 tag 仅 v2.0.7–v2.3.0，且现场核对表无 2.4.0 行；同一处改动又称本仓基线为 2.0.3",
+      "conclusion": "有条件接受",
+      "disposition": "版本表述以 dsh 仓 HEAD 实际文件为准，施工中如出现『2.4.0』字样引用需回查取证文件确认其所指提交，避免按不存在的 tag 找源"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "T1 验收标准 4 仅 `grep -rn \"dsh\" skills/ctbz/SKILL.md`（≤5）；而反审重点 3 与自疑 4 要求确认『反审.mjs 生成骨架』旧表述改写、其证伪实验 `grep -rn 反审.mjs skills/ctbz/` 未挂入任何验收标准——反审.mjs 字样不含 dsh，现行 grep 结构性查不到遗漏",
+      "conclusion": "有条件接受",
+      "disposition": "将 `grep -rn 反审.mjs skills/ctbz/` 零命中追加为 T1 验收第 5 条，与自疑 4 的证伪实验挂钩，防止施工 Agent 只按四条验收走而漏改旧链路表述"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "T1 具体改动 2 明确 `~/.dsh/settings.yaml` 与凭据路径保留原样并给出理由（实际路径不改）；自疑 2 记录 `~/.dsh/.credentials.yaml` 本机存在且当天实测 8 席通过；反审重点 1 确认派发闸不读 references，文档重写不影响执行契约",
+      "conclusion": "接受",
+      "disposition": "凭据路径例外属有意取舍，记入 CHANGELOG 变更节；保留 dsh 目录隐式依赖一事已知会，不追加措施"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "T1 验收 1–4 与 T2 验收 1–4 齐备（node --check、单测、全量 17+ 基线、demo 连跑两次幂等），但 T3（备份→覆盖部署→删 6 个 tag+Release→打 tag→Release+附件→阿里云）通篇无任何验收步骤",
+      "conclusion": "有条件接受",
+      "disposition": "T3 补两条验收：部署后 smoke（doctor 或看板可起，证明 ~/.agents/skills/ctbz 覆盖成功）；GitHub 侧核验清单（tag 列表、Release 列表、附件可下载），删除类操作以核验结果作为完成判据"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "T2 验收标准 4 以『curl 静态资源 200』作为四视图切换的替代验证，200 只能证明资源可达、不能证明 overview 渲染与切换这一交互行为；T2 验收 3 的『得预期节点/轮次/待决』依赖悬空的 ↗N，计划未内联具体期望值",
+      "conclusion": "有条件接受",
+      "disposition": "至少做一次真实浏览器或无头 DOM 渲染验证 overview 视图出图并记录；施工前从取证文件提取 ↗N 的预期输出写入任务上下文，否则幂等 exit 0 之外的正确性无从判"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "T3 授权删除 6 个 dsh tag+Release（v2.0.7–v2.3.0），但全文未提 Release 附件的留档；GitHub 删除后附件不可恢复，且计划未说明这些附件在别处是否有副本",
+      "conclusion": "有条件接受",
+      "disposition": "删除前将 6 个 Release 的附件下载存档至备份目录（与旧版备份同处），清点完毕后再执行删除；此项虽在授权范围内，但保全步骤缺失会造成不可逆损失"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "T2 风险条自述『2.0.3 与 2.4.0 的 app.js 差异较大，合并须逐 hunk 判断』，但只给了多图要素清单，未给出发现清单外耦合 hunk（多图段依赖 dsh 其他改动）时的处置路径；自疑 3 的 git diff 核对是事后验证而非事中标准",
+      "conclusion": "有条件接受",
+      "disposition": "约定升级路径：合并中遇到与多图清单纠缠的 hunk 即暂停，回派计划席修订合并清单，不带病并入；其余边界（T1 夹具 dsh 路径、demo 幂等）计划已覆盖，可接受"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "改动面为 4 个机制脚本（派发闸 803/内审 554/反审直连 494/preflight 341 行）+62 行 graph-math.js + 前端三图，无性能敏感组件；凭据读取路径与暴露面不变（T1 改动 2）；serve 为本地演示；破坏性操作（删 tag/Release、覆盖部署）均有备份与明文授权（T3、行动账 A4）",
+      "conclusion": "接受",
+      "disposition": "无需额外性能/安全验收；反审直连凭据路径例外在 CHANGELOG 注明来源即可"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "SKILL.md 九节增补（T1 改动 4）与 references/派发.md 三通道改 ZCode 原生描述（T1 改动 3）覆盖用户可见面，CHANGELOG 四节齐备（T1 改动 5），看板多图+demo+README 构成完整体验交付；反审重点 1 确认派发闸不读 references，文档重写不破坏执行链",
+      "conclusion": "接受",
+      "disposition": "派发.md 重写后人工对照确认字段契章节保留；完工后在 ZCode 环境跑一次派发→反审端到端流程做目检"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "references/派发.md 的 ZCode 版重写无任何验收标准（T1 验收 4 的 grep 范围仅限 SKILL.md，不含 references/），重写正确性完全依赖执行者自觉；验收 4 中『必要说明』的 ≤5 处 dsh 命中判断标准主观",
+      "conclusion": "有条件接受",
+      "disposition": "为重写补一条轻验收：references/ 目录 grep dsh 计数并逐条人工确认为溯源性表述；『必要说明』的判定以溯源/凭据两类为白名单收口"
+    }
+  ],
+  "summary": "六视角全量核查无阻塞项：4 项可接受、2 项有条件接受，核心待补为 T3 验收缺失、反审.mjs 残留引用查不出（grep 范围盲区）、T2 人工合并无升级路径，且新鲜 Agent 测试显示 T2/T3 存在 6 处开工卡点，与计划『无创作环节』的自评不符。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://101.133.151.121:18890/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 162287,
+    "model_echo": "kimi-k2.8-preview"
+  }
+}
