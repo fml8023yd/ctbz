@@ -137,3 +137,39 @@ d24c2f5 docs: 路径内务——唯一源 源码/ → ctbz/
 3361bb0 cost-rules: GLM 夜窗升最优先(p0)/起点修正 09-03；WB 降次优先(p1)；lib 生成器口径同步
 21c5000 回写 R-1_glm_flash_reaudit（09-17 反审专用 GLM-Flash 规则）
 ```
+
+## 10 2026-09-29 补充：凭据路径改造（去 dsh 依赖）
+
+背景：2.1.0 首发包中 `反审直连.mjs` / `preflight.mjs` 仍读 `~/.dsh/{settings,.credentials}.yaml`——那是 dsh 宿主专属路径，ZCode 线用户未装 dsh 即失败（真缺陷）。已改：
+
+```
+$ grep -n "DSH_SETTINGS\|DSH_CREDENTIALS" skills/ctbz/scripts/反审直连.mjs skills/ctbz/scripts/preflight.mjs
+（零命中 —— 两脚本已无 dsh 路径引用）
+$ grep -n "ZС_CONFIG\|zcode" skills/ctbz/scripts/preflight.mjs | head -3
+```
+现实现：读 `~/.zcode/v2/config.json` 的 `provider.<id>.options.apiKey`，按 `baseURL` 前缀定位渠道（不硬编码 provider id，id 随接入变化）。
+
+实测（改造后）：
+```
+$ node skills/ctbz/scripts/preflight.mjs --json
+ok: 4 / 5
+credentials: {"deepseek-official":{"source":"zcode-config:0cbc34a9-…","present":true},"workbuddy":{"source":"zcode-config:wb-workbuddy-remote","present":true}}
+  M1 deepseek-flash: fail http=402   ← DeepSeek 官方欠费，与本改造无关
+  M2 glm-5.3-flash: ok http=200
+  M3 hy4-preview-f: ok http=200
+  M4 hy3: ok http=200
+  M5 kimi-k2.8-preview: ok http=200
+
+$ node skills/ctbz/scripts/反审直连.mjs --plan docs/取证/ctbz-2.1.0-计划.md --workspace . --dry-run
+（正常输出 4 路端点与 prompt 预览）
+```
+
+本文件 §6 的 `DSH_SETTINGS` 引用是改造前的原文快照，保留作演变记录；现行实现以本节为准。
+
+## 11 2026-09-29 补充：发布包内容合规
+
+```
+$ tar -tzf ctbz-pack-v2.1.0-<date>.tar.gz | grep -c ctbz-record
+0    ← 符合 docs/发布清单.md「包内不包含 .git、.ctbz-record、评估截图、临时日志」
+```
+首发包误含 `docs/演示/进度可视化演示/.ctbz-record/`（运行产物），重打包已排除并加 `--exclude`。
