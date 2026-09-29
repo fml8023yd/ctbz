@@ -5,58 +5,58 @@
   "model": "glm-5.3",
   "round": "1",
   "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-产物清单.md",
-  "plan_sha256": "5e367da4d7f0d173338f1c7e405e1d1c1077eecbdb384b637676ecac6d1507fa",
-  "generated_at": "2026-09-29T08:18:15.268Z",
-  "verdict": "复核通过：20 条产物 sha 重算全 MATCH、测试 122/0、L1-L3 审查链全通、计划外席位变更有腾讯席先例且经 L1 后验（同阵营同 provider、四阵营仍齐），2.1.0 交付完整可放行，0 阻塞、2 项非阻塞后续。",
+  "plan_sha256": "fc143e8b9565229267fb76e666f91b8c7d3aa593b9c67e86780ddc23482d62e6",
+  "generated_at": "2026-09-29T08:35:24.984Z",
+  "verdict": "ctbz 2.1.0 交付完整、证据链闭合：20 项清单 sha 重算全 MATCH、测试 122/0、L1 四路 round=2 闸门 exit 0（8 席 4 阵营）、L2/L3 通过，两处计划外变更均有记录与先例，0 阻塞；遗留两项非阻塞核对（preflight 4/5 失败项归因、看板文件数与批次说明措辞出入）。",
   "fresh_agent_test": {
-    "conclusion": "本审无文件工具未实跑 fresh agent，但可执行性证据闭环：preflight.mjs 提供入口自检，主文锚点.test.mjs 保障 SKILL.md 11 节锚点有效，派发/内审协议/反审协议三文档定义全流程，node --test 122/0，L1 真实多席环境闸门 exit 0（8 席、4 阵营齐）。未发现阻塞。",
+    "conclusion": "新代理凭 20 项产物 + ~/.zcode/v2/config.json 可复跑：测试 122/0 有主会话实跑记录，preflight 与反审直连 dry-run 有实测，演示目录（demo.mjs + README）与 SKILL.md 11 节自足，429 场景已有白名单回退先例，无阻塞。",
     "blockers": []
   },
   "verdicts": [
     {
       "view": "需求一致性",
-      "category": "可接受",
-      "evidence": "批次交付项（4 脚本 + 3 协议 + SKILL.md 11 节 + 看板 dashboard 4 文件 + 演示目录 2 文件 + CHANGELOG + lock）逐项落入 20 条清单，sha 主会话实跑全 MATCH（清单级 sha256 材料中为截断值，逐条 20/20 为实质校验）；版本 2.0.3→2.1.0 为能力移植的 minor 升级，CHANGELOG 承载；计划外 glm-5.3 白名单变更有先例、有记载、有 L1 后验；说明中 3 tests 为机制侧口径，清单实含 4 个测试文件（看板视图测试归看板侧），无缺漏。",
-      "conclusion": "接受",
-      "disposition": "通过；建议在 CHANGELOG 或 lock 中显式登记 glm-5.3 席位白名单变更落点，保可追溯。"
+      "category": "非阻塞",
+      "evidence": "清单 20 项与批次说明的移植范围逐项对应（4 scripts + 3 references + 3 tests[派发闸/内审/主文锚点] + SKILL.md + 看板 4 件 + 看板视图.test + 演示 2 件 + CHANGELOG + lock），无 dsh/cc 适配层入清单，版本 2.0.3→2.1.0 随 CHANGELOG 交付，两处计划外变更均有记录。唯一出入：批次说明称「graph-math + 4 前端文件」（按字面 ≈5 件），清单 dashboard 目录仅 4 件（graph-math.js/app.js/index.html/style.css）。",
+      "conclusion": "有条件接受",
+      "disposition": "实施方核对计数措辞：若为笔误则修正批次说明；若确有第 5 件前端文件需补交并重算清单 sha 后复核。"
     },
     {
       "view": "架构合理性",
       "category": "可接受",
-      "evidence": "移植仅取宿主无关机制（派发闸/内审/反审直连/preflight + 三协议），丢弃 dsh/cc 适配层避免宿主耦合；看板将 graph-math.js 独立为纯数学层与 app.js 渲染层分离；dependencies.lock.json 锁定依赖版本。",
+      "evidence": "宿主无关机制整体移植并丢弃 dsh/cc 适配层；凭据读取收敛为 ~/.zcode/v2/config.json 的 provider.<id>.options.apiKey（按 baseURL 前缀定位渠道），删两个 YAML 解析函数收窄解析面；移除误纳的 models.json 与三份 20260921 文档；dependencies.lock.json 随交付保证可复现。",
       "conclusion": "接受",
-      "disposition": "通过，无需处置。"
+      "disposition": "无需处置；建议下批顺手确认 SKILL.md/references 无对已删 models.json 的残留文字引用（L4 无文件工具未直查，测试 122/0 与全仓清理记录下风险很低）。"
     },
     {
       "view": "测试完整性",
       "category": "非阻塞",
-      "evidence": "node --test 122 pass / 0 fail，覆盖派发闸/内审/主文锚点/看板视图四文件；反审直连无独立 test 文件，但 L1 round=2 中经智谱席 429 → 白名单扩展 → glm-5.3 补签路径被真实执行验证（闸门 exit 0）。",
+      "evidence": "node --test 4 个测试文件 122 pass / 0 fail，覆盖派发闸/内审/主文锚点/看板视图；preflight 实测 4/5 通、反审直连 dry-run 正常；L1 四路 round=2 全达标、闸门 exit 0、8 席 4 阵营。缺口：preflight 4/5 的失败项未归因，白名单扩展后未见显式复测（5/5）记录。",
       "conclusion": "有条件接受",
-      "disposition": "本批放行；后续批次补 tests/反审直连.test.mjs，将补签路径固化为回归。"
+      "disposition": "补记失败项归因（推断为智谱 glm-5.3-flash 429）及白名单扩展后的复测结果；若失败项并非额度问题需排查后补测。"
     },
     {
       "view": "边界条件",
-      "category": "可接受",
-      "evidence": "glm-5.3-flash 429 额度耗尽为真实边界触发且处置合规（同阵营替换、provider 不变、补签完成、四阵营仍齐）；preflight.mjs 前置检查与派发闸对 8 席/4 阵营齐备性硬校验（exit 0）提供结构性兜底。",
-      "conclusion": "接受",
-      "disposition": "通过；腾讯、智谱两次额度耗尽已构成模式，建议将席位降级路径沉淀为协议条目。"
+      "category": "非阻塞",
+      "evidence": "上游额度耗尽（429）按腾讯席先例以同阵营 glm-5.3 补签，阵营与 provider 不变，闸门仍 8 席 4 阵营 exit 0；凭据渠道按 baseURL 前缀定位，迁移后 preflight/dry-run 实测通过。开放点：席位表白名单允许运行期换模型，「同阵营不变」目前仅靠惯例维持。",
+      "conclusion": "有条件接受",
+      "disposition": "将「白名单扩展不得变更阵营与 provider」固化为闸门校验或写入派发协议；本轮执行已满足该约束，仅需留痕固化。"
     },
     {
       "view": "性能安全",
-      "category": "可接受",
-      "evidence": "材料无性能实测；看板为静态前端资产（4 文件）加纯函数数学层，风险面小；dependencies.lock.json 锁依赖属供应链正向实践；无删除/覆盖/发布类安全敏感操作记录。",
-      "conclusion": "接受",
-      "disposition": "通过；看板后续接入大数据量时可补 graph-math 基准测试。"
+      "category": "非阻塞",
+      "evidence": "凭据读取迁移属安全敏感计划外变更：密钥仍取自用户本地 ~/.zcode/v2/config.json，未见入库或入清单；20 项 sha 重算全 MATCH 保障产物未中途篡改；看板为纯前端可视化，无性能敏感面。局限：L4 无文件工具，未能直查 apiKey 是否落日志/产物。",
+      "conclusion": "有条件接受",
+      "disposition": "由具备文件工具的层级抽查：apiKey 不落日志、不进产物，config 读取失败的报错不含密钥明文。"
     },
     {
       "view": "用户体验",
       "category": "可接受",
-      "evidence": "SKILL.md 11 节加派发/内审协议/反审协议三文档支撑流程可遵循性；看板多图附演示目录（demo.mjs + README.md）提供上手路径；主文锚点测试保障文档内链有效性；CHANGELOG 记录版本演进。",
+      "evidence": "SKILL.md 11 节随机制移植交付且主文锚点测试守护锚点有效性；docs/演示/进度可视化演示（demo.mjs + README.md）降低看板多图上手成本；CHANGELOG 随清单交付记录版本与变更；429 场景有白名单回退路径，流程不因单席额度卡死。",
       "conclusion": "接受",
-      "disposition": "通过，无需处置。"
+      "disposition": "无需处置。"
     }
   ],
-  "summary": "产物清单与交付完整性复核通过（0 阻塞）；两项非阻塞后续：补 tests/反审直连.test.mjs、将席位额度降级先例协议化。",
+  "summary": "L4 复核通过：产物清单完整、多级审签证据闭合、0 阻塞；两项非阻塞事项（preflight 4/5 失败项归因补记、「graph-math + 4 前端文件」与清单 4 件的计数核对）建议随下批收尾。",
   "implementer_camp": "deepseek",
   "reviewer_camp": "zhipu",
   "blocking": 0

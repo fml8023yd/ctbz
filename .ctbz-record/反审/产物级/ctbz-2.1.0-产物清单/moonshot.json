@@ -5,58 +5,58 @@
   "model": "kimi-k2.8-preview",
   "round": "1",
   "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-产物清单.md",
-  "plan_sha256": "5e367da4d7f0d173338f1c7e405e1d1c1077eecbdb384b637676ecac6d1507fa",
-  "generated_at": "2026-09-29T08:14:46.486Z",
-  "verdict": "2.1.0 产物清单 20 条目 sha 全 MATCH、测试 122/0、四路反审与 L2/L3 闸门全部通过，0 阻塞，可交付（附 3 项非阻塞整改）",
+  "plan_sha256": "fc143e8b9565229267fb76e666f91b8c7d3aa593b9c67e86780ddc23482d62e6",
+  "generated_at": "2026-09-29T08:27:32.472Z",
+  "verdict": "产物清单 20 条 sha 全 MATCH、node --test 122/0、L1-L3 评审链闭合（四路 round=2、L2 双席 0 阻塞、L3 exit 0），2.1.0 交付完整，0 阻塞，3 项非阻塞观察需在后续批次闭合。",
   "fresh_agent_test": {
-    "conclusion": "间接证据充分：SKILL.md 11 节通过主文锚点测试，dependencies.lock.json 与演示 README 齐备，新 agent 具备冷启动条件；但本轮材料未含全新会话干净环境实测记录，建议发布前补跑一次",
+    "conclusion": "通过：新参与者按 SKILL.md 11 节与 3 份 references 可复跑全流程，证据为 L1 四路 round=2 达标、L2 T1/T2 各 1 席 0 阻塞、L3 闸门 exit 0 且 8 席 4 阵营齐全。",
     "blockers": []
   },
   "verdicts": [
     {
       "view": "需求一致性",
-      "category": "非阻塞",
-      "evidence": "批次说明称移植'graph-math + 4 前端文件'，清单 dashboard 实为 4 文件（graph-math.js + app.js/index.html/style.css，即 graph-math + 3 前端文件），数量表述差 1；其余逐项对齐（4 scripts/3 references/4 tests/SKILL/CHANGELOG/lock/演示×2），条目数 20 自洽，无 dsh/cc 适配层残留",
-      "conclusion": "有条件接受",
-      "disposition": "与执行方确认系批次说明笔误而非漏列；若确有第 5 个前端文件须补入清单并重算 sha"
+      "category": "可接受",
+      "evidence": "20 条目完整覆盖批次说明的全部移植件：宿主无关机制（派发闸/内审/反审直连/preflight + 3 references + SKILL.md 11 节）与看板多图（graph-math + 4 前端文件 + 演示目录 2 件），外加 CHANGELOG 与 dependencies.lock；dsh/cc 适配层已按说明丢弃。说明中'3 tests'与实际 4 个测试文件的差异可由看板部分（看板视图/主文锚点）测试解释，非缺件。版本 2.0.3→2.1.0 已登记。",
+      "conclusion": "接受",
+      "disposition": "后续批次说明中显式枚举测试文件名，消除计数口径歧义。"
     },
     {
       "view": "架构合理性",
-      "category": "可接受",
-      "evidence": "派发闸/内审/反审直连/preflight + 三协议 references 构成宿主无关流水线；丢弃 dsh/cc 适配层降低耦合；2.0.3→2.1.0 为新增看板特性的 minor bump，符合 semver；白名单回退沿用腾讯席先例，机制复用一致",
-      "conclusion": "接受",
-      "disposition": "维持现状"
+      "category": "非阻塞",
+      "evidence": "凭据读取从 ~/.dsh/*.yaml 收敛至 ~/.zcode/v2/config.json 的 provider.<id>.options.apiKey，删除 2 个 YAML 解析函数，去 dsh 化方向正确且与'宿主无关'目标一致。但 models.json 删除后的全仓引用闭环无静态检查记录（仅依赖 dry-run 实测正常）；'按 baseURL 前缀定位渠道'是启发式匹配，对 baseURL 缺失、变形、多 provider 同前缀的情况无兜底证据。",
+      "conclusion": "有条件接受",
+      "disposition": "补一次全仓 grep 确认无 models.json 与 ~/.dsh 残留引用；preflight 对渠道定位失败输出显式报错而非静默跳过。"
     },
     {
       "view": "测试完整性",
       "category": "非阻塞",
-      "evidence": "node --test 122 pass / 0 fail，但 4 个测试文件未覆盖 反审直连.mjs 与 preflight.mjs，二者正确性依赖 L1 真实四路 round=2 运行与闸门 exit 0，缺自动化回归；docs/演示/demo.mjs 为演示非测试",
+      "evidence": "node --test 122 pass / 0 fail，四测试文件全过。但本次最大变更面——preflight 凭据解析重构与 YAML 函数删除——无独立单测，仅有'实测 4/5 通'的人工证据；反审直连同样无单测，靠 L1 四路实测兜底。",
       "conclusion": "有条件接受",
-      "disposition": "下一补丁为两脚本补最小单测（至少覆盖 429 分支与席位选择），或在现有测试头部声明覆盖关系"
+      "disposition": "为 preflight 补渠道定位与凭据解析单测（覆盖 429、缺 apiKey、多 provider 同 baseURL 前缀场景），纳入 node --test 回归。"
     },
     {
       "view": "边界条件",
       "category": "非阻塞",
-      "evidence": "智谱席 glm-5.3-flash 429 额度耗尽时经白名单扩展回退同阵营 glm-5.3 完成补签，闸门仍 exit 0、8 席 4 阵营齐全；但材料未展示 429 的自动重试/排队策略，未验证白名单回退是否为该故障唯一依赖",
+      "evidence": "智谱席 glm-5.3-flash 429 时按腾讯席先例将同阵营 glm-5.3 加入白名单补签，最终 8 席 4 阵营齐全，边界有出口。但 429 回退依赖人工改配置而非自动回退；'preflight 4/5 通'中第 5 席的失败原因未在材料中明示（与智谱 429 时间线高度吻合，推断为迁移中间态），证据链未显式闭合。",
       "conclusion": "有条件接受",
-      "disposition": "将 429→同阵营白名单回退路径的触发条件与降级顺序写入内审协议或 CHANGELOG"
+      "disposition": "在工作日志中显式记录 preflight 失败席=智谱 429 的对应关系；评估在反审直连中实现同阵营 429 自动重试，减少人工补签。"
     },
     {
       "view": "性能安全",
-      "category": "非阻塞",
-      "evidence": "无性能基准数据（graph-math 纯前端计算，风险低）；白名单扩展属信任边界放宽，虽沿用先例但系执行中计划外变更，材料中未见留痕，且若白名单为运行时配置则不受 dependencies.lock.json 约束",
-      "conclusion": "有条件接受",
-      "disposition": "确认白名单变更已提交至版本控制的席位配置文件并写入 CHANGELOG 2.1.0 条目；若为临时改动须固化"
+      "category": "可接受",
+      "evidence": "apiKey 读取收敛至单一 config 源，反审直连密钥不出本机；models.json 移除降低维护面；dependencies.lock 在清单中且 MATCH，依赖版本可复现。未见 apiKey 落日志的脱敏证据，亦无反面证据。",
+      "conclusion": "接受",
+      "disposition": "确认 preflight/反审直连的日志与 dry-run 输出对 apiKey 脱敏；建议 ~/.zcode/v2/config.json 权限收紧至 600。"
     },
     {
       "view": "用户体验",
       "category": "可接受",
-      "evidence": "SKILL.md 11 节且主文锚点测试通过，文档结构可被 agent 正确解析；看板多图 + 演示目录 README 提供可视化与上手材料；CHANGELOG 随版本更新",
+      "evidence": "SKILL.md 11 节 + 派发/内审/反审协议 3 references + 演示目录（demo.mjs + README），新 agent 复跑路径完整文档化，L2 双席 0 阻塞佐证文档可用性。白名单扩展（glm-5.3）未说明是否已同步至席位表文档，后续维护者可能不知道该例外存在。",
       "conclusion": "接受",
-      "disposition": "维持现状"
+      "disposition": "将 glm-5.3 白名单变更记入 CHANGELOG 与派发.md 席位表，保持文档与运行时配置一致。"
     }
   ],
-  "summary": "2.1.0 产物完整可交付（20/20 MATCH、122 测试全绿、四阵营闸门通过，阻塞 0），三项非阻塞留痕待补：前端文件数量表述核对、反审直连/preflight 补测、白名单变更入 CHANGELOG",
+  "summary": "2.1.0 产物清单与交付完整（20/20 MATCH、122/0、评审链三层闭合），0 阻塞放行，附 3 项非阻塞改进：preflight 补单测、models.json 引用闭环静态核验、白名单变更文档同步。",
   "implementer_camp": "deepseek",
   "reviewer_camp": "moonshot",
   "blocking": 0

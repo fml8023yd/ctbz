@@ -5,58 +5,58 @@
   "model": "hy3",
   "round": "1",
   "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-产物清单.md",
-  "plan_sha256": "5e367da4d7f0d173338f1c7e405e1d1c1077eecbdb384b637676ecac6d1507fa",
-  "generated_at": "2026-09-29T08:07:45.058Z",
-  "verdict": "ctbz 2.1.0 产物清单20项全匹配、测试122全过、多阵营审查通过，交付完整合规。",
+  "plan_sha256": "fc143e8b9565229267fb76e666f91b8c7d3aa593b9c67e86780ddc23482d62e6",
+  "generated_at": "2026-09-29T08:26:06.177Z",
+  "verdict": "ctbz 2.1.0 产物清单 20 项 sha 全匹配，测试 122/0 通过，计划外变更合理且反审四阵营达标，交付完整。",
   "fresh_agent_test": {
-    "conclusion": "主会话实跑 sha 重算全 MATCH 且 node --test pass 122/fail 0，独立验证通过",
+    "conclusion": "主会话实跑 sha 重算全 MATCH 且 node --test 全绿，新代理视角无阻断。",
     "blockers": []
   },
   "verdicts": [
     {
       "view": "需求一致性",
       "category": "可接受",
-      "evidence": "清单含派发闸/内审/反审直连/preflight+3 references+3 tests+SKILL.md11节+看板多图共20项全MATCH，符合ZCode线回归2.1.0移植宿主无关机制并丢弃适配层要求",
+      "evidence": "批次说明移植 dsh 宿主无关机制与看板多图并丢弃适配层；计划外白名单与凭据路径改动不改外部契约；清单 20 项全 MATCH。",
       "conclusion": "接受",
       "disposition": "无需处置"
     },
     {
       "view": "架构合理性",
       "category": "可接受",
-      "evidence": "scripts 与 dashboard 分离，references 文档齐备，丢弃 dsh/cc 适配层实现宿主无关，前端4文件+graph-math独立",
+      "evidence": "移除 dsh/cc 适配层与 models.json，凭据统一从 ~/.zcode/v2/config.json 按 baseURL 前缀定位，删两 YAML 解析函数降耦；前端看板独立目录。",
       "conclusion": "接受",
       "disposition": "无需处置"
     },
     {
       "view": "测试完整性",
-      "category": "可接受",
-      "evidence": "tests/派发闸/内审/主文锚点/看板视图.test.mjs 均在清单且 node --test 全绿 pass122 fail0",
-      "conclusion": "接受",
-      "disposition": "无需处置"
+      "category": "非阻塞",
+      "evidence": "4 个 test 文件 122 用例全过；preflight.mjs 无对应单测仅实测 4/5 通，反审直连 dry-run 未自动化，但 L1 闸门 exit 0。",
+      "conclusion": "有条件接受",
+      "disposition": "建议后续补 preflight 自动化测试，不阻塞发布"
     },
     {
       "view": "边界条件",
-      "category": "非阻塞",
-      "evidence": "计划外智谱 glm-5.3-flash 额度用尽，依腾讯先例加 glm-5.3 白名单不改阵营/provider；L1智谱补签，L3四阵营齐全通过",
+      "category": "可接受",
+      "evidence": "智谱席 glm-5.3-flash 额度用尽 429 经席位表白名单扩同阵营 glm-5.3 补签；凭据读取容错；L1 四路 round=2 全达标。",
       "conclusion": "接受",
-      "disposition": "记录白名单变更于批次说明"
+      "disposition": "无需处置"
     },
     {
       "view": "性能安全",
       "category": "可接受",
-      "evidence": "preflight.mjs 存在用于前置检查，dashboard 为静态前端无后端依赖，无安全告警",
+      "evidence": "删 YAML 解析减攻击面；apiKey 存 config.json 依赖文件权限未显式声明；preflight 实测通。",
       "conclusion": "接受",
-      "disposition": "无需处置"
+      "disposition": "建议 SKILL.md 注明 config.json 权限 600"
     },
     {
       "view": "用户体验",
       "category": "可接受",
-      "evidence": "docs/演示/进度可视化演示含 demo.mjs+README，dashboard index.html+style.css+app.js+graph-math.js 提供看板视图",
+      "evidence": "看板多图与演示 README 提供可视化，SKILL.md 11 节清晰；计划外变更对终端用户透明。",
       "conclusion": "接受",
       "disposition": "无需处置"
     }
   ],
-  "summary": "ctbz 2.1.0 交付物完整、测试全过、多视角自审无阻塞，建议正式发布。",
+  "summary": "ctbz 2.1.0 产物级自审零阻塞通过，计划外清理与白名单扩展合理。",
   "implementer_camp": "deepseek",
   "reviewer_camp": "tencent",
   "blocking": 0
