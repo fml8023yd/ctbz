@@ -1,0 +1,74 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "2",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.3-计划.md",
+  "plan_sha256": "9b02ee3b45761e711a6e2149344c214652845bd4c720b4143878ab15537eac9a",
+  "generated_at": "2026-09-29T20:08:52.265Z",
+  "verdict": "有条件接受：同源席降级机制与单一真源改造已验证，但计划正文未给出 dependencies.lock.json 的校验值、未说明 base URL 配置来源，且 fresh-agent 无法仅凭计划正文复现改动。",
+  "fresh_agent_test": {
+    "conclusion": "不能开工",
+    "blockers": [
+      "计划未提供 dependencies.lock.json 的新 sha256 校验值，无法 verifyBundle（计划 § 任务契约 T1）",
+      "计划未说明 CTBZ_ZC_CONFIG 的凭据文件格式与路径约定，fresh agent 不知如何构造 provider 配置",
+      "计划未给出新增文件 skills/ctbz/scripts/lib/反审席位表.mjs 的完整源码，仅有附件可作反向推断，但计划正文缺此内容",
+      "计划未给出 git commit hash，回滚指令 `<本批 commit>` 是占位符，不可执行",
+      "计划未说明 反审直连.mjs / 派发闸.mjs 中 import 路径与旧内联 CAMPS/SEAT_TABLE 删除范围的精确行号"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "计划前言：「DeepSeek 官方两个渠道同时欠费（HTTP 402，取证 §1）...允许其降级到 WB 网关...官方渠道可用时仍优先官方」；任务契约 T1 明确 write-set、失败级联与验收标准；附件 §6 实跑 deepseek status ok http=200",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "任务契约 T1 与附件 lib/反审席位表.mjs 均声明单一真源，导出 CAMPS/CAMP_ORDER/SEAT_TABLE/allowedModelsFor/seatAttempts；但计划正文未给出 dependencies.lock.json 的 verifyBundle 校验值（任务契约 T1 写明「新增/改动后必须重算」）",
+      "conclusion": "有条件接受",
+      "disposition": "补充 dependencies.lock.json 校验值与生成命令到计划正文，或附 commit diff 证明已重算"
+    },
+    {
+      "view": "测试完整性",
+      "category": "可接受",
+      "evidence": "计划 § 任务契约 T1 列明 5 例测试目标；附件 §5 输出 `node --test tests/席位降级.test.mjs` pass 5 fail 0，`node --test tests/*.test.mjs` tests 135 pass 135 fail 0",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "任务契约 T1 与附件 lib/反审席位表.mjs 说明「最多两条」「未声明即空集，fail-closed」；测试第 3 例验证双渠道不可用 exit 1 且明示降级已尝试；第 4 例验证未声明组合判红",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "附件 lib/反审席位表.mjs 第 7 行注释已标明「WORKBUDDY_BASE=http://101.133.151.121:18890/v1（已知 http 明文风险）」；计划正文仅在证据表格中引用 WB 网关可用性，未显式处理明文风险与自建网关可用性依赖",
+      "conclusion": "有条件接受",
+      "disposition": "计划在正文中追加 HTTP 明文风险说明与降级路径的可用性监控/回退策略"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "任务契约 T1 规定双渠道失败时 detail 明示「已尝试降级到 <备选>」；测试第 3 例断言输出包含「凭据缺失」「已尝试降级到 workbuddy/deepseek-v4.1-flash」",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    }
+  ],
+  "summary": "同源席降级方案设计合理、测试通过，但计划正文对校验文件与明文风险的记录不足，fresh agent 也无法凭计划独立开工。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 20469,
+    "model_echo": "kimi-k2.7"
+  }
+}

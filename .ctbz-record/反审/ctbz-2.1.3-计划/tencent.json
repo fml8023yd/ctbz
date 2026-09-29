@@ -1,0 +1,73 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.3-计划.md",
+  "plan_sha256": "14c7607c71b7f30d4e095ee35206c13463d968e7f588b099fbc89e72111c4691",
+  "generated_at": "2026-09-29T20:03:03.994Z",
+  "verdict": "计划方向正确但存在清单不一致与测试例数证据偏差，澄清后可接受",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工",
+    "blockers": [
+      "计划未内联现有代码（如 SEAT_TABLE/CAMPS 结构），需读取 skills/ctbz/scripts 才能改",
+      "取证附件未随计划提供，402/503 实测无法核验",
+      "fallback 字段格式与重试一次的具体代码逻辑未给出",
+      "新增 tests 的 4 例具体断言未写，仅列名称"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划 任务契约 T1 与 行动账 A2 文件清单不一致（T1未提 lib/反审席位表.mjs，A2提及）",
+      "conclusion": "有条件接受",
+      "disposition": "对齐任务契约与行动账，明确是否新增单一真源文件"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "计划 行动账 A2 提出席位表抽成单一真源 lib/反审席位表.mjs，但任务契约 T1 未列此文件；反审重点 2 要求白名单严收口",
+      "conclusion": "有条件接受",
+      "disposition": "补充 lib 文件创建与引用步骤，确保 runner 与闸门同源"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "计划 T1 要求回归 4 例；附件 §5 执行 tests/席位降级.test.mjs 显示 ℹ tests 2，仅列出 2 例通过",
+      "conclusion": "有条件接受",
+      "disposition": "核实缺失 2 例或修正计划声明，确保 4 例可执行可见"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "计划 反审重点 3 与 行动账 A3；附件 §5 测试『未声明的 provider 组合仍判红』通过",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "附件 §6 deepseek 席降级 latencyMs=20153；计划 前言明确保持门槛不改",
+      "conclusion": "有条件接受",
+      "disposition": "观察降级延迟，建议加超时或降级提示"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "附件 §6 回执 status=ok，计划 验收『四席回执齐』",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    }
+  ],
+  "summary": "需求与边界合理，架构与测试需补全文件清单及例数证明",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 69382,
+    "model_echo": "hy3"
+  }
+}

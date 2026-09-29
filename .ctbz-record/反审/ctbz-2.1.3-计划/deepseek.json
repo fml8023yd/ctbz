@@ -1,0 +1,75 @@
+{
+  "camp": "deepseek",
+  "camp_label": "DeepSeek",
+  "provider": "workbuddy",
+  "model": "deepseek-v4.1-flash",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.3-计划.md",
+  "plan_sha256": "14c7607c71b7f30d4e095ee35206c13463d968e7f588b099fbc89e72111c4691",
+  "generated_at": "2026-09-29T20:02:12.741Z",
+  "verdict": "不接受（本轮）——T1 write-set 与行动账 A2 对席位表落点自相矛盾，且计划宣称的「回归 4 例」与取证 §5 实测 2 例不符，须修订对齐后重提。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工。方向可懂，但落到写码处有硬缺口：写集不闭合、用例数与证据对不上、关键参数（备选 model 串、恢复探测、锁文件重算）未定。",
+    "blockers": [
+      "写集冲突：T1 只列 反审直连.mjs / 派发闸.mjs / dependencies.lock.json + 新增 tests/席位降级.test.mjs，而 A2 要求「席位表抽成单一真源 lib/反审席位表.mjs」，该新文件未进 write-set，不知改哪。",
+      "用例数不符：T1 与现场核对称回归 4 例，取证 §5 实跑 tests 2 / pass 2，无法据「4 例」开工。",
+      "备选 model 串不确定：A1 写 workbuddy/deepseek-v4.1-flash，但取证 §2 中 deepseek-v4-flash 请求的 model_echo 亦为 deepseek-v4.1-flash，写入 SEAT_TABLE 的确切字符串待定。",
+      "「官方恢复后自动回到官方」无检测点与判定算法，A3 仅说「失败后重试备选恰好一次」。",
+      "dependencies.lock.json 的「同步重算」未给出命令，无法执行。",
+      "渠道命名无法对应：计划前言「Deepseek-ML / Deepseek-JN」与取证 §1 的 31f56db1 / 87bc4c2c 缺映射。"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划前言「DeepSeek 官方两个渠道（Deepseek-ML / Deepseek-JN）同时欠费（HTTP 402，取证 §1）」；取证 §1 渠道标识实为 31f56db1 与 87bc4c2c。『四模型组合全部 402』与 §1 四行一致。",
+      "conclusion": "有条件接受",
+      "disposition": "要求把渠道命名与取证 §1 的 channel id 对齐，或补一行映射；其余需求与证据自洽。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "阻塞",
+      "evidence": "T1 改动列 反审直连.mjs / 派发闸.mjs / dependencies.lock.json，新增仅 tests/席位降级.test.mjs；行动账 A2「席位表抽成单一真源 lib/反审席位表.mjs，闸门按白名单放行」。该新文件未出现在 T1 write-set，且 T1 仍写「SEAT_TABLE 增 altProviders」（内联）与 A2 抽独立模块相冲突。",
+      "conclusion": "不接受",
+      "disposition": "先定席位表落点（内联改 派发闸.mjs vs 抽 lib/反审席位表.mjs），把选定方案写进 T1 write-set，删除另一版表述；保证单一真源。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "阻塞",
+      "evidence": "现场核对「降级回归 4 例通过 | ↗D | 取证 §5」；T1「新增 tests/席位降级.test.mjs（回归 4 例…）」；取证 §5 实跑 `node --test tests/席位降级.test.mjs` 输出 `tests 2 / pass 2 / fail 0`。宣称 4 例与实测 2 例不符。",
+      "conclusion": "不接受",
+      "disposition": "补齐并实跑 4 例（路径触发 / 尝试序列封顶 / 失败级联 / 闸门放行判红），以真实输出替换 §5 计数；全量 132 例需在新写集下重跑确认。"
+    },
+    {
+      "view": "边界条件",
+      "category": "阻塞",
+      "evidence": "A3 仅规定「失败后重试备选且恰好一次」；未定义官方与备选『双渠道均失败』的终态（T1 用例名含「失败级联」但 §5 未见该例实跑）。取证 §2 WB/deepseek-v4-pro http=503，备选并非全可用。『官方恢复后自动回官方』无检测点。",
+      "conclusion": "有条件接受",
+      "disposition": "补双失败终态与回执判红规则、备选 503/超时的回退与收敛、官方恢复探测（何时、以何信号回正）。"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "取证 §6 降级实跑 latencyMs=20153（约 20s）；取证 §2 WB/deepseek-v4-pro http=503 3161ms。计划未设官方/备选的超时预算。降级目标为同源席（前言已述不计独立性），安全面无新增暴露。",
+      "conclusion": "有条件接受",
+      "disposition": "为官方与备选各设超时上限并计入尝试序列，避免降级路径拖垮整批反审；回执记录实际 provider/model 已满足可审计。"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "验收以 `反审直连.mjs … --json` 回执 provider 判定；A1 证伪用 exit 0（status=ok）；回滚为 `git revert <本批 commit>` 并删除 .ctbz-record/反审/ctbz-2.1.3-计划/。路径清晰可用。",
+      "conclusion": "接受",
+      "disposition": "维持；建议回执增 usedFallback 字段，便于人工一眼识别本轮是否降级。"
+    }
+  ],
+  "summary": "方向可行，但写集不闭合（A2 新文件未入 T1）、宣称 4 例与取证 §5 实测 2 例不符，另边界与参数多处欠具体，须修订对齐后重提。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "https://api.deepseek.com/chat/completions",
+    "http_status": 200,
+    "latency_ms": 17630,
+    "model_echo": "deepseek-v4.1-flash"
+  }
+}

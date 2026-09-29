@@ -32,21 +32,7 @@ import { createHash } from "node:crypto";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const DEEPSEEK_BASE = "https://api.deepseek.com";
-const WORKBUDDY_BASE = "http://101.133.151.121:18890/v1"; // 自建通道（已知 http 明文风险）
-
-// 席位表：与 references/派发.md §3 一致；反审席 DeepSeek 取 deepseek-flash（同源，不计独立性）
-// reasoningEffort："off" 关推理——glm 在反审这类长结构化任务上会无限推理（实测 15 分钟 / 31255 块 / 正文 0 字，
-//   而简单问题 225 字即止），关推理后立即出正文；反审是结构化判断，不依赖长思维链，故对智谱席关闭。
-// 2026-09-30 席位模型改判：本机网关对单次上游生成有 ~120s 硬上限，超时即断流/502。
-//   实测（docs/取证/ctbz-2.1.1-凭据定位修复.md §8，同一反审 prompt）：hy4-preview-f 断流、kimi-k2.8-preview 断流、kimi-k3 502；
-//   hy3 40s、kimi-k2.7 61s、kimi-k2.6 15s 均正常出正文。故腾讯席换 hy3、月之暗面席换 kimi-k2.7（同厂商，席位表已收录）。
-const CAMPS = {
-  deepseek: { key: "deepseek", label: "DeepSeek", provider: "deepseek-official", model: "deepseek-flash", base: DEEPSEEK_BASE },
-  zhipu:    { key: "zhipu",    label: "智谱",     provider: "workbuddy",         model: "glm-5.3-flash",   base: WORKBUDDY_BASE, reasoningEffort: "off" },
-  tencent:  { key: "tencent",  label: "腾讯",     provider: "workbuddy",         model: "hy3",             base: WORKBUDDY_BASE },
-  moonshot: { key: "moonshot", label: "月之暗面", provider: "workbuddy",         model: "kimi-k2.7",       base: WORKBUDDY_BASE },
-};
+import { CAMPS } from "./lib/反审席位表.mjs";
 
 const SIX_VIEWS = ["需求一致性", "架构合理性", "测试完整性", "边界条件", "性能安全", "用户体验"];
 const CATEGORIES = ["阻塞", "非阻塞", "可接受"];
@@ -451,20 +437,37 @@ async function main() {
   // 四路互不依赖，并行派发：推理型席位单路可达数分钟，串行会成倍拉长墙钟
   const runOne = async (camp) => {
     const outFile = join(recordDir, camp.key + suffix + ".json");
-    const { key, source } = resolveApiKey(camp.provider);
-    if (!key) {
-      return { camp: camp.key, label: camp.label, status: "fail", detail: `凭据缺失（来源 ${source}）` };
+    // 同源降级：原渠道取不到凭据 / 调用失败时，按 fallback 换渠道重试一次
+    // （仅 deepseek 席声明 fallback；独立性由另三席保证，见 CAMPS 注释与取证 §1-§2）。
+    const attempt = async (candidate) => {
+      const { key, source } = resolveApiKey(candidate.provider);
+      if (!key) {
+        return { ok: false, missing: true, detail: `凭据缺失（来源 ${source}）` };
+      }
+      const prompt = buildPrompt({ camp: candidate, planPath, planText, planSha, round: a.round, prev: a.prev, attachments });
+      const r = await callCamp({ camp: candidate, prompt, apiKey: key, timeoutMs: a.timeoutMs, maxTokens: a.maxTokens, stream: !a.noStream });
+      return { ...r, source };
+    };
+    let used = camp;
+    let r = await attempt(camp);
+    if (!r.ok && camp.fallback) {
+      const alt = { ...camp, provider: camp.fallback.provider, model: camp.fallback.model, base: undefined };
+      const { base } = resolveApiKey(alt.provider);
+      used = { ...alt, ...(base ? { base } : {}), fallbackFrom: camp.model };
+      const retry = await attempt(used);
+      if (retry.ok) r = retry;
+      else r = { ...retry, detail: `${retry.detail}（已尝试降级到 ${alt.provider}/${alt.model}）` };
     }
-    const prompt = buildPrompt({ camp, planPath, planText, planSha, round: a.round, prev: a.prev, attachments });
-    const r = await callCamp({ camp, prompt, apiKey: key, timeoutMs: a.timeoutMs, maxTokens: a.maxTokens, stream: !a.noStream });
     if (!r.ok) {
-      return { camp: camp.key, label: camp.label, status: "fail", http: r.http, latencyMs: r.latencyMs, detail: `${r.kind}: ${r.detail}` };
+      return r.missing
+        ? { camp: camp.key, label: camp.label, status: "fail", detail: r.detail }
+        : { camp: camp.key, label: camp.label, status: "fail", http: r.http, latencyMs: r.latencyMs, detail: `${r.kind}: ${r.detail}` };
     }
     const receipt = {
       camp: camp.key,
       camp_label: camp.label,
-      provider: camp.provider,
-      model: camp.model,
+      provider: used.provider,
+      model: used.model,
       round: a.round,
       plan: planPath,
       plan_sha256: planSha,

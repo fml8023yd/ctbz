@@ -1,0 +1,72 @@
+{
+  "camp": "zhipu",
+  "camp_label": "智谱",
+  "provider": "workbuddy",
+  "model": "glm-5.3-flash",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.3-计划.md",
+  "plan_sha256": "14c7607c71b7f30d4e095ee35206c13463d968e7f588b099fbc89e72111c4691",
+  "generated_at": "2026-09-29T20:02:34.439Z",
+  "verdict": "有条件接受：方案方向正确且回归与实跑证据齐备，但「回归 4 例」与取证实测仅 2 例不符、A2 新增文件未入 write-set，需修正后方可定稿。",
+  "fresh_agent_test": {
+    "conclusion": "基本可直接开工。改动点（反审直连.mjs、派发闸.mjs、dependencies.lock.json、新增测试）写得明确，验收命令可复制执行，回滚路径有。卡在两处：一是测试数量口径矛盾（契约写 4 例，取证 §5 实跑仅 2 例），不知道 4 例是目标态还是已存在，无法判断该补 2 例还是改文案；二是 A2 提出抽成 lib/反审席位表.mjs 作为单一真源，但 T1 的改动清单未列此文件，write-set 与行动账不一致，不知是否允许新建。另 fallback 的具体配置格式（SEAT_TABLE 中字段名/结构）计划未给出样例，只能靠读现码推断。",
+    "blockers": [
+      "测试例数口径矛盾：T1 与验收写『回归 4 例』，取证 §5 实跑输出为 tests 2 / pass 2，2 例缺口无对应代码或说明",
+      "A2 引入新文件 lib/反审席位表.mjs 但未列入 T1 改动清单，write-set 不闭合",
+      "fallback 在 SEAT_TABLE 中的字段结构与 altProviders 白名单匹配规则无样例定义"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划前言引取证 §1（官方两渠道 402）与 §2（WB deepseek-v4.1-flash 200），需求（欠费时第 4 席降级、官方恢复优先官方）与反审重点 3 条对应一致；但『降级回归 4 例通过』锚点 ↗D 指向取证 §5，而 §5 实测输出 tests=2",
+      "conclusion": "有条件接受",
+      "disposition": "修正 ↗D 锚点口径：要么补足 4 例测试再引证，要么把计划文案改为与实测一致的例数；其余需求映射不动"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "A2 将席位表抽成 lib/反审席位表.mjs 单一真源、闸门按白名单放行（计划 A2 行 + 取证 §3 展示两文件各写一份 SEAT_TABLE/CAMPS 的漂移风险），方向正确；但该新文件未出现在 T1『改动』清单中，write-set 不闭合",
+      "conclusion": "有条件接受",
+      "disposition": "在 T1 改动清单补列 lib/反审席位表.mjs（新增）及其在 dependencies.lock.json verifyBundle 中的同步要求，消除两处清单不一致"
+    },
+    {
+      "view": "测试完整性",
+      "category": "阻塞",
+      "evidence": "T1 契约与 A2/A3 证伪命令均要求 tests/席位降级.test.mjs pass 4（『路径触发 + 尝试序列封顶 + 失败级联 + 闸门放行/判红』），取证 §5 同名测试实跑输出为『ℹ tests 2 / ℹ pass 2』，仅覆盖路径触发与闸门放行/判红两条",
+      "conclusion": "不接受",
+      "disposition": "补齐『尝试序列封顶』与『双渠道失败级联』两例（计划已注明零网络要求），补齐后重跑 node --test tests/席位降级.test.mjs 并更新取证 §5，再回填 ↗D 锚点"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "计划明确：恰好重试一次（A3『否掉无限重试——失败级联必须收敛』）、未声明 provider×model 组合仍判红（反审重点 2）、官方恢复自动回正（反审重点 3）；取证 §2 显示 WB/deepseek-v4-pro 为 503，计划 fallback 仅声明 deepseek-v4.1-flash，未误选不可用模型",
+      "conclusion": "接受",
+      "disposition": "无需处置；建议测试中显式覆盖 WB 网关偶发 503 时回执判红的场景，防降级渠道自身故障被误报为官方凭据问题"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "取证 §2 实测 WB deepseek-v4.1-flash 延迟 1329ms；取证 §6 降级实跑单席 latencyMs=20153、ok=1，量级可接受；安全面：白名单收口（计划前言代码块）、回执写实际 provider/model（T1）、不注册模型不下调门槛，均明确",
+      "conclusion": "接受",
+      "disposition": "无需处置；可在回执中保留降级标记字段，便于事后审计该席采样来自同源网关而非独立渠道"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "降级对调用方透明：取证 §6 实跑输出 status=ok 且 outFile 正常落盘至 .ctbz-record/反审/ctbz-2.1.3-计划/；计划『验收』节明示未做项（tag/push/Release 留待用户口令），回滚含回执目录删除，边界清晰",
+      "conclusion": "接受",
+      "disposition": "无需处置；建议回执 JSON 中显式带 fallback=true 或 provider=workbuddy 标识，避免用户误以为官方渠道已恢复"
+    }
+  ],
+  "summary": "降级方案本身立得住且实跑证据充分，但『4 例回归』与实测 2 例的矛盾是硬伤，补测并闭合 write-set 后即可放行。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 39780,
+    "model_echo": "glm-5.3-flash"
+  }
+}

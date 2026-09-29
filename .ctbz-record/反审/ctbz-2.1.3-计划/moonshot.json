@@ -1,0 +1,74 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.3-计划.md",
+  "plan_sha256": "14c7607c71b7f30d4e095ee35206c13463d968e7f588b099fbc89e72111c4691",
+  "generated_at": "2026-09-29T20:03:03.803Z",
+  "verdict": "计划方向正确、范围可控，但存在 write-set 与行动账不一致、关键代码细节缺失、实跑延迟 20s+ 未解释等缺口，需补全后接受。",
+  "fresh_agent_test": {
+    "conclusion": "不能开工",
+    "blockers": [
+      "T1 write-set 未列出 lib/反审席位表.mjs，但 A2 宣称已将其抽成单一真源，动作与产物不一致",
+      "未给出 反审直连.mjs / 派发闸.mjs 的实际代码片段或 diff，无法确定 fallback 注入点与回执字段写法",
+      "未提供 tests/席位降级.test.mjs 的用例结构与 mock 方式，无法复现 4 个回归场景",
+      "dependencies.lock.json 的同步重算缺少具体命令/脚本",
+      "未说明凭据缺失与 HTTP 402 在代码中的区分逻辑"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "计划 §前言 第 2 段：第 4 席同源，允许降级到 WB 网关；T1 验收要求 DeepSeek 回执 provider=workbuddy；取证 §6 实跑 status=ok",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "计划 §任务契约 T1 write-set 仅列 反审直连.mjs、派发闸.mjs、dependencies.lock.json，未列 lib/反审席位表.mjs；而 §行动账 A2 称已将其抽成单一真源 lib/反审席位表.mjs",
+      "conclusion": "有条件接受",
+      "disposition": "要求把 lib/反审席位表.mjs 的创建/引用补进 write-set，或删除 A2 中“单一真源”说法并说明两文件如何防止漂移"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "计划 §任务契约 T1 声明回归 4 例；取证 §5 的 tests/席位降级.test.mjs 输出仅显示 2 个测试通过，未显式映射 4 个场景到测试函数/断言",
+      "conclusion": "有条件接受",
+      "disposition": "在计划或取证中显式列出 4 个场景与测试函数/断言的对应关系"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "计划 §反审重点 1-3 覆盖独立性、白名单收口、官方自动恢复；§行动账 A3 明确降级仅重试一次且封顶",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "取证 §6 显示 deepseek 席单次实跑 latencyMs=20153，而 §2 WB 网关正常响应仅约 1320ms，差距巨大且计划未解释",
+      "conclusion": "有条件接受",
+      "disposition": "在验收中补充 20s+ 延迟的根因说明，或在回归测试里加超时/分阶段耗时断言"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "计划 §任务契约 T1 列明验收命令与回滚步骤；§验收 明确未做 tag/push，范围可控；取证 §6 输出 ok/fail/rows 结构清晰",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    }
+  ],
+  "summary": "同源席降级方案逻辑自洽，但 write-set 与行动账冲突、关键实现细节未暴露、20s+ 延迟无解释，需补全后方可视为可执行计划。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 69189,
+    "model_echo": "kimi-k2.7"
+  }
+}

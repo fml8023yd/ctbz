@@ -1,0 +1,71 @@
+{
+  "camp": "zhipu",
+  "camp_label": "智谱",
+  "provider": "workbuddy",
+  "model": "glm-5.3-flash",
+  "round": "2",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.3-计划.md",
+  "plan_sha256": "9b02ee3b45761e711a6e2149344c214652845bd4c720b4143878ab15537eac9a",
+  "generated_at": "2026-09-29T20:09:13.683Z",
+  "verdict": "计划结构完整、证据锚点齐备、测试覆盖到位，可在补齐两处非阻塞模糊点后开工",
+  "fresh_agent_test": {
+    "conclusion": "基本可以直接开工。计划内联了现状代码锚点、改动清单、验收命令与回滚方案，任务边界清晰；卡点有两处：其一，T1 要求对 skills/ctbz/scripts/dependencies.lock.json 的 verifyBundle 逐文件重算 sha，但该文件的现有结构与新增文件（lib/反审席位表.mjs、tests/席位降级.test.mjs）如何登记未给出样例；其二，验收命令依赖 docs/取证/ctbz-2.1.3-席位降级.md 作为 --plan 参数实际存在，本 prompt 未内联该计划文件的完整形态（仅有摘要），若文件不在会卡在实跑验收一步。",
+    "blockers": [
+      "dependencies.lock.json 的登记格式与 verifyBundle 重算流程未内联样例，属计划欠具体处（非阻塞级卡点）",
+      "验收实跑以 docs/取证/ctbz-2.1.3-席位降级.md 为 --plan 输入，该文件的实际内容未内联，无法预先确认实跑可复现"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划前言明确目标：官方两渠道 402（取证 §1 四行 402 输出），允许同源席降级到 WB 网关 DeepSeek 模型（取证 §2 deepseek-v4.1-flash http=200），官方可用时优先官方。反审重点 3 条与 T1 契约逐条对应。",
+      "conclusion": "接受",
+      "disposition": "无需处置；需求与改动一一对应，未发现范围漂移。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "计划 T1：席位表抽为单一真源 lib/反审席位表.mjs，删除反审直连.mjs 与派发闸.mjs 各自的内联表（取证 §3 显示两处原本各自维护，存在漂移风险）。附件 lib/反审席位表.mjs 实现了 CAMPS/buildSeatTable/allowedModelsFor/seatAttempts，与 T1 声明一致；allowedModelsFor 对未声明 provider 返回空集（fail-closed）。",
+      "conclusion": "接受",
+      "disposition": "单一真源消除 runner/闸门漂移，架构决策有据（A2 行动账明确否掉双表方案）。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "新增 tests/席位降级.test.mjs 五例与 T1 列表逐条对应，取证 §5 显示 5 pass、全量 135 pass。但第 5 例『官方渠道可用时优先官方』在测试正文中仅验证 seatAttempts 顺序与 dry-run 打印 api.deepseek.com（测试文件末例），未在真实调用路径验证官方成功后回执 provider 落官方——该断言只由取证 §6 实跑间接覆盖。",
+      "conclusion": "有条件接受",
+      "disposition": "接受现状；后续若官方渠道回正，应补一条『官方成功后回执 provider 落官方』的零计费回归（可用本地 mock 端点）。"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "T1 失败级联显式定义：官方失败→备选恰一次→仍失败记 fail；seatAttempts 由席位表封顶恰好两条（附件 lib 文件 seatAttempts 实现，测试第 2 例断言 tencent/moonshot 长度为 1）；轻级下限 ≥3 席且 ≥3 阵营不足时闸门按既有规则判红。测试第 3 例覆盖双渠道全不可用且明示降级已尝试。",
+      "conclusion": "接受",
+      "disposition": "边界收敛性有封顶保证，无无限重试路径；无需处置。"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "附件 lib/反审席位表.mjs 第 9 行自注 WORKBUDDY_BASE 为 http 明文（101.133.151.121:18890，『已知 http 明文风险』）；降级使 DeepSeek 席回执经此明文通道传输。另 T1 依赖 dependencies.lock.json 逐文件 sha 校验防篡改，但 lock 文件内容未内联，无法核验其登记是否已含新文件。",
+      "conclusion": "有条件接受",
+      "disposition": "http 明文为既有已知风险且本席不计独立性，不阻塞；dependencies.lock.json 的 sha 重算必须在交付前完成并留验，作为 T1 验收隐含项执行。"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "T1 规定双渠道失败时 fail 并在 detail 明示『已尝试降级到 <备选>』（测试第 3 例断言该文案），失败不静默；回执 provider/model 写实际使用的那一组，闸门判红信息含『provider 未落席位表/model 未落席位表』（测试第 4 例）；计划明示 tag/push/Release 留待用户口令。",
+      "conclusion": "接受",
+      "disposition": "失败信息可读、回滚命令明确（git revert + 删除 .ctbz-record/反审/ctbz-2.1.3-计划/）；无需处置。"
+    }
+  ],
+  "summary": "六视角均通过（两处有条件接受：官方优先的回归覆盖与 lock sha 核验），无阻塞项，计划可执行。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 41892,
+    "model_echo": "glm-5.3-flash"
+  }
+}

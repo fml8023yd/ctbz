@@ -18,6 +18,7 @@
 import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { SEAT_TABLE, CAMP_ORDER, allowedModelsFor } from "./lib/反审席位表.mjs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -32,17 +33,9 @@ const CATEGORIES = ["阻塞", "非阻塞", "可接受"];
 const CONCLUSIONS = ["接受", "有条件接受", "不接受"];
 const CHECK_IDS = ["集成一致性", "调用名统一", "main未污染", "安装副本分支标识"];
 
-// §4.3 席位表：camp → 唯一 provider / 允许 model
-// deepseek 席 v4-pro 为历史兼容值（2.0.6/2.0.7/2.0.8 旧回执），新回执一律 deepseek-flash。
-// moonshot 席 2026-09-30 扩 kimi-k2.7/kimi-k2.6：kimi-k2.8-preview 与 kimi-k3 在本机网关超 ~120s 硬上限断流，同厂商降档（先例：zhipu 席扩 glm-5.3）。
-const SEAT_TABLE = {
-  deepseek: { provider: "deepseek-official", models: ["deepseek-flash", "deepseek-v4-pro"] },
-  zhipu:    { provider: "workbuddy",         models: ["glm-5.3-flash", "glm-5.3"] },
-  tencent:  { provider: "workbuddy",         models: ["hy4-preview-f", "hy3"] },
-  moonshot: { provider: "workbuddy",         models: ["kimi-k2.8-preview", "kimi-k2.7", "kimi-k2.6"] },
-};
-const CAMP_ORDER = Object.keys(SEAT_TABLE);
-const SEAT_MODELS = new Set(CAMP_ORDER.flatMap((c) => SEAT_TABLE[c].models));
+// §4.3 席位表：单一真源在 lib/反审席位表.mjs（runner 与闸门共用，防降级白名单漂移）。
+// 历史兼容值与 altProviders 由该模块 buildSeatTable 派生；本文件不再手写模型清单。
+const SEAT_MODELS = new Set(CAMP_ORDER.flatMap((c) => allowedModelsFor(c, SEAT_TABLE[c].provider)));
 // DeepSeek 席与主进程同源已裁定接受（用户裁定 2026-09-22）：--host-model 取同源模型放行，取其余席位模型仍 exit 2。
 const SAME_SOURCE_MODELS = new Set(["deepseek-flash", "deepseek-v4-pro"]);
 
@@ -490,8 +483,10 @@ function validate(it, ctx) {
   // 同模型自审按 camp 判定（DeepSeek 席同源已裁定接受，豁免）；优先报（V3 语义），再报席位表
   if (d.camp !== "deepseek" && d.model === ctx.hostModel) bad(`同模型自审：model 与 --host-model 逐字相等（${ctx.hostModel}）`);
   if (seat) {
-    if (d.provider !== seat.provider) bad(`provider 未落席位表：${JSON.stringify(d.provider)}（${d.camp} 允许 ${seat.provider}）`);
-    if (!seat.models.includes(d.model)) bad(`model 未落席位表：${JSON.stringify(d.model)}（${d.camp} 允许 ${seat.models.join("/")}）`);
+    // 白名单收口在 allowedModelsFor：主 provider 与声明的备选 provider 之外一律空集（fail-closed）。
+    if (d.provider !== seat.provider && !seat.altProviders?.[d.provider]) bad(`provider 未落席位表：${JSON.stringify(d.provider)}（${d.camp} 允许 ${seat.provider}）`);
+    const allowedModels = allowedModelsFor(d.camp, d.provider);
+    if (!allowedModels.includes(d.model)) bad(`model 未落席位表：${JSON.stringify(d.model)}（${d.camp}/${d.provider} 允许 ${allowedModels.join("/") || "无"}）`);
   } else {
     if (!nonEmpty(d.provider)) bad("provider 缺失或为空");
     if (!nonEmpty(d.model)) bad("model 缺失或为空");

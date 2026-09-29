@@ -1,0 +1,117 @@
+{
+  "camp": "deepseek",
+  "camp_label": "DeepSeek",
+  "provider": "workbuddy",
+  "model": "deepseek-v4.1-flash",
+  "round": "2",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.3-计划.md",
+  "plan_sha256": "9b02ee3b45761e711a6e2149344c214652845bd4c720b4143878ab15537eac9a",
+  "generated_at": "2026-09-29T20:09:02.558Z",
+  "verdict": "有条件接受：降级方案与取证自洽、回归测试覆盖降级/封顶/级联/白名单/优先级，但存在三处具体化缺口（lock 重算命令、回执 schema 与兼容模型清单未内联、验证端点与生产 base 一致性未确认），补齐后方可无摩擦开工。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工。计划的意图、证据锚点、验收命令与回滚路径清晰，但落到写码仍缺若干契约，且关键数据（席位表历史兼容清单、回执 schema）只在附件里、不在计划正文内。",
+    "blockers": [
+      "dependencies.lock.json 只被列为改动项（任务契约 T1），未给重算/校验命令，操作者无法完成 verifyBundle 重算",
+      "lib/反审席位表.mjs 的历史兼容模型清单（deepseek-v4-pro、glm-5.3、hy4-preview-f、kimi-k2.8-preview、kimi-k2.6）不在计划内，fresh agent 无附件无法重建 SEAT_TABLE",
+      "回执 schema（camp/provider/model/round/plan_sha256/generated_at/verdicts 等字段）与派发闸 validate 的输入契约未在计划中定义",
+      "降级失败时 detail 的确切文案未给定（测试断言串『已尝试降级到 workbuddy/deepseek-v4.1-flash』仅存在于附件）",
+      "反审直连 runOne 现有结构未提供，无法确定 seatAttempts 的接入点与回执落盘时机",
+      "CTBZ_ZC_CONFIG 的配置读取契约与『渠道名→baseURL/apiKey』解析规则未说明"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "计划『前言』与『定级依据』：官方两渠道同时 402，第 4 席取不到凭据，允许同源降级到 WB 的 DeepSeek 模型、官方可用时优先官方；与取证 §1（四个组合全 402）、§2（WB 返回 200）方向一致",
+      "conclusion": "接受",
+      "disposition": "降级需求成立、与取证自洽，无需处置"
+    },
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划『前言』称渠道名为『Deepseek-ML / Deepseek-JN』；取证 §1 仅给出 request_id 前缀 31f56db1/87bc4c2c，未出现该两名称（无法核验）",
+      "conclusion": "有条件接受",
+      "disposition": "补渠道名锚点，或改为不具名『官方两个渠道』；不影响降级需求本身"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "任务契约 T1 与附件 lib/反审席位表.mjs：抽单一真源，buildSeatTable 由 CAMPS 派生闸门表，allowedModelsFor 未声明即返回空集（fail-closed），seatAttempts 封顶两条；消解了『runner 与闸门白名单漂移』的结构性风险",
+      "conclusion": "接受",
+      "disposition": "架构方向正确，保留"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "附件 lib 定义 WORKBUDDY_BASE=http://101.133.151.121:18890/v1（自建通道），而取证 §2 与附件测试均走 127.0.0.1:7864（本地网关）；计划未说明两者是否同一服务",
+      "conclusion": "有条件接受",
+      "disposition": "确认降级模型是在生产 base 上验证，或在计划中写明本地网关与生产通道的对应关系；否则『实测可用』的锚点与运行时端点脱节"
+    },
+    {
+      "view": "测试完整性",
+      "category": "可接受",
+      "evidence": "取证 §5：tests/席位降级.test.mjs 5 例全通过、全量 135 例全绿；附件测试覆盖降级触发、尝试序列封顶、双渠道失败级联、闸门白名单放行与判红、官方优先",
+      "conclusion": "接受",
+      "disposition": "覆盖面达标，保留"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "附件测试第 1 例仅 assert.match(stdout,/deepseek/)；第 5 例注释自认『验证顺序而非结果』，只断言静态 seatAttempts 与 dry-run 打印官方端点，均未验证运行时的实际 provider 落地",
+      "conclusion": "有条件接受",
+      "disposition": "补一条以 mock 200 打官方端点的集成断言，验证 runOne 实际先官方后回执 provider 落官方；否则『顺序可核验』为纸面结论"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "任务契约 T1 失败级联：官方失败→备选恰一次→仍失败记 fail，不足 3 席/3 阵营时闸门按既有规则判红；seatAttempts 封顶两条避免无限重试",
+      "conclusion": "接受",
+      "disposition": "级联收敛、边界闭合，保留"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "取证 §2：请求 WB/deepseek-v4-flash 返回 model_echo=deepseek-v4.1-flash，网关会改写模型名；计划要求回执『provider/model 写实际使用的那一组』，但『实际』是请求值而非网关实际服务的模型",
+      "conclusion": "有条件接受",
+      "disposition": "回执增记 model_echo，或闸门校验比对 model_echo；否则白名单校验对象与实跑模型可能不符"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "取证 §6：deepseek 席降级实跑 http=200、latencyMs=20153；seatAttempts 每次调用重求值、无缓存无状态（任务契约『官方回正』）",
+      "conclusion": "接受",
+      "disposition": "单席约 20s、轻级可接受，保留"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "附件 lib 中 WORKBUDDY_BASE 为明文 http://101.133.151.121:18890/v1，注释自述『已知 http 明文风险』；本计划为 deepseek 席新增指向该 base 的降级路径，计划未提及该风险",
+      "conclusion": "有条件接受",
+      "disposition": "在计划中显式记录该明文通道为已知承继风险并给出接受/缓解（如本地隧道），或注明本轮不处置"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "任务契约 T1 验收与回滚：三条验收命令、git revert + 删除 .ctbz-record/反审/ctbz-2.1.3-计划/、官方回正免人工切换；与取证 §6 outFile 路径一致",
+      "conclusion": "接受",
+      "disposition": "操作路径清晰，保留"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "任务契约 T1 将 dependencies.lock.json 列为改动项并要求『新增/改动后必须重算』，但未给重算命令；操作者无法独立完成该步",
+      "conclusion": "有条件接受",
+      "disposition": "补 lock 重算与 verifyBundle 校验的具体命令；否则改完文件即卡在打包校验"
+    }
+  ],
+  "summary": "计划意图清晰、证据锚点基本可核、回归与全量测试到位，六视角无一升至阻塞；但需补三处具体化（lock 重算命令、回执 schema 与历史兼容模型清单内联、验证端点与生产 base 一致性确认），并将明文通道风险显式记录，方可无摩擦开工。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "https://api.deepseek.com/chat/completions",
+    "http_status": 200,
+    "latency_ms": 29872,
+    "model_echo": "deepseek-v4.1-flash"
+  }
+}

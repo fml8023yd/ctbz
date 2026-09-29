@@ -1,0 +1,72 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "2",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.3-计划.md",
+  "plan_sha256": "9b02ee3b45761e711a6e2149344c214652845bd4c720b4143878ab15537eac9a",
+  "generated_at": "2026-09-29T20:09:13.524Z",
+  "verdict": "计划以轻级反审实现同源席降级，六视角均接受，可交付验收",
+  "fresh_agent_test": {
+    "conclusion": "单独持计划无法直接开工，需附被改文件与取证附件方能精确实施",
+    "blockers": [
+      "未提供反审直连.mjs与派发闸.mjs当前源码，无法定位内联CAMPS具体删除点",
+      "未随计划附取证附件则无法独立核验§1§2的402与200断言",
+      "dependencies.lock.json字段格式未明示，重算sha需看现有结构"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "计划 前言 及 任务契约 T1；取证 §1 锚点 ↗A 与 §2 锚点 ↗B",
+      "conclusion": "接受",
+      "disposition": "按计划实施同源席降级，需求对齐官方欠费导致第4席失败场景"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "附件 反审席位表.mjs 导出 CAMPS/seatAttempts/buildSeatTable；计划 T1 要求抽离单一真源",
+      "conclusion": "接受",
+      "disposition": "导入共享表替代双份定义，消除runner与闸门白名单漂移，结构合理"
+    },
+    {
+      "view": "测试完整性",
+      "category": "可接受",
+      "evidence": "取证 §5 回归5例与全量135例；附件 tests/席位降级.test.mjs 含5例零网络用例",
+      "conclusion": "接受",
+      "disposition": "新增降级专项测试覆盖路径触发、封顶、级联、闸门放行，满足轻级下限"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "附件 tests/席位降级.test.mjs 例3双渠道失败exit1、例4未声明判红；计划 失败级联 段",
+      "conclusion": "接受",
+      "disposition": "尝试序列封顶两条、fail-closed白名单、失败级联显式不静默均已覆盖"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "附件 反审席位表.mjs WORKBUDDY_BASE http明文注释；计划未新增独立渠道故风险同前",
+      "conclusion": "接受",
+      "disposition": "明文风险为既有自建通道属性，未扩大攻击面，降级不削弱另三席独立性"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "计划 失败级联显式定义；附件 test例3断言明细含'已尝试降级到 workbuddy/deepseek-v4.1-flash'",
+      "conclusion": "接受",
+      "disposition": "回执信息明确，官方回正无缓存无状态，操作无感，体验无退化"
+    }
+  ],
+  "summary": "六视角核查均接受，计划以单一真源与白名单收口实现DeepSeek席降级，测试与边界完备，可进入验收",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 41731,
+    "model_echo": "hy3"
+  }
+}

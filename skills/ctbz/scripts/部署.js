@@ -11,6 +11,7 @@ import { readdirSync, statSync, readFileSync, writeFileSync, existsSync, mkdirSy
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { reviewChainProblems } from "./lib/反审链.mjs";
 
 const ROOT = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))); // 仓库根（scripts/ctbz 上四级）
 const SRC = join(ROOT, "skills", "ctbz");
@@ -58,6 +59,15 @@ try {
       }
     }
     console.log("（无基线或一致，放行）");
+    // 反审链覆盖检查（2.1.3）：改了 skills/ctbz/scripts 下的脚本却没有对应反审回执，
+    // 说明「先改后审」。这条不是风格要求——同类违规已发生两次（docs/内审/2026-09-30-*.md），
+    // 且第一次登记的机制修改项本就挂在部署步，故在此强制。
+    const chain = reviewChainProblems(ROOT);
+    if (chain.problems.length) {
+      console.error(`✗ 反审链缺失（改动脚本但无对应回执）：\n${chain.problems.map((p) => "  " + p).join("\n")}\n${chain.fix}`);
+      process.exit(1);
+    }
+    if (chain.checked) console.log(`（反审链覆盖：${chain.files.length} 个脚本改动，回执齐）`);
     console.log("== rsync 同步（源→安装目录，--delete 镜像）==");
     rsync();
   }

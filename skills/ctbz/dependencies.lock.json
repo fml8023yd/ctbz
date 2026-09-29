@@ -270,6 +270,14 @@
       "sha256": "0e5af5e31407a852e257abe8b4c2e7e96f792c3e3059f91e55fdcf37aa75664e"
     },
     {
+      "path": "scripts/lib/反审席位表.mjs",
+      "sha256": "51139f7c94816042b7781dad3b50ee545da4cd129a120f41693cd3a0c1bda677"
+    },
+    {
+      "path": "scripts/lib/反审链.mjs",
+      "sha256": "e0c53785a7a5f5828c439bda17cd793020257875c28f155495257f5ea770c3eb"
+    },
+    {
       "path": "scripts/lib/存储位置.mjs",
       "sha256": "139cb9aa86e2175de36f3cf076abb1d2e4e84fadf4cc269e88244d38b3c4f2fe"
     },
@@ -327,7 +335,7 @@
     },
     {
       "path": "scripts/反审直连.mjs",
-      "sha256": "c4b74351a5af19950214c45fe3df5ed76cf97a156585d252f3ac05207cc9457d"
+      "sha256": "e58b69a824a30a2d0d6728975ae333595c5a9d0da505315acf0a59bcd1c3f56c"
     },
     {
       "path": "scripts/发布检查.js",
@@ -347,7 +355,7 @@
     },
     {
       "path": "scripts/派发闸.mjs",
-      "sha256": "c80dfb7f18b0923984890a788184048f229844fa43b99e08ee9a87c46747d7bf"
+      "sha256": "e6396782bc6034b6074f0636d4dddec584658f8e1efc0518c890849b66072525"
     },
     {
       "path": "scripts/知识库.js",
@@ -359,7 +367,7 @@
     },
     {
       "path": "scripts/部署.js",
-      "sha256": "817e21f032f38b1a4c344dc71a901181bd43745046bb1f54b3c76e63f7675f1a"
+      "sha256": "6ee22fd45c3273485fcb6f6d02abb1df7d5878555b6088de307b98301896d70c"
     },
     {
       "path": "vendor/NOTICE.md",

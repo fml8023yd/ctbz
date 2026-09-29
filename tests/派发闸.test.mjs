@@ -98,11 +98,14 @@ function snapTree(root) {
   return out.join('\n');
 }
 
-// audit 夹具：把 派发闸.mjs 与 stub 内审.mjs 复制进夹具同目录（验证「同目录解析」）
+// audit 夹具：把 派发闸.mjs 与 stub 内审.mjs 复制进夹具同目录（验证「同目录解析」）。
+// 2.1.3 起闸门从 lib/反审席位表.mjs 读席位表（单一真源），夹具需同步带上 lib/。
 function copyGateInto(ws) {
   const bin = path.join(ws, 'bin');
   fs.mkdirSync(bin, {recursive: true});
   fs.copyFileSync(GATE, path.join(bin, '派发闸.mjs'));
+  fs.mkdirSync(path.join(bin, 'lib'), {recursive: true});
+  fs.copyFileSync(path.join(scripts, 'lib', '反审席位表.mjs'), path.join(bin, 'lib', '反审席位表.mjs'));
   return bin;
 }
 
