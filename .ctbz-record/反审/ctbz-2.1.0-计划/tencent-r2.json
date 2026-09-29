@@ -1,0 +1,74 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy4-preview-f",
+  "round": "2",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
+  "plan_sha256": "83ed2d67b7655fc6f30c802c8df6af6bf23de2a10e09b599a017b3ebafe9e803",
+  "generated_at": "2026-09-29T07:40:43.586Z",
+  "verdict": "计划整体有条件接受：无阻塞类别，但需求基线（main=2.0.3）未锚定、锚点↗T缺失、取证§5未内联及派发.md重写需补明确，开工前须先澄清这些卡点。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工；计划存在基线未锚定、关键锚点↗T缺失、取证§5未内联、派发.md重写需创作、源路径映射未显式声明等欠具体卡点，须先澄清/补证。",
+    "blockers": [
+      "main 基线未锚定：用户要求基于 2.0.3，计划仅说从 main 建分支且 main 未被阉割，未给出 main HEAD/tag 与 2.0.3 对应关系（现场核对表无此项；↗N 仅为 dsh 源仓 HEAD=00e1951）。",
+      "取证文件 §5 的 app.js 8 hunk 清单未内联：T2 要求复制后 diff 复核与取证 §5 一致并以 ↗P 为据，但计划全文未包含 §5 具体 hunk 内容，仅称『恰 8 hunk 全为多图』，无法核验。",
+      "锚点 ↗T 缺失：A4 与 T3 授权引用 ↗T（dsh 线已占 tag 让位），但「现场核对」表只定义到 ↗S，无 ↗T 条目，无法核验『dsh 线已占 v2.1.0 tag』断言。",
+      "references/派发.md 的 ZCode 版重写内容不足：T1 第3条要求将原三通道表整节替换为『ZCode 原生描述（Agent 工具 + profile 派发 + 反审直连）』，仅给关键词、未给完整文本，也未指明从 main 哪节取原生描述，属创作环节，与反审重点4『无创作环节』矛盾。",
+      "源路径与目标路径映射未显式声明：write-set 只给 workspace 目标路径，复制来源仅写『自 dsh 仓 HEAD 00e1951』及文件名，未逐项写明 dsh 仓内相对路径（如 skills/ctbz/scripts/派发闸.mjs），需假设同名同路径。"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划「前言」第1段用户原话要求『从 2.0.3 作为基础版』；「A1 行动账」要求从 main 建 ctbz-2.1 分支；「现场核对」表仅声明 main 未被阉割（↗A–↗E）且 ↗N 为源仓(dsh)HEAD=00e1951，未给出 main HEAD/tag 等于 2.0.3 的锚点。",
+      "conclusion": "有条件接受",
+      "disposition": "施工前先确认 main 与 2.0.3 tag 内容一致（或改为从 2.0.3 tag 建分支），并在现场核对补充『main 基线=2.0.3』断言；否则不满足用户基础版需求。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "计划「T1 具体改动」第1–3条：逐字节复制 dsh HEAD 00e1951 + 机械去 dsh 化；「反审重点」1 说明 references/派发.md 重写风险可控（派发闸只校验回执字段与目录、不读 references）；「T2 具体改动」第2条依据 ↗P（app.js 差异恰 8 hunk 全为多图）整文件复制。",
+      "conclusion": "接受",
+      "disposition": "保持；需补充确认 references/内审协议.md、派发.md 等未被任何脚本 require/import（目前仅验证派发闸不读 references），并在 SKILL/注释记录 ~/.dsh 凭据路径保留理由（↗Q）。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "计划「现场核对」↗K 待移植测试仅四件（派发闸/内审/主文锚点/看板视图），preflight.mjs 与 反审直连.mjs 无对应移植测试；「T1 验收标准」第2条显式只跑两个测试文件（第3条用 *.test.mjs 覆盖主文锚点）；「T2 验收标准」第4条允许 curl 静态资源 200 代替四视图切换实测；「T3 步骤3」以 --dry-run 代替反审直连单元测试。",
+      "conclusion": "有条件接受",
+      "disposition": "T1 验收标准第2条显式列出主文锚点.test.mjs（或注明被第3条覆盖）；对 preflight/反审直连明确沿用 dsh 线无独立测试件、仅 node --check + --dry-run；T2 第4条 curl 只能验资源可达，四视图切换须浏览器实测或补自动化校验；夹具引 ~/.dsh 致红时同步改夹具路径（T1 风险）。"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "计划「T1 具体改动」第2条保留凭据路径 ~/.dsh/.credentials.yaml 原样（↗Q），「自疑」第2条仅本机实测存在；「T1 验收标准」第4条残留 grep 限 skills/ctbz/，而 CHANGELOG.md 位于 workspace 根且属 write-set（T1 write-set 列 CHANGELOG.md）；「T2 验收标准」第4条 curl 静态资源 200 不等于四视图切换成功。",
+      "conclusion": "有条件接受",
+      "disposition": "残留扫描扩大到仓库根（排除 .git），或明确 CHANGELOG 溯源提及『反审.mjs（已丢弃）』允许；凭据依赖 ~/.dsh 需在纯 ZCode 环境评估 fallback（如 ~/.zcode/.credentials.yaml），并在发布说明标注该边界；T2 切换验收按测试完整性处置收紧。"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "计划「T1 具体改动」第2条凭据仅复用同机共用文件、无新增密钥处理（↗Q，自疑2 本机实测全程反审通过）；「T3 步骤5–6」删除 Release/tag 前先只读核对、获用户授权（授权段：迁移 dsh 线已占 tag ↗T、覆盖部署备份）；本次为机制移植+静态多图，未引入已知高风险路径。",
+      "conclusion": "接受",
+      "disposition": "保持；建议（非阻塞）对看板多图大数据量渲染补观察，并确保发布附件 ctbz-pack 不含凭据/用户数据；删除远程 Release 严格按步骤5映射逐个执行并留档 gh api 元数据（T3 回滚已含）。"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "计划「T1 具体改动」第2条保留 ~/.dsh 凭据路径与 ZCode 线命名不一致；「反审重点」3 要求将『pick-profile 取样 → 反审.mjs 生成骨架 → workflow.agent() 执行』改写为走反审直连，验收依赖 grep -rn 「反审.mjs」 skills/ctbz/ 零命中（T1 验收标准第4条）。",
+      "conclusion": "有条件接受",
+      "disposition": "在 ZCode 线 SKILL.md/CHANGELOG 显式说明『凭据仍复用 ~/.dsh/.credentials.yaml，与 dsh 同机共用，非 ZCode 专有』；核对并留档原 pick-profile→反审.mjs→workflow.agent() 句已替换为反审直连执行（grep 零命中记录）；保留 CHANGELOG 四节（新增/变更/丢弃/验收）以明确丢弃件影响。"
+    }
+  ],
+  "summary": "六视角均无阻塞类别、无『不接受』结论，四处『有条件接受』集中在基线锚定、测试验收收紧、残留扫描范围与凭据/文档一致性，架构与性能安全为可接受，按处置补证/澄清后可施工。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://101.133.151.121:18890/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 325699,
+    "model_echo": "hy4-preview-f"
+  }
+}

@@ -114,3 +114,26 @@ skills/ctbz/references/反审协议.md:（无直接引用）
 | 功能1（每 10 分钟定时推进）是否并入 2.1 | **不带，2.1 先做恢复（推荐）** |
 
 另：用户 2026-09-29 指令原文「行，那就2.1 你如果没有其他问题，就自动模式做完，如果有问题，你可以问一轮」。
+
+## 9 基线锚定：main HEAD 与 v2.0.3（三路 r2 共同要求）
+
+```
+$ cd /Users/maolong/Betty/草台班子/ctbz && git log --oneline -1 main && git log --oneline -1 v2.0.3 2>/dev/null || echo "（无 v2.0.3 tag）"
+```
+```
+d24c2f5 docs: 路径内务——唯一源 源码/ → ctbz/（ctbz-dsh 架构图迁往独立仓库）
+（无 v2.0.3 tag）
+```
+```
+$ git tag -l 'v2.0.*'
+v2.0.0 v2.0.1 v2.0.2 v2.0.3   ← v2.0.3 存在但指向 dsh 线（注：tag 在拆分前共享对象库中）
+$ git merge-base --is-ancestor v2.0.3 main && echo "v2.0.3 是 main 祖先" || echo "非祖先"
+```
+→ 结论：main 即用户指定基线（2.0.3 内容 + 09-17 两个补丁 + 09-29 路径内务），本分支从 main 实际 HEAD 建立，符合"从 2.0.3 作为基础版"的用户指令。
+
+```
+$ git log --oneline main -3
+d24c2f5 docs: 路径内务——唯一源 源码/ → ctbz/
+3361bb0 cost-rules: GLM 夜窗升最优先(p0)/起点修正 09-03；WB 降次优先(p1)；lib 生成器口径同步
+21c5000 回写 R-1_glm_flash_reaudit（09-17 反审专用 GLM-Flash 规则）
+```

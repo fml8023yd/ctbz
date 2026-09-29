@@ -22,6 +22,7 @@ workspace: /Users/maolong/Betty/草台班子/ctbz
 |---|---|---|
 | main 测试基线 17 例全绿 | ↗A | 取证文件 §1（node --test 实测 tests 17 / pass 17 / fail 0） |
 | main SKILL.md 253 行 | ↗B | 取证文件 §1（grep -c 实测） |
+| main HEAD 与 v2.0.3 tag 的关系（施工基线） | ↗U | 取证文件 §9（git log/diff 实测） |
 | 2.0.4 迁移提交为分叉原因 | ↗C | `skills/ctbz/SKILL.md:7`（开发工作区节：唯一源） |
 | main 含 ZCode 原生 initialize 节 | ↗D | `skills/ctbz/SKILL.md:193`（## 一句话初始化） |
 | main 含所有权与运行闭环节 | ↗E | `skills/ctbz/SKILL.md:203`（## 所有权） |
@@ -34,7 +35,7 @@ workspace: /Users/maolong/Betty/草台班子/ctbz
 | graph-math.js 62 行待移植 | ↗L | 取证文件 §2 |
 | ~/.zcode/AGENTS.md 无镜像块 | ↗M | 取证文件 §3（grep 计数 0） |
 | 源仓 HEAD 与工作区干净 | ↗N | 取证文件 §4（git rev-parse HEAD = 00e1951…；status 0 项） |
-| 13 项移植文件 sha256 | ↗O | 取证文件 §4（逐文件哈希表） |
+| 12 项移植件 + 1 项删除件（13 项处置） | ↗O | 取证文件 §4（逐文件哈希表） |
 | app.js 差异恰 8 hunk 且全为多图 | ↗P | 取证文件 §5（diff 实测清单） |
 | 反审直连凭据路径非 dsh 专有 | ↗Q | 取证文件 §6（共用同一份凭据文件） |
 | 反审.mjs 仅在被替换的「派发前必跑」节内被引用 | ↗R | 取证文件 §7（grep 命中清单） |
@@ -60,7 +61,7 @@ workspace: /Users/maolong/Betty/草台班子/ctbz
   1. **逐字节复制**（清单见 ↗F–↗L）自 dsh 仓（源 `/Users/maolong/Betty/草台班子/ctbz-dsh` HEAD `00e1951`），随后仅做下述 dsh 措辞替换，**不改逻辑**。
   2. 去 dsh 化替换（机械，逐字）：注释与文案中「（dsh 版）」「dsh 线」「cc-haha 线」→ 去标记或改「ZCode 线」；镜像标记 `~/.dsh/AGENTS.md` → `~/.zcode/AGENTS.md`；**凭据路径 `~/.dsh/settings.yaml` 与 `~/.dsh/.credentials.yaml` 保留原样**（↗Q：两宿主同机共用这一份，是实际落点非 dsh 专有）；脚本头部 shebang 统一为 `#!/usr/bin/env node`（实测：`派发闸.mjs`/`内审.mjs` 已是 env 形态；`反审直连.mjs` 为 env 形态；`preflight.mjs` 待复制后核对，如为绝对路径 shebang 则改 env）。
   3. `references/派发.md` 重写为 ZCode 版：原三通道表（workflow/subagent/spawn_teammate）整节替换为 ZCode 原生描述（Agent 工具 + profile 派发 + 反审直连），其余字段契章节保留。
-  4. `SKILL.md` 增补多节（从 dsh 线对应节移植，去 dsh 化）：末段契约・哑巴模式・派发前必跑（硬闸）・反审硬门・边界延伸・自证与自疑・行动可质疑性・构建期六问・完工自审。原「反审硬门（1.8.2）」节内容被新版替换。
+  4. `SKILL.md` 增补各节（**本版已执行**；插入锚点：末段契约/哑巴模式 → 「极简输出」节之后；派发前必跑 → 「主进程服务姿态」之前；其余八节 → 「反审硬门」之后；层级反审/内审/模型阵营三节 → 「统一模式规则」之前）：末段契约・哑巴模式・派发前必跑（硬闸）・反审硬门・边界延伸・自证与自疑・行动可质疑性・构建期六问・完工自审。原「反审硬门（1.8.2）」节内容被新版替换。
   5. `SKILL.md` 版本 → `2.1.0`；`CHANGELOG.md` 顶部加 `## [2.1.0] - 2026-09-29` 段（新增/变更/丢弃/验收四节）。
 - 验收标准：
   1. 移植脚本全部 `node --check` → 均 exit 0（↗F–↗I）。
@@ -68,7 +69,8 @@ workspace: /Users/maolong/Betty/草台班子/ctbz
   3. `node --test tests/*.test.mjs` → 基线 17 例（↗A）全绿 + 新增全绿，0 fail。
   4. 去 dsh 化自查：
      - `grep -rn "dsh" skills/ctbz/SKILL.md` 命中为 0 或全为溯源句；
-     - **`grep -rn "反审\.mjs" skills/ctbz/` 零命中**（↗R：丢弃件不得留引用；`派发前必跑` 节已改为「反审一律走 反审直连.mjs」）。
+     - **`grep -rn "反审\.mjs" skills/ctbz/` 零命中**（↗R：丢弃件不得留引用；`派发前必跑` 节已改为「反审一律走 反审直连.mjs」）；
+     - `test ! -f skills/ctbz/scripts/反审.mjs && test ! -f tests/dsh-regression.test.mjs` → exit 0。
 - 风险：`派发闸.test.mjs` 与 `内审.test.mjs` 内嵌夹具可能引用 dsh 专有路径（如 `~/.dsh`），跑测试时若红则同步改夹具路径。
 - 完成标准：四脚本 + 三 reference + 三测试就位，测试全绿，SKILL.md 九节增补完毕。
 
@@ -78,7 +80,7 @@ workspace: /Users/maolong/Betty/草台班子/ctbz
 - 具体改动：
   1. `graph-math.js` 与 `tests/看板视图.test.mjs` 从 dsh 仓**逐字节复制**。
   2. `app.js`/`index.html`/`style.css`：**已实测三文件差异全部为多图相关**（↗P：app.js 恰 8 hunk、index.html 1 行、style.css 2 行），故可**整文件复制**，无需人工 hunk 合并；复制后须跑 `diff` 复核与取证 §5 清单一致。
-     **策略唯一化**（消除 r1 四路指出的 T2↔A5 矛盾）：以 ↗P 实测（8 hunk 全为多图）为准，**直接整文件复制**；施工前置校验 `diff` 重跑，若与取证 §5 清单一致即复制，不一致才逐 hunk 挑选并记录偏离。
+     **策略唯一化 + 已执行**：以 ↗P 实测（8 hunk 全为多图，清单逐条见取证 §5）为准**直接整文件复制**；本版已复制并复核 `diff | grep -cE "^[0-9]"` = 8（与取证 §5 一致）。
   3. `docs/演示/进度可视化演示/` 整目录复制（demo.mjs/README.md），运行生成 `.ctbz-record`。
 - 验收标准：
   1. `node --check skills/ctbz/dashboard/graph-math.js` → exit 0；`node --test tests/看板视图.test.mjs` → 全绿（↗K）。
@@ -88,15 +90,22 @@ workspace: /Users/maolong/Betty/草台班子/ctbz
 - 风险：若 dsh 仓在 00e1951 之后又有改动（本版冻结点已定，不存在），则需重跑 diff；当前已实测 8 hunk 全为多图，风险低。
 - 完成标准：多图可用、测试全绿、演示可跑。
 
-### T3 发布收尾
+### T3 发布收尾（保守序列：先只读核对，再分步执行）
 
-- 内容与操作顺序：
-  1. L1 四路回执 → L2 任务级（T1/T2 各一席）→ L3 项目级（全阵营）→ l4 产物级（按闸门门槛，↗S）
-  2. 部署：`mkdir -p ~/Documents/.ctbz/备份 && rsync -a ~/.agents/skills/ctbz/ ~/Documents/.ctbz/备份/ctbz-2.4.0-dsh-$(date +%Y%m%d)/` → `node skills/ctbz/scripts/部署.js`
-  3. GitHub 迁移（本会话用户授权）：`git push origin --delete v2.0.7 v2.0.8 v2.0.9 v2.1.0 v2.2.0 v2.3.0` + 逐个删 Release（curl DELETE releases/tags/vX）
-  4. 打 tag：`git tag v2.1.0 && git push origin ctbz-2.1:main && git push origin v2.1.0`
-  5. Release + 附件（ctbz-pack-v2.1.0-<日期>.tar.gz）→ 阿里云中转（relay.sh upload）
-- 授权（用户已确认）：迁移 dsh 线已占 tag（↗T：本会话裁决原文）＋覆盖部署（旧版备份到 `~/Documents/.ctbz/备份/`）。
+- 原则（吸收 r2 两路阻塞意见）：**不可逆操作前先 dry-run 与备份**；**不直接推 main**，先推分支供确认。
+- 步骤：
+  1. 闸门链：L1（四路双轮）→ L2（T1/T2）→ L3 → 产物清单 l4；任一不过即停。
+  2. 测试与残留扫描：`node --test tests/*.test.mjs` 全绿；`grep -rn "反审\.mjs" skills/ctbz/` 零命中；`test ! -f skills/ctbz/scripts/反审.mjs` 与 `test ! -f tests/dsh-regression.test.mjs`。
+  3. 反审直连自检：`node skills/ctbz/scripts/反审直连.mjs --dry-run` → exit 0。
+  4. 部署（含备份）：`rsync -a ~/.agents/skills/ctbz/ ~/Documents/.ctbz/备份/ctbz-before-2.1.0-$(date +%Y%m%d-%H%M)/` → `node skills/ctbz/scripts/部署.js` → 失败则 `rsync` 回滚。
+  5. 远程只读核对：`gh api repos/fml8023yd/ctbz/releases --jq '.[] | "\(.id) \(.tag_name)"'` 列出 dsh 线已占 tag 的 release id 映射（**先核对，不删**）。
+  6. **先清占用、后打 tag**（腾讯 r2 阻塞修正：顺序不可倒置）：按 release id 逐个删 dsh 线已占的 Release（先 Release 后 tag），**确认远程 `git ls-remote --tags origin v2.1.0` 为空**；每步核对返回；本地 tag 保留至 push 成功。
+  7. 推分支（不碰 main）：`git push origin ctbz-2.1:refs/heads/ctbz-2.1` → 报告用户确认后再决定是否合并到 main。
+  8. 打 tag v2.1.0 并推（**在步骤 6 确认远程无占用之后**）：`git tag v2.1.0 && git push origin v2.1.0`。
+  9. Release + 附件：`tar -czf ctbz-pack-v2.1.0-<日期>.tar.gz skills CHANGELOG.md docs`（**白名单仅三顶层项**，与既有发布链一致）→ 阿里云中转。**确认门禁**：步骤 6/7/8 每步执行前向用户报告实际命令与预期影响，得到确认才继续。
+  10. 若任一步失败即停并报告；回滚见文末。
+- 授权（用户已确认）：迁移 dsh 线已占 tag（↗T）；覆盖部署（旧版备份）。
+- 回滚：部署有备份目录可整体还原；tag/Release 删除前先导出 `gh api` 元数据留档；本地 tag 与 bundle 均在。
 
 ## 反审重点（供席位）
 
@@ -127,7 +136,7 @@ workspace: /Users/maolong/Betty/草台班子/ctbz
 
 | # | 动作 | 依据 | 取舍 | 证伪 |
 |---|---|---|---|---|
-| A1 | 从 main 建 ctbz-2.1 分支施工，不直接改 main | `skills/ctbz/SKILL.md:349`（## 版本权威（1.6.0 起生效）） | 否掉直改 main（施工中不可随时回退） | git branch --show-current 得 ctbz-2.1（exit 0） |
+| A1 | 从 main 建 ctbz-2.1 分支施工，不直接改 main | `skills/ctbz/SKILL.md:394`（## 版本权威（1.6.0 起生效）） | 否掉直改 main（施工中不可随时回退） | git branch --show-current 得 ctbz-2.1（exit 0） |
 | A2 | 移植用「逐字节复制 + 措辞替换」，不重写 | 「dsh 线机制已经 L1 反审与全量测试验证」 | 否掉重写（重写引入新缺陷面、需重新全量验证） | node --test tests/派发闸.test.mjs 得 pass 46 fail 0 |
 | A3 | 丢弃 dsh 专有的 `反审.mjs`（workflow 骨架生成器） | 「派发闸为宿主无关闸门，可直接使用」 | 否掉改造 `反审.mjs`（其产物是 dsh workflow 脚本，ZCode 无此宿主接口） | grep -rn 反审.mjs skills/ctbz/ 得 exit 1（零命中） |
 | A4 | 版本号用 2.1.0（迁移 dsh 线已占 tag 让位，↗T） | 「迁移全部 6 个 dsh tag」 | 否掉 2.4.0（与 dsh 线号段混淆）与 3.0.0（非删条款级变更） | git tag -l v2.1.0 得非空输出（exit 0） |

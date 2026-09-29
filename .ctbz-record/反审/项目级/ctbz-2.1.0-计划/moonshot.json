@@ -1,0 +1,82 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.8-preview",
+  "round": "1",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
+  "plan_sha256": "a575a5b171770432a082263fa1c69b35042e0d1dd77dd3a9ac393e1e71ba80d2",
+  "generated_at": "2026-09-29T07:45:16.101Z",
+  "verdict": "有条件放行：T1/T2 交付与目标逐项对齐、集成全绿，放行条件为智谱席补齐回流与两处补件扫描。",
+  "fresh_agent_test": {
+    "conclusion": "本席为材料内联复核，无文件读取与执行工具，无法独立重跑 node --test、demo.mjs 与部署三步骤；采信 L1（反审三路 round=2 实测）与 L2（任务级 0 阻塞）链式证据，未发现与材料矛盾之处。放行前建议由 release 角色对 main HEAD 重跑一次 122 全绿并回流智谱补齐结果，以闭合本席无法独立验证的部分。",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "批次目标三项全部落物：宿主无关机制（四脚本+三 reference）、看板多图（graph-math.js+三前端文件+docs/演示）、丢弃适配层（scripts/反审.mjs、tests/dsh-regression.test.mjs 明确列入丢弃清单）；SKILL.md 增 11 节且版本 2.0.3→2.1.0 与 minor 增量语义相符，无超范围交付物。",
+      "conclusion": "接受",
+      "disposition": "通过；口径备注：丢弃 dsh-regression 后『基线 17』应为丢弃后重算值，L1 留痕中注明即可。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "宿主无关以 ZC_HOME 参数化落地（主文锚点测试改造 ZC_HOME 路径佐证）；反审直连.mjs 取代经派发的 scripts/反审.mjs，链路收敛；graph-math.js 独立为数学层，前端 app.js/index.html/style.css 经 8 hunk 实测全部与多图相关，无夹带改动。",
+      "conclusion": "有条件接受",
+      "disposition": "通过；建议 preflight.mjs 的 reference 中明示 ZC_HOME 存在性与非 dsh 默认路径的校验项，使『宿主无关』从约定变为闸口断言。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "122 pass/0 fail（基线 17+新增 105），四测试文件覆盖派发闸/内审/主文锚点/看板视图；反审直连.mjs 与 preflight.mjs 无专属单测文件，反审直连由 L1 三路 round=2 实测覆盖（强度高于 mock，层次设计可成立但未明示）；智谱席未完成。",
+      "conclusion": "有条件接受",
+      "disposition": "条件一：明示反审直连/preflight 的测试层次归属；条件二：智谱席补齐结果回流并复跑全绿。关键质疑：glm-5.3 为智谱系模型，若与智谱同源则该席不构成独立冗余——『补齐』是流程闭环而非独立性增强，须确认协议要求的独立席位数，三路达标是否已满足门槛需在结论中写明依据。"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "宿主无关边界（ZC_HOME 未设置/指向 dsh 路径/权限不足）未见 preflight 用例枚举；DOM 探测（甘特 rect=9/依赖图 rect=9/里程碑 text=18/图例 5）无数值期望值对照，仅证明渲染发生；智谱额度用尽已真实发生，当前『改用 glm-5.3 补齐』是人工降级，未见反审直连对上游失败/额度/超时的机制化降级语义。",
+      "conclusion": "有条件接受",
+      "disposition": "放行后一个迭代内补：preflight 边界用例三组；反审直连上游失败的重试/降级/换席策略写入反审协议 reference。"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "四脚本自 dsh 仓 00e1951 逐字节复制，同仓同许可证，provenance 风险低；demo.mjs 连跑两次 exit 0 无资源泄漏迹象；反审直连涉及上游 API 密钥，材料未列密钥落盘/日志脱敏验证。",
+      "conclusion": "有条件接受",
+      "disposition": "通过；建议补一条验证：反审直连日志与错误输出中对密钥/请求体做脱敏，且不写入 SKILL.md 示例。"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "SKILL.md 增 11 节+docs/演示，demo 四视图均可跑；但图例=5 与四视图数量不自洽（未说明 5 为状态色或视图数），文档未对齐；『逐字节复制+措辞替换』的去 dsh 化若漏改用户可见字符串（错误信息/日志/协议标识），将直接暴露给 ZCode 线用户。",
+      "conclusion": "有条件接受",
+      "disposition": "放行前补两件轻量扫描：全仓 grep -ri 用户可见面的 dsh 残留（脚本输出、reference、SKILL.md 新增 11 节）；demo 探测数字与 docs/演示 文档对齐注明口径。"
+    }
+  ],
+  "checks": [
+    {
+      "id": "集成一致性",
+      "conclusion": "通过",
+      "evidence": "node --test tests/*.test.mjs 122 pass/0 fail 为当前 HEAD 真实状态；新增 105 pass 与四测试文件的参数化 subtest 密度相符；部署三步骤（lock 重算+verifyBundle+status 冒烟）全过，源与安装副本一致。"
+    },
+    {
+      "id": "调用名统一",
+      "conclusion": "通过",
+      "evidence": "scripts/反审.mjs 已丢弃、由 反审直连.mjs 接替，122 全绿+verifyBundle 间接证明无失效引用；但材料未含全仓 grep 证据，去 dsh 化措辞替换的彻底性（错误信息/日志/协议标识）未被直接扫描，列为放行前补件。"
+    },
+    {
+      "id": "main未污染",
+      "conclusion": "通过",
+      "evidence": "ZCode 线自 2.0.3+09-17 补丁续起；T2 对 app.js/index.html/style.css 的 8 hunk 实测全为多图相关，说明 09-17 补丁内容未被整文件复制覆盖；基线回归全绿无回退；丢弃动作仅限本批次声明的适配层两项，未见对 main 既有文件的越界改动。"
+    },
+    {
+      "id": "安装副本分支标识",
+      "conclusion": "通过",
+      "evidence": "verifyBundle 与 status 冒烟全过，安装副本与源一致性及版本戳（2.1.0）由部署链校验；材料未单列分支标识核对结果，建议 release 重跑时在留痕中明示安装副本 version=2.1.0 与分支名，补齐直接证据。"
+    }
+  ],
+  "summary": "T1/T2 对齐目标、集成全绿、main 未污染，判有条件放行；放行前两件轻量扫描（dsh 残留 grep、文档口径对齐）+ 智谱席补齐回流并确认 glm-5.3 的独立性依据，均为非阻塞补件。"
+}

@@ -1,0 +1,63 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "1",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
+  "plan_sha256": "7bb372022295afdcfb476a3bb6812f50784e93e8b1e32517ca32c949a2d318a5",
+  "generated_at": "2026-09-29T07:31:03.042Z",
+  "verdict": "ctbz 2.1.0 T1/T2 实施结果测试全过、部署校验通过，复核接受。",
+  "fresh_agent_test": {
+    "conclusion": "主会话侧独立验证全量122 pass、deploy三步骤过、lock重算两次，新 agent 视角无阻断。",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "T1逐字节复制并去dsh化、主文锚点改造后13 pass；T2多图hunk全复制、看板视图9 pass、DOM探测多图元素齐备（甘特rect=9等），符合需求描述。",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "文件结构移植并适配路径（~/.zcode/AGENTS.md），凭据共用保留；SKILL.md增11节并升版2.1.0，丢弃冗余dsh骨架与回归测试。",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "测试完整性",
+      "category": "可接受",
+      "evidence": "单元层：主文锚点13、看板9、全量122 pass/0 fail；集成层：demo.mjs连跑两次exit0、serve四视图DOM探测数值明确。",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "去dsh化时凭据~/.dsh/*.yaml保留（双宿主共用），主文锚点测试DSH_HOME→ZC_HOME、反审.mjs→反审直连.mjs、断言改ZCode事实，边界处理明确。",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "未提供专项性能/安全测试，但demo连跑exit0、serve探测正常，无异常资源报错；凭据路径沿用既有共用方案，无新增暴露。",
+      "conclusion": "接受",
+      "disposition": "后续可补性能基线，当前不阻塞"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "看板多图交付：甘特rect=9、依赖图rect=9、里程碑text=18、图例5项，可视化要素完整，demo可重复运行。",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    }
+  ],
+  "summary": "T1机制移植与T2看板多图均按规格落地，测试部署闭环，复核通过。",
+  "implementer_camp": "deepseek",
+  "reviewer_camp": "tencent",
+  "blocking": 0
+}

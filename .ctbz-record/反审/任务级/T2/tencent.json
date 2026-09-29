@@ -1,0 +1,63 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "1",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
+  "plan_sha256": "7bb372022295afdcfb476a3bb6812f50784e93e8b1e32517ca32c949a2d318a5",
+  "generated_at": "2026-09-29T07:31:32.221Z",
+  "verdict": "T1机制移植与T2看板多图实施材料齐全、测试全绿，无阻塞项，准予合入2.1.0。",
+  "fresh_agent_test": {
+    "conclusion": "独立验证全量122 pass/0 fail，deploy三步骤全过，依赖lock重算两次一致，无阻断。",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "T1逐字节复制dsh五文件并去dsh化，主文锚点.test.mjs改造后13 pass；T2 graph-math.js+整文件复制，看板视图.test.mjs 9 pass，serve后DOM探测甘特rect=9/依赖rect=9/里程碑text=18/图例5项，符合多图需求。",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "T1丢弃scripts/反审.mjs与dsh-regression.test.mjs，SKILL.md增量11节并升版2.1.0；T2采用classic script+整文件hunk复制，实测8 hunk全多图，结构清晰。",
+      "conclusion": "接受",
+      "disposition": "建议后续评估看板脚本模块化，非阻塞"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "全量122 pass含基线17例，T1专项13 pass、T2专项9 pass，独立验证deploy检查与lock重算均过，demo.mjs连跑exit 0。",
+      "conclusion": "接受",
+      "disposition": "无"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "凭据路径~/.dsh/*.yaml保留两宿主共用，SKILL.md增哑巴模式/边界延伸等章节；未显式描述异常输入测试但验收全过。",
+      "conclusion": "有条件接受",
+      "disposition": "建议补充跨宿主凭据权限隔离验证，非阻塞"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "demo.mjs连跑两次exit 0，serve四视图DOM探测正常无报错，凭据复用既有路径未新增暴露面。",
+      "conclusion": "接受",
+      "disposition": "无"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "看板四视图元素齐全（甘特9、依赖9、里程碑18、图例5），SKILL.md新增会话自检/自疑/可质疑性等11节提升引导。",
+      "conclusion": "接受",
+      "disposition": "无"
+    }
+  ],
+  "summary": "机制移植与看板多图均通过测试与独立验证，无阻塞项，版本可推进发布。",
+  "implementer_camp": "deepseek",
+  "reviewer_camp": "tencent",
+  "blocking": 0
+}

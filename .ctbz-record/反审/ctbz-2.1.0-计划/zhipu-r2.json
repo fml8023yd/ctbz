@@ -1,0 +1,74 @@
+{
+  "camp": "zhipu",
+  "camp_label": "智谱",
+  "provider": "workbuddy",
+  "model": "glm-5.3",
+  "round": "2",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
+  "plan_sha256": "a575a5b171770432a082263fa1c69b35042e0d1dd77dd3a9ac393e1e71ba80d2",
+  "generated_at": "2026-09-29T07:49:40.581Z",
+  "verdict": "有条件接受：T3 步骤 8 与行动账 A4 在本地 v2.1.0 tag 处置上自相矛盾（阻塞）须先修订，另补执行进度状态、主文锚点测试失配预案、preflight.mjs 接线说明并扩展确认门禁至步骤 9 后可开工。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工：T1/T2 的『从指定仓指定 HEAD 复制指定文件』环节可独立执行，但执行状态判断与 T3 发布序列存在硬卡点。",
+    "blockers": [
+      "『本版已执行』标记与待办混排且无进度清单（T1 具体改动第 4 条、T2 第 2 条）：新 Agent 无法判断 SKILL.md 九节增补与 app.js 整文件复制是否已落盘，须先核对工作区实际状态",
+      "T3 步骤 8『git tag v2.1.0』与行动账 A4 证伪『git tag -l v2.1.0 得非空输出』矛盾：本地同名 tag 已存在时该命令必然报 tag 已存在，而步骤 6 又要求『本地 tag 保留至 push 成功』，旧 tag 删除时机未定义",
+      "『迁移全部 6 个 dsh tag』未枚举具体名单，且 ↗T 被引用两次但未在『现场核对』表内定义，处置范围只能运行时经 gh api 发现",
+      "SKILL.md 增补的插入锚点节名（『极简输出』『主进程服务姿态』『统一模式规则』）在文内无存在性证据，若工作区未含已执行改动则无法定位插入点",
+      "preflight.mjs 列入 write-set 但全文未说明移植后由谁调用；T3 步骤 4 依赖的 skills/ctbz/scripts/部署.js 亦未出现在保留清单或现场核对中"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划 §前言引用户原话（『从 2.0.3 作为基础版，更新一个 2.1…不认 2.3 2.4…评估其内容是否有必要加入…dsh 和 cc 已独立』）；§处置清单表头『用户已确认评估结论』且四类处置与原话逐点对应；§行动账 A4 否掉 2.4.0/3.0.0 取 2.1.0；但 §现场核对 ↗U 仅指向取证文件 §9，main HEAD（§构建期六问『真实』行记为 d24c2f5）与 v2.0.3 tag 的具体关系文内未写明，无法核验。",
+      "conclusion": "有条件接受",
+      "disposition": "施工前把 ↗U 结论写进计划正文：main HEAD 是否即 v2.0.3；若领先则列出领先提交并确认其属『基础版』范围。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "§任务契约 T1 第 1–2 条定『逐字节复制+机械替换、不改逻辑』，§行动账 A2 给出否掉重写的依据；T1 第 2 条明示凭据路径 ~/.dsh/* 保留（↗Q 同机共用）——环境性取舍有据，但使 ZCode 线长期耦合 dsh 目录；T1 write-set 含 preflight.mjs（↗I）但全文未说明其调用方；references/派发.md 标注『新建』而未说明 main 是否已有同名文件，无法核验；§反审重点 1 自评『派发闸不读 references』文内无法核验。",
+      "conclusion": "有条件接受",
+      "disposition": "补 preflight.mjs 触发方说明；核对 main 是否已存在 references/派发.md 并写明覆盖策略；复制后以 grep 核实派发闸.mjs 确不引用 references；将 ~/.dsh 凭据路径中立化列入后续版本已知事项。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "§任务契约 T1 验收 1–4 覆盖 node --check、两组单测、全量『基线 17 例+新增』与三组残留扫描；T2 验收 1–4 覆盖图算测试、diff 复核、演示幂等与四视图；但 T1 风险仅预案派发闸/内审夹具路径，未覆盖 tests/主文锚点.test.mjs（↗K）断言的是 dsh 版 SKILL.md/references 结构、而 T1 第 3 条把 references/派发.md 三通道表整节重写后可能失配；preflight.mjs 仅 node --check 无专测；T2 验收 4 允许 curl 200 兜底不验功能；T1 验收 4 的『全为溯源句』无操作化口径；T1 验收 3 的全量 glob 含 T2 测试文件，验收时点依赖执行顺序。",
+      "conclusion": "有条件接受",
+      "disposition": "为主文锚点.test.mjs 增加失配预案（允许按 ZCode 结构适配断言或列豁免项）；四视图至少一次浏览器实测，curl 仅作辅助；将『溯源句』口径操作化为允许命中清单；全量测试统一在 T2 完成后复跑作为 T1 验收 3 的正式时点。"
+    },
+    {
+      "view": "边界条件",
+      "category": "阻塞",
+      "evidence": "§任务契约 T3 步骤 6 要求『本地 tag 保留至 push 成功』、步骤 8 为『git tag v2.1.0 && git push origin v2.1.0』，与 §行动账 A4 证伪列『git tag -l v2.1.0 得非空输出（exit 0）』冲突：本地 v2.1.0 已存在则步骤 8 必然报 tag 已存在，旧 tag 删除时机与保留要求互斥；另 ↗T 在 T3 授权行与 A4 被引用但 §现场核对表（止于 ↗S、↗U）未定义该锚点，『6 个 dsh tag』名单全文未枚举；T3 步骤 4 依赖的 skills/ctbz/scripts/部署.js 未见于 §前言保留清单与 §现场核对，存在性无法核验。",
+      "conclusion": "有条件接受",
+      "disposition": "修订 T3 步骤 8：写明旧本地 v2.1.0 的处置（重打前 git tag -d 并以 bundle 与导出元数据承担备份语义，或 git tag -f 并校验新 tag 指向 ctbz-2.1 过闸 HEAD），并写明远程 tag 删除的具体命令；在计划内枚举 6 个待迁移 tag 或明确以步骤 5 gh api 输出为处置边界并逐个过确认门禁；补 ↗T 锚点定义；施工前 test -f 核对 部署.js。"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "§任务契约 T3 原则行（不可逆前 dry-run 与备份、不直推 main）、步骤 3（反审直连 --dry-run）、步骤 4（rsync 备份+失败回滚）、§回滚（删除前导出 gh api 元数据、本地 tag 与 bundle 在）、授权行（用户已确认 tag 迁移与覆盖部署）；缺口：步骤 9 的『确认门禁』仅覆盖步骤 6/7/8，不含步骤 9 自身的 Release 发布与附件上传；Release 删除后附件资产无法由元数据复原（可按步骤 9 白名单由本地 tag 重建）；未确认 ctbz-dsh 独立仓保有同号 tag。",
+      "conclusion": "有条件接受",
+      "disposition": "将步骤 9（Release 发布与附件上传）纳入确认门禁；步骤 6 执行前确认 ctbz-dsh 独立仓或本地 bundle 已覆盖 6 个 tag 的完整可恢复性。"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "§任务契约 T1 第 5 条要求 CHANGELOG 含新增/变更/丢弃/验收四节；T2 write-set 含 docs/演示（demo.mjs+README.md）且验收 3 给出幂等与『9 节点/2 轮/1 待决』的可感指标；T3 保守序列分步报告确认、§行动账 A1 不直改 main 保障版本权威；T1 验收 4 的残留扫描保障文档口径一致。",
+      "conclusion": "接受",
+      "disposition": "无需改动；可选将看板验收固定一次浏览器实测（与测试完整性条件合并执行）。"
+    }
+  ],
+  "summary": "移植策略、取证锚点与验收闭环整体扎实，但 T3 发布序列的本地 v2.1.0 tag 处置自相矛盾（阻塞），另有进度状态、主文锚点测试适配、preflight 接线、确认门禁覆盖面等欠具体处，修订后可开工。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://101.133.151.121:18890/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 490873,
+    "model_echo": "glm-5.3"
+  }
+}

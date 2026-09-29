@@ -1,0 +1,82 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "1",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
+  "plan_sha256": "a575a5b171770432a082263fa1c69b35042e0d1dd77dd3a9ac393e1e71ba80d2",
+  "generated_at": "2026-09-29T07:42:18.324Z",
+  "verdict": "ctbz 2.1.0 批次 T1/T2 移植集成测试全绿、部署冒烟通过，L1 反审一路降级补齐中非阻塞，整体可接受交付。",
+  "fresh_agent_test": {
+    "conclusion": "基于内联材料复核，无独立运行能力但证据链完整，判定批次达到验收门槛",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "自 main 续起移植 dsh 宿主无关机制与看板多图，丢弃 dsh/cc 适配层，SKILL.md 增 11 节版本 2.0.3→2.1.0，与批次目标一致",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "T1 四脚本三 reference 逐字节复制去 dsh 化，丢弃适配层使 ZCode 线纯净；T2 整文件复制多图组件，无冗余耦合",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "测试完整性",
+      "category": "可接受",
+      "evidence": "node --test 122 pass/0 fail（含基线17+新增），新增派发闸/内审/主文锚点/看板视图测试，丢弃 dsh-regression 合理",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "L1 反审智谱额度用尽，改用同阵营 glm-5.3 补齐中，已有三路 round=2 达标，降级路径明确",
+      "conclusion": "有条件接受",
+      "disposition": "跟踪 glm-5.3 补齐完成并补录反审报告"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "demo.mjs 连跑两次 exit 0，四视图 DOM 探测数值正常（甘特9/依赖9/里程碑18/图例5），部署 verifyBundle 通过，无安全告警",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "看板多图 T2 提供甘特/依赖/里程碑/图例四视图，docs/演示补充，DOM 探测元素齐备",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    }
+  ],
+  "checks": [
+    {
+      "id": "集成一致性",
+      "conclusion": "通过",
+      "evidence": "122 pass/0 fail，部署三步骤全过，demo 连跑 exit 0 且四视图 DOM 探测符合预期"
+    },
+    {
+      "id": "调用名统一",
+      "conclusion": "通过",
+      "evidence": "去 dsh 化措辞替换后四脚本（派发闸/内审/反审直连/preflight）与三 reference 命名一致，旧反审.mjs 已丢弃"
+    },
+    {
+      "id": "main未污染",
+      "conclusion": "通过",
+      "evidence": "自 main(2.0.3+09-17补丁)续起，仅移植宿主无关机制并丢弃 dsh/cc 适配层，测试全绿证明无残留 dsh 耦合"
+    },
+    {
+      "id": "安装副本分支标识",
+      "conclusion": "通过",
+      "evidence": "SKILL.md 版本显式 2.0.3→2.1.0，lock 重算与 verifyBundle 通过，分支标识清晰"
+    }
+  ],
+  "summary": "ctbz 2.1.0 机制与看板多图移植完整、测试部署全绿，仅 L1 反审一路降级补齐中，整体可交付。"
+}
