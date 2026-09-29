@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ctbz 三线分支现状（2026-09-29）",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1160, 640]
+  },
+  "components": [
+    { "id": "single", "type": "external", "label": "单仓时期", "sublabel": "至 2026-09-21", "pos": [40, 300], "size": [128, 68] },
+    { "id": "split", "type": "messagebus", "label": "2026-09-29 拆分", "sublabel": "dsh / cc 独立成仓", "pos": [212, 300], "size": [148, 68] },
+    { "id": "zc", "type": "backend", "label": "ctbz 主仓", "sublabel": "ZCode 线 · main", "pos": [424, 90], "size": [186, 72] },
+    { "id": "origin", "type": "external", "label": "origin/ctbz-dsh", "sublabel": "遗留分支引用", "pos": [424, 202], "size": [186, 60] },
+    { "id": "dsh", "type": "backend", "label": "ctbz-dsh 独立仓", "sublabel": "分支 ctbz-dsh · 无远端", "pos": [424, 320], "size": [186, 72] },
+    { "id": "cc", "type": "backend", "label": "ctbz-cc 独立仓", "sublabel": "main · 1 提交", "pos": [424, 452], "size": [186, 72] },
+    { "id": "zc-v", "type": "cloud", "label": "v2.1.0 已发布", "sublabel": "tag + Release + 阿里云", "pos": [700, 90], "size": [176, 72] },
+    { "id": "dsh-v", "type": "cloud", "label": "本地 00e1951", "sublabel": "反审直连·看板多图已迁出", "pos": [700, 320], "size": [176, 72] },
+    { "id": "cc-v", "type": "cloud", "label": "bundle 归档", "sublabel": "ctbz-cc-repo.bundle", "pos": [700, 452], "size": [176, 72] }
+  ],
+  "connections": [
+    { "id": "single-split", "from": "single", "to": "split", "label": "机制同源", "labelDy": 58 },
+    { "id": "split-zc", "from": "split", "to": "zc", "label": "主线留在本仓", "variant": "emphasis" },
+    { "id": "split-dsh", "from": "split", "to": "dsh", "label": "拆为独立仓" },
+    { "id": "split-cc", "from": "split", "to": "cc", "label": "拆为独立仓" },
+    { "id": "zc-v", "from": "zc", "to": "zc-v", "label": "部署与发布", "variant": "emphasis" },
+    { "id": "zc-origin", "from": "origin", "to": "zc", "label": "待清理", "variant": "dashed" },
+    { "id": "dsh-v", "from": "dsh", "to": "dsh-v", "label": "本机独立开发" },
+    { "id": "cc-v", "from": "cc", "to": "cc-v", "label": "已归档停用" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "主仓 main 单一权威", "items": ["main = 远程 main = tag v2.1.0 = d38cf6d", "安装副本 ~/.agents/skills/ctbz = 2.1.0"] },
+    { "dot": "amber", "title": "两处待收尾", "items": ["origin/ctbz-dsh 远端分支引用仍在", "本地 ctbz-2.1 分支与 main 重合，可删"] }
+  ]
+}
