@@ -166,10 +166,6 @@
       "sha256": "2ee7bd46321a6bff9745de5822e0b84ee7297d054d414720d709773dbc03f46f"
     },
     {
-      "path": "models.json",
-      "sha256": "91c199b82398e3ebc8579e35eb5c6ed8f33a54b148577cc555c036a15b2c2f44"
-    },
-    {
       "path": "references/configuration.md",
       "sha256": "790a4c39f34fa2915c9520edde3e617581db97ce95c359084551fb8ead4b8a22"
     },
