@@ -50,71 +50,37 @@ const CATEGORIES = ["阻塞", "非阻塞", "可接受"];
 const CONCLUSIONS = ["接受", "有条件接受", "不接受"];
 
 // 凭据路径可经环境变量改写，供测试注入夹具（生产不设即走真实路径）
-const DSH_SETTINGS = process.env.CTBZ_DSH_SETTINGS || join(homedir(), ".dsh", "settings.yaml");
-const DSH_CREDENTIALS = process.env.CTBZ_DSH_CREDENTIALS || join(homedir(), ".dsh", ".credentials.yaml");
-
 const DEFAULT_TIMEOUT_MS = 420_000;
-// 推理型模型（hy4-preview-f）先耗 reasoning_content，实测 8 token 正文吃掉 748 token 推理，
-// 故默认给足；被截断时 callCamp 会报 finish_reason=length 提示调高。
+// 推理型模型先耗 reasoning_content；max_tokens 被推理吃光时 content 为空，被截断时报 finish_reason=length。
 const DEFAULT_MAX_TOKENS = 32_000;
 const MAX_PLAN_CHARS = 120_000;
 
-// ---------- 凭据（与 preflight.mjs 同源口径；不打印、不落盘、不进日志） ----------
+// ---------- 凭据（ZCode 线：读 ~/.zcode/v2/config.json 的 provider.<id>.options） ----------
+// 本机凭据落点即 ZCode 配置；按 baseURL 前缀定位渠道，不硬编码 provider id（id 随接入变化）。
 
-function readProviderSettings(provider) {
-  let text = "";
-  try { text = readFileSync(DSH_SETTINGS, "utf8"); } catch { return null; }
-  const lines = text.split(/\r?\n/);
-  const provIdx = lines.findIndex((l) => /^\s*providers:\s*$/.test(l));
-  if (provIdx === -1) return null;
-  const childIndent = (lines[provIdx].match(/^(\s*)/)[1].length) + 2;
-  const nameRe = new RegExp(`^\\s{${childIndent}}${provider}:\\s*$`);
-  const pIdx = lines.findIndex((l, i) => i > provIdx && nameRe.test(l) && !lines.slice(provIdx + 1, i).some((x) => /^\S/.test(x)));
-  if (pIdx === -1) return null;
-  const out = {};
-  for (let i = pIdx + 1; i < lines.length; i++) {
-    const l = lines[i];
-    if (/^\S/.test(l)) break;
-    const ind = l.match(/^(\s*)/)[1].length;
-    if (ind <= childIndent) break;
-    if (ind > childIndent + 2) continue;
-    const m = l.match(new RegExp(`^\\s{${childIndent + 2}}(\\w[\\w-]*):\\s*(.*)$`));
-    if (m && (m[1] === "apiKeyEnv" || m[1] === "baseURL" || m[1] === "api")) out[m[1]] = m[2].trim();
-  }
-  return Object.keys(out).length ? out : null;
-}
+const ZC_CONFIG = process.env.CTBZ_ZC_CONFIG || join(homedir(), ".zcode", "v2", "config.json");
 
-function readCredentialRef(name) {
-  let text = "";
-  try { text = readFileSync(DSH_CREDENTIALS, "utf8"); } catch { return null; }
-  const lines = text.split(/\r?\n/);
-  const refsIdx = lines.findIndex((l) => /^refs:\s*$/.test(l));
-  if (refsIdx === -1) return null;
-  const re = new RegExp(`^  ${name}:\\s*(.*)$`);
-  for (let i = refsIdx + 1; i < lines.length; i++) {
-    const l = lines[i];
-    if (/^\S/.test(l)) break;
-    const m = l.match(re);
-    if (m) {
-      let v = m[1].trim();
-      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-      return v || null;
-    }
-  }
-  return null;
+// 席位表 provider 语义名 → baseURL 前缀（用于在 ZCode 配置中定位渠道）
+const PROVIDER_BASE_HINTS = {
+  "deepseek-official": "https://api.deepseek.com",
+  workbuddy: "http://101.133.151.121:18890/v1",
+};
+
+function readZcodeProviders() {
+  try { return JSON.parse(readFileSync(ZC_CONFIG, "utf8"))?.provider ?? {}; } catch { return {}; }
 }
 
 function resolveApiKey(provider) {
-  const ps = readProviderSettings(provider);
-  let envName = ps?.apiKeyEnv ?? null;
-  let source = "settings.yaml:apiKeyEnv";
-  if (!envName) {
-    const builtin = { "deepseek-official": "DEEPSEEK_API_KEY" };
-    if (!builtin[provider]) return { key: null, envName: null, source };
-    envName = builtin[provider];
-    source = "builtin(deepseek-official)";
+  const hint = (PROVIDER_BASE_HINTS[provider] ?? "").replace(/\/+$/, "");
+  if (!hint) return { key: null, source: `未知 provider：${provider}` };
+  for (const [id, cfg] of Object.entries(readZcodeProviders())) {
+    const base = String(cfg?.options?.baseURL ?? "").replace(/\/+$/, "");
+    if (base && base.startsWith(hint)) {
+      const key = cfg?.options?.apiKey;
+      if (typeof key === "string" && key.trim()) return { key: key.trim(), source: `zcode-config:${id}` };
+    }
   }
-  return { key: readCredentialRef(envName), envName, source };
+  return { key: null, source: `zcode-config 未命中（${provider} @ ${hint}）` };
 }
 
 function sanitizeText(t) {
@@ -430,9 +396,9 @@ async function main() {
   // 四路互不依赖，并行派发：推理型席位单路可达数分钟，串行会成倍拉长墙钟
   const runOne = async (camp) => {
     const outFile = join(recordDir, camp.key + suffix + ".json");
-    const { key, envName, source } = resolveApiKey(camp.provider);
+    const { key, source } = resolveApiKey(camp.provider);
     if (!key) {
-      return { camp: camp.key, label: camp.label, status: "fail", detail: `凭据缺失（${envName ?? "未声明 apiKeyEnv"}，来源 ${source}）` };
+      return { camp: camp.key, label: camp.label, status: "fail", detail: `凭据缺失（来源 ${source}）` };
     }
     const prompt = buildPrompt({ camp, planPath, planText, planSha, round: a.round, prev: a.prev });
     const r = await callCamp({ camp, prompt, apiKey: key, timeoutMs: a.timeoutMs, maxTokens: a.maxTokens, stream: !a.noStream });

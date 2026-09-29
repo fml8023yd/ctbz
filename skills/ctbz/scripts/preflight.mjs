@@ -5,9 +5,7 @@
 // 失败/离线不得假报成功：每个模型区分 ok / fail / timeout，如实标注。
 //
 // 凭据获取（不打印、不落盘、不进日志）:
-//   读 ~/.dsh/settings.yaml 的 provider apiKeyEnv 名 → 从 ~/.dsh/.credentials.yaml 的 refs.<NAME> 取值（本机凭据落点，两宿主共用）。
-//   workbuddy 的 apiKeyEnv 由 settings.yaml 声明；deepseek-official 的 apiKeyEnv 名在本机 settings.yaml
-//   未声明（内置 provider），固定按本机凭据事实取 refs.DEEPSEEK_API_KEY（与派发.md §1.2 一致）。
+//   读 ~/.zcode/v2/config.json 的 provider.<id>.options.apiKey；按 baseURL 前缀定位渠道（不硬编码 provider id）。
 //
 // 用法: /usr/local/bin/node preflight.mjs [--json] [--ledger] [--only M1,M3] [--endpoint-override M2=http://...]
 //   --json               只输出 JSON
@@ -36,73 +34,32 @@ const MODELS = [
   { code: "M5", provider: "workbuddy", model: "kimi-k2.8-preview", vendor: "月之暗面", cost: "credit 0.1", base: WORKBUDDY_BASE },
 ];
 
-const DSH_SETTINGS = join(homedir(), ".dsh", "settings.yaml");
-const DSH_CREDENTIALS = join(homedir(), ".dsh", ".credentials.yaml");
-const LEDGER_DIR = join(homedir(), "Documents", ".ctbz");
-const LEDGER_FILE = join(LEDGER_DIR, "模型健康.json");
+// ---------- 凭据（ZCode 线：读 ~/.zcode/v2/config.json 的 provider.<id>.options） ----------
+// 本机凭据落点即 ZCode 配置；按 baseURL 前缀定位渠道，不硬编码 provider id（id 随接入变化）。
 
-// ---------- 极简 YAML 读取（只取本任务需要的两种结构，不引依赖） ----------
+const ZC_CONFIG = process.env.CTBZ_ZC_CONFIG || join(homedir(), ".zcode", "v2", "config.json");
 
-// settings.yaml: 在 llm-pi-ai.providers.<name> 下找 apiKeyEnv / baseURL / api
-function readProviderSettings(provider) {
-  let text = "";
-  try { text = readFileSync(DSH_SETTINGS, "utf8"); } catch { return null; }
-  const lines = text.split(/\r?\n/);
-  // 通用缩进感知：providers 的子键（如 workbuddy）必是「比 providers 行更深一级」的最左缩进
-  const provIdx = lines.findIndex((l) => /^\s*providers:\s*$/.test(l));
-  if (provIdx === -1) return null;
-  const childIndent = (lines[provIdx].match(/^(\s*)/)[1].length) + 2;
-  const nameRe = new RegExp(`^\\s{${childIndent}}${provider}:\\s*$`);
-  const pIdx = lines.findIndex((l, i) => i > provIdx && nameRe.test(l) && !lines.slice(provIdx + 1, i).some((x) => /^\S/.test(x)));
-  if (pIdx === -1) return null;
-  const out = {};
-  for (let i = pIdx + 1; i < lines.length; i++) {
-    const l = lines[i];
-    if (/^\S/.test(l)) break;                                              // 跳出顶层
-    const ind = l.match(/^(\s*)/)[1].length;
-    if (ind <= childIndent) break;                                         // 跳出 provider 块
-    if (ind > childIndent + 2) continue;                                   // models[] 子块更深，跳过
-    const m = l.match(new RegExp(`^\\s{${childIndent + 2}}(\\w[\\w-]*):\\s*(.*)$`));
-    if (m && (m[1] === "apiKeyEnv" || m[1] === "baseURL" || m[1] === "api")) out[m[1]] = m[2].trim();
-  }
-  return Object.keys(out).length ? out : null;
+// 席位表 provider 语义名 → baseURL 前缀（用于在 ZCode 配置中定位渠道）
+const PROVIDER_BASE_HINTS = {
+  "deepseek-official": "https://api.deepseek.com",
+  workbuddy: "http://101.133.151.121:18890/v1",
+};
+
+function readZcodeProviders() {
+  try { return JSON.parse(readFileSync(ZC_CONFIG, "utf8"))?.provider ?? {}; } catch { return {}; }
 }
 
-// .credentials.yaml: 顶层 refs.<NAME>: <value>（YAML 值可能带引号）
-function readCredentialRef(name) {
-  let text = "";
-  try { text = readFileSync(DSH_CREDENTIALS, "utf8"); } catch { return null; }
-  const lines = text.split(/\r?\n/);
-  const refsIdx = lines.findIndex((l) => /^refs:\s*$/.test(l));
-  if (refsIdx === -1) return null;
-  const re = new RegExp(`^  ${name}:\\s*(.*)$`);
-  for (let i = refsIdx + 1; i < lines.length; i++) {
-    const l = lines[i];
-    if (/^\S/.test(l)) break;                       // 跳出 refs 块
-    const m = l.match(re);
-    if (m) {
-      let v = m[1].trim();
-      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-      return v || null;
+function resolveApiKey(provider) {
+  const hint = (PROVIDER_BASE_HINTS[provider] ?? "").replace(/\/+$/, "");
+  if (!hint) return { key: null, source: `未知 provider：${provider}` };
+  for (const [id, cfg] of Object.entries(readZcodeProviders())) {
+    const base = String(cfg?.options?.baseURL ?? "").replace(/\/+$/, "");
+    if (base && base.startsWith(hint)) {
+      const key = cfg?.options?.apiKey;
+      if (typeof key === "string" && key.trim()) return { key: key.trim(), source: `zcode-config:${id}` };
     }
   }
-  return null;
-}
-
-// 取某 provider 的 API key：优先 settings.yaml 的 apiKeyEnv 声明；deepseek-official 是
-// 内置 provider，settings.yaml 未声明其 apiKeyEnv，按派发.md §1.2 固定取 DEEPSEEK_API_KEY。
-function resolveApiKey(provider) {
-  const ps = readProviderSettings(provider);
-  let envName = ps?.apiKeyEnv ?? null;
-  let source = "settings.yaml:apiKeyEnv";
-  if (!envName) {
-    const builtin = { "deepseek-official": "DEEPSEEK_API_KEY" };
-    if (!builtin[provider]) return { key: null, envName: null, source };
-    envName = builtin[provider];
-    source = "builtin(deepseek-official)";
-  }
-  const key = readCredentialRef(envName);
-  return { key, envName, source };
+  return { key: null, source: `zcode-config 未命中（${provider} @ ${hint}）` };
 }
 
 // ---------- 探活 ----------
@@ -277,19 +234,19 @@ async function main() {
   const providers = [...new Set(targets.map((m) => m.provider))];
   const creds = {};
   for (const p of providers) {
-    const { key, envName, source } = resolveApiKey(p);
-    creds[p] = { envName, source, present: Boolean(key) };
+    const { key, source } = resolveApiKey(p);
+    creds[p] = { key, source, present: Boolean(key) };
   }
   const missing = providers.filter((p) => !creds[p].present);
 
   const rows = [];
   const ledgerUpdates = [];
   for (const m of targets) {
-    const key = creds[m.provider].present ? (await Promise.resolve(readCredentialRef(creds[m.provider].envName))) : null;
+    const key = creds[m.provider].key ?? null;
     const r = { code: m.code, provider: m.provider, model: m.model, vendor: m.vendor, cost: m.cost };
     if (!key) {
       rows.push({ ...r, status: "fail", http: null, latencyMs: 0,
-                  detail: `凭据缺失（${creds[m.provider].envName ?? "未声明 apiKeyEnv"}，来源 ${creds[m.provider].source}）` });
+                  detail: `凭据缺失（来源 ${creds[m.provider].source}）` });
       continue;
     }
     const pr = await probe(m, key, args.overrides[m.code]);
@@ -320,7 +277,7 @@ async function main() {
     ok: okCount,
     fail: rows.filter((r) => r.status === "fail").length,
     timeout: rows.filter((r) => r.status === "timeout").length,
-    credentials: Object.fromEntries(providers.map((p) => [p, { envName: creds[p].envName, source: creds[p].source, present: creds[p].present }])),
+    credentials: Object.fromEntries(providers.map((p) => [p, { source: creds[p].source, present: creds[p].present }])),
     ledger_updates: args.ledger ? ledgerUpdates : ledgerUpdates.map(({ cooldown_until, ...u }) => ({ ...u, cooldown_until, note: "未写账本（未加 --ledger）" })),
     rows: rows.map(({ limitError, usage, ...r }) => ({ ...r, ...(usage ? { usage } : {}) })),
     note: "status 区分 ok/fail/timeout；fail 含限额/欠费类错误（如实标注，不假报成功）。凭据不打印不落盘。",

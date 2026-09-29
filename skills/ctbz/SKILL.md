@@ -309,7 +309,7 @@ Agent 跳过或没按约定执行时，必须 **取证 → 归因到机制 → �
 | M4 | workbuddy | hy3 | 0 |
 | M5 | workbuddy | kimi-k2.8-preview | 0.1 |
 
-取样规则：**讨论/反审/动脑类 → 4 家提供商每家至少 1 个**；**开发类 → 可排除 M5**。反审席位用 M1 时取 `deepseek-flash`（**与主进程同源，仅提供独立上下文与采样，不计模型独立性**；独立性由腾讯/月之暗面/智谱三路保证）。渠道事实：`deepseek-official` 仅 `deepseek-flash`/`deepseek-v4-pro`；`workbuddy` 为网关（baseURL **http 明文**，标注为已知风险）。凭据：`~/.dsh/settings.yaml` 的 `apiKeyEnv` → `~/.dsh/.credentials.yaml` 的 `refs.<NAME>`（0600，不打印、不落盘、不进日志）。
+取样规则：**讨论/反审/动脑类 → 4 家提供商每家至少 1 个**；**开发类 → 可排除 M5**。反审席位用 M1 时取 `deepseek-flash`（**与主进程同源，仅提供独立上下文与采样，不计模型独立性**；独立性由腾讯/月之暗面/智谱三路保证）。渠道事实：`deepseek-official` 仅 `deepseek-flash`/`deepseek-v4-pro`；`workbuddy` 为网关（baseURL **http 明文**，标注为已知风险）。凭据：`~/.zcode/v2/config.json` 的 `provider.<id>.options.apiKey`（按 baseURL 前缀定位渠道，不打印、不落盘、不进日志）。
 
 ## 统一模式规则
 
