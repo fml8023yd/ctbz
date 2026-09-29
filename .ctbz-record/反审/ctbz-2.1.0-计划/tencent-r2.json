@@ -5,70 +5,69 @@
   "model": "hy4-preview-f",
   "round": "2",
   "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
-  "plan_sha256": "83ed2d67b7655fc6f30c802c8df6af6bf23de2a10e09b599a017b3ebafe9e803",
-  "generated_at": "2026-09-29T07:40:43.586Z",
-  "verdict": "计划整体有条件接受：无阻塞类别，但需求基线（main=2.0.3）未锚定、锚点↗T缺失、取证§5未内联及派发.md重写需补明确，开工前须先澄清这些卡点。",
+  "plan_sha256": "a575a5b171770432a082263fa1c69b35042e0d1dd77dd3a9ac393e1e71ba80d2",
+  "generated_at": "2026-09-29T07:54:00.869Z",
+  "verdict": "不接受，存在阻塞：边界条件中凭据路径仍强依赖 ~/.dsh 且未处理无 dsh 环境；须先迁移至 ~/.zcode 或加降级/报错处理，并补齐 SKILL.md/派发.md 文案源与测试夹具去 dsh 化必改项后再审。",
   "fresh_agent_test": {
-    "conclusion": "不能直接开工；计划存在基线未锚定、关键锚点↗T缺失、取证§5未内联、派发.md重写需创作、源路径映射未显式声明等欠具体卡点，须先澄清/补证。",
+    "conclusion": "不能直接开工：计划状态标注矛盾（多处『本版已执行』与自疑/验收『待实施后跑』并存），且 SKILL.md 九节增补、references/派发.md 重写缺少可落地的文本或复制源，测试夹具去 dsh 化未列为必改项。",
     "blockers": [
-      "main 基线未锚定：用户要求基于 2.0.3，计划仅说从 main 建分支且 main 未被阉割，未给出 main HEAD/tag 与 2.0.3 对应关系（现场核对表无此项；↗N 仅为 dsh 源仓 HEAD=00e1951）。",
-      "取证文件 §5 的 app.js 8 hunk 清单未内联：T2 要求复制后 diff 复核与取证 §5 一致并以 ↗P 为据，但计划全文未包含 §5 具体 hunk 内容，仅称『恰 8 hunk 全为多图』，无法核验。",
-      "锚点 ↗T 缺失：A4 与 T3 授权引用 ↗T（dsh 线已占 tag 让位），但「现场核对」表只定义到 ↗S，无 ↗T 条目，无法核验『dsh 线已占 v2.1.0 tag』断言。",
-      "references/派发.md 的 ZCode 版重写内容不足：T1 第3条要求将原三通道表整节替换为『ZCode 原生描述（Agent 工具 + profile 派发 + 反审直连）』，仅给关键词、未给完整文本，也未指明从 main 哪节取原生描述，属创作环节，与反审重点4『无创作环节』矛盾。",
-      "源路径与目标路径映射未显式声明：write-set 只给 workspace 目标路径，复制来源仅写『自 dsh 仓 HEAD 00e1951』及文件名，未逐项写明 dsh 仓内相对路径（如 skills/ctbz/scripts/派发闸.mjs），需假设同名同路径。"
+      "SKILL.md 九节增补与 references/派发.md ZCode 版重写：计划仅给插入锚点、称『无创作环节』，但未提供最终文案或 dsh SKILL.md 复制源，无从落字（计划 T1 第 3、4 条）。",
+      "计划自称 T1 第 4 条『本版已执行』、T2 第 2 条『已复制并复核』，同时自疑 1/2/4 与验收结果多写『待实施后跑』，开工基线状态矛盾，无法判断哪些已完成。",
+      "测试夹具去 dsh 化未入必改清单：派发闸/内审 test 夹具可能引用 ~/.dsh，计划仅在风险段写『若红则改』，未列入 T1 第 2 条机械替换，直接开工测试可能红且原因不明（计划 T1 风险段）。",
+      "凭据路径保留 ~/.dsh：边界条件阻塞项未解决，若直接发布，无 dsh 环境会失败；开工前需先确定迁移或降级方案（计划 T1 第 2 条与自疑 2）。"
     ]
   },
   "verdicts": [
     {
       "view": "需求一致性",
       "category": "非阻塞",
-      "evidence": "计划「前言」第1段用户原话要求『从 2.0.3 作为基础版』；「A1 行动账」要求从 main 建 ctbz-2.1 分支；「现场核对」表仅声明 main 未被阉割（↗A–↗E）且 ↗N 为源仓(dsh)HEAD=00e1951，未给出 main HEAD/tag 等于 2.0.3 的锚点。",
+      "evidence": "计划 前言 用户原话段要求「不认 2.3 2.4 那些更新，但是我们评估其内容是否有必要加入」；计划 处置清单 未出现 2.3/2.4 字样，也未给出 2.3/2.4 更新项与四类处置的映射（现场核对 ↗U 取证文件 §9 仅提 main 与 v2.0.3，未提供，无法核验）。",
       "conclusion": "有条件接受",
-      "disposition": "施工前先确认 main 与 2.0.3 tag 内容一致（或改为从 2.0.3 tag 建分支），并在现场核对补充『main 基线=2.0.3』断言；否则不满足用户基础版需求。"
+      "disposition": "补充 2.3/2.4 各更新项到四类处置的评估对照，或在处置清单明确「2.3/2.4 内容已包含在 dsh 线宿主无关机制与看板多图中并已评估」；否则需求溯源不完整，不阻塞开工但需在 CHANGELOG 说明。"
     },
     {
       "view": "架构合理性",
-      "category": "可接受",
-      "evidence": "计划「T1 具体改动」第1–3条：逐字节复制 dsh HEAD 00e1951 + 机械去 dsh 化；「反审重点」1 说明 references/派发.md 重写风险可控（派发闸只校验回执字段与目录、不读 references）；「T2 具体改动」第2条依据 ↗P（app.js 差异恰 8 hunk 全为多图）整文件复制。",
-      "conclusion": "接受",
-      "disposition": "保持；需补充确认 references/内审协议.md、派发.md 等未被任何脚本 require/import（目前仅验证派发闸不读 references），并在 SKILL/注释记录 ~/.dsh 凭据路径保留理由（↗Q）。"
+      "category": "非阻塞",
+      "evidence": "计划 自疑（设计阶段）第 1、2、4 条结果均为「待实施后跑」，与 行动账 A3 证伪（grep 反审.mjs 已得零命中）及 T1「本版已执行」矛盾；派发闸与 pick-profile 复用假设未在设计阶段验证。",
+      "conclusion": "有条件接受",
+      "disposition": "实施前先执行自疑 1 的全量测试（tests/*.test.mjs 含主仓 17 例+移植件）确认 pick-profile 与派发闸无冲突；澄清自疑 2/4 与行动账的已完成状态矛盾，并在完工前补齐证伪结果。"
     },
     {
       "view": "测试完整性",
       "category": "非阻塞",
-      "evidence": "计划「现场核对」↗K 待移植测试仅四件（派发闸/内审/主文锚点/看板视图），preflight.mjs 与 反审直连.mjs 无对应移植测试；「T1 验收标准」第2条显式只跑两个测试文件（第3条用 *.test.mjs 覆盖主文锚点）；「T2 验收标准」第4条允许 curl 静态资源 200 代替四视图切换实测；「T3 步骤3」以 --dry-run 代替反审直连单元测试。",
+      "evidence": "计划 T1 风险段称派发闸/内审 test 内嵌夹具可能引用 ~/.dsh，若红才改；但 T1 具体改动第 2 条去 dsh 化替换清单未包含测试夹具，验收标准 2 却断言全绿。",
       "conclusion": "有条件接受",
-      "disposition": "T1 验收标准第2条显式列出主文锚点.test.mjs（或注明被第3条覆盖）；对 preflight/反审直连明确沿用 dsh 线无独立测试件、仅 node --check + --dry-run；T2 第4条 curl 只能验资源可达，四视图切换须浏览器实测或补自动化校验；夹具引 ~/.dsh 致红时同步改夹具路径（T1 风险）。"
+      "disposition": "将 tests/派发闸.test.mjs、tests/内审.test.mjs 内嵌夹具中的 ~/.dsh 专有路径（凭据文件除外）纳入 T1 第 2 条机械替换，或明确「先按 ↗Q 核对夹具再跑测试」；否则测试验收可能非确定性红。"
     },
     {
       "view": "边界条件",
-      "category": "非阻塞",
-      "evidence": "计划「T1 具体改动」第2条保留凭据路径 ~/.dsh/.credentials.yaml 原样（↗Q），「自疑」第2条仅本机实测存在；「T1 验收标准」第4条残留 grep 限 skills/ctbz/，而 CHANGELOG.md 位于 workspace 根且属 write-set（T1 write-set 列 CHANGELOG.md）；「T2 验收标准」第4条 curl 静态资源 200 不等于四视图切换成功。",
-      "conclusion": "有条件接受",
-      "disposition": "残留扫描扩大到仓库根（排除 .git），或明确 CHANGELOG 溯源提及『反审.mjs（已丢弃）』允许；凭据依赖 ~/.dsh 需在纯 ZCode 环境评估 fallback（如 ~/.zcode/.credentials.yaml），并在发布说明标注该边界；T2 切换验收按测试完整性处置收紧。"
+      "category": "阻塞",
+      "evidence": "计划 T1 具体改动第 2 条保留凭据路径 ~/.dsh/settings.yaml 与 ~/.dsh/.credentials.yaml（依据 ↗Q 同机共用）；自疑第 2 条仅验证本机存在，未覆盖目标机无 dsh 安装时 ~/.dsh 缺失的边界，与前言「dsh 已独立、没必要沿用」及去 dsh 化目标冲突。",
+      "conclusion": "不接受",
+      "disposition": "必须给出以下两种方案之一才可发布：将凭据路径随镜像标记迁移到 ~/.zcode 并同步改脚本与夹具，或在 preflight/反审直连 中增加 ~/.dsh 缺失时的明确报错或回落 ~/.zcode 处理；并重跑反审直连 --dry-run 验证无 dsh 环境行为。此阻塞项未解决前不得打 tag 与发 Release。"
     },
     {
       "view": "性能安全",
       "category": "可接受",
-      "evidence": "计划「T1 具体改动」第2条凭据仅复用同机共用文件、无新增密钥处理（↗Q，自疑2 本机实测全程反审通过）；「T3 步骤5–6」删除 Release/tag 前先只读核对、获用户授权（授权段：迁移 dsh 线已占 tag ↗T、覆盖部署备份）；本次为机制移植+静态多图，未引入已知高风险路径。",
+      "evidence": "计划 T3 原则（不可逆操作前 dry-run 与备份、不直接推 main）及步骤 4 rsync 备份、步骤 6 先核对后删且每步确认门禁、本地 tag/元数据留档；步骤 9 tar 白名单仅 skills CHANGELOG.md docs，不含 ~/.dsh 凭据，无凭据泄露与不可回滚风险。",
       "conclusion": "接受",
-      "disposition": "保持；建议（非阻塞）对看板多图大数据量渲染补观察，并确保发布附件 ctbz-pack 不含凭据/用户数据；删除远程 Release 严格按步骤5映射逐个执行并留档 gh api 元数据（T3 回滚已含）。"
+      "disposition": "维持现有备份与步骤 6/7/8 确认门禁；执行时确保部署.js 与 rsync 备份路径可写，发布包不含用户主目录凭据文件。"
     },
     {
       "view": "用户体验",
       "category": "非阻塞",
-      "evidence": "计划「T1 具体改动」第2条保留 ~/.dsh 凭据路径与 ZCode 线命名不一致；「反审重点」3 要求将『pick-profile 取样 → 反审.mjs 生成骨架 → workflow.agent() 执行』改写为走反审直连，验收依赖 grep -rn 「反审.mjs」 skills/ctbz/ 零命中（T1 验收标准第4条）。",
+      "evidence": "计划 T1 具体改动第 4 条给出 SKILL.md 九节插入锚点并称本版已执行，但计划未提供九节最终文案或 dsh SKILL.md 复制源；验收仅用 grep 反审.mjs 零命中校验，未校验「反审一律走反审直连」等新 UX 表述已落地（派发.md 同，第 3 条要求重写但无文案）。",
       "conclusion": "有条件接受",
-      "disposition": "在 ZCode 线 SKILL.md/CHANGELOG 显式说明『凭据仍复用 ~/.dsh/.credentials.yaml，与 dsh 同机共用，非 ZCode 专有』；核对并留档原 pick-profile→反审.mjs→workflow.agent() 句已替换为反审直连执行（grep 零命中记录）；保留 CHANGELOG 四节（新增/变更/丢弃/验收）以明确丢弃件影响。"
+      "disposition": "补充 SKILL.md 九节与 references/派发.md ZCode 版最终文本或明确复制自 dsh 仓 SKILL.md/派发.md 的对应章节与替换规则；发布前人工核对派发前必跑与反审硬门等节文案，不能仅依赖 grep 反审.mjs。"
     }
   ],
-  "summary": "六视角均无阻塞类别、无『不接受』结论，四处『有条件接受』集中在基线锚定、测试验收收紧、残留扫描范围与凭据/文档一致性，架构与性能安全为可接受，按处置补证/澄清后可施工。",
+  "summary": "计划整体方向（回归 ZCode 线、选择性移植 dsh 宿主无关机制与看板多图、发 2.1.0）可接受，但边界凭据路径仍依赖 ~/.dsh 构成阻塞，且 SKILL.md/派发.md 文案源缺失、测试夹具去 dsh 化未落实，需修订后复审。",
   "dispatch": {
     "mode": "direct-http",
     "transport": "stream",
     "endpoint": "http://101.133.151.121:18890/v1/chat/completions",
     "http_status": 200,
-    "latency_ms": 325699,
+    "latency_ms": 249415,
     "model_echo": "hy4-preview-f"
   }
 }

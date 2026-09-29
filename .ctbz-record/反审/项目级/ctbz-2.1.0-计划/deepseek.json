@@ -1,0 +1,96 @@
+{
+  "camp": "deepseek",
+  "camp_label": "DeepSeek",
+  "provider": "deepseek-official",
+  "model": "deepseek-flash",
+  "round": "1",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
+  "plan_sha256": "a575a5b171770432a082263fa1c69b35042e0d1dd77dd3a9ac393e1e71ba80d2",
+  "generated_at": "2026-09-29T07:50:34.518Z",
+  "verdict": "2.1.0 整体功能集成通过，但存在非阻塞审计缺口（智谱替代复核补齐中、原始 diff/分支标识不足），建议有条件接受。",
+  "fresh_agent_test": {
+    "conclusion": "仅凭内联汇总材料，fresh agent 可完成高层复核，但无法独立复现字节级复制、main 未污染与安装副本分支标识；未发现功能性阻塞。",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "T1 四脚本、三 reference、三测试、SKILL.md 11 节与版本 2.1.0，T2 graph-math.js/app.js/index.html/style.css/tests/docs 均在批次声明内；122 pass/0 fail、部署三步骤全过、demo.mjs 两次 exit 0、四视图 DOM 达标。",
+      "conclusion": "有条件接受",
+      "disposition": "补齐 T1 原始 diff 与 T2 8 hunk 对照，确认逐字节复制及仅去 dsh 化措辞替换后归档。"
+    },
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "L1 反审 DeepSeek/腾讯/月之暗面 三路 round=2 达标；智谱因上游额度用尽改用同阵营 glm-5.3 补齐中。",
+      "conclusion": "有条件接受",
+      "disposition": "glm-5.3 补齐完成后回填 L1 记录；若合同要求智谱原路，则升级审批。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "T1 移植宿主无关机制并丢弃 scripts/反审.mjs、tests/dsh-regression.test.mjs 与 dsh/cc 适配层；T2 看板多图独立成组，边界清晰。",
+      "conclusion": "接受",
+      "disposition": "保留去 dsh 化替换清单与调用名映射，防止适配层回流。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "材料称自 dsh 仓 00e1951 逐字节复制 + 去 dsh 化措辞替换，但二者在字面上互斥且无 diff 输出；T2 整文件复制也可能夹带 dsh/cc 标识。",
+      "conclusion": "有条件接受",
+      "disposition": "补充脚本/reference/app.js 等逐文件 diff，证明仅措辞或宿主标识变更，无逻辑分叉。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "node --test tests/*.test.mjs 122 pass/0 fail；部署检查 lock 重算 + verifyBundle + status 冒烟全过；demo.mjs 连跑两次 exit 0。",
+      "conclusion": "有条件接受",
+      "disposition": "补充 main 基线 diff、新增测试用例数/覆盖点映射及命令原始输出。"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "四视图 DOM 探测：甘特 rect=9、依赖图 rect=9、里程碑 text=18、图例 5；demo 连跑两次稳定。",
+      "conclusion": "有条件接受",
+      "disposition": "补充空数据、单图、异常图输入边界用例，或说明复用既有基线覆盖。"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "preflight.mjs 与部署三步骤通过，未引入 dsh/cc 适配层；内联材料未见网络、权限或依赖扩张。",
+      "conclusion": "接受",
+      "disposition": "保留 verifyBundle/lock 重算/status 冒烟输出，发布前复查 preflight 无绕过。"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "看板多图 8 hunk 全为多图，docs/演示/ 与四视图 DOM 探测通过，demo.mjs 两次 exit 0。",
+      "conclusion": "接受",
+      "disposition": "归档演示与 DOM 探测结果。"
+    }
+  ],
+  "checks": [
+    {
+      "id": "集成一致性",
+      "conclusion": "通过",
+      "evidence": "122 pass/0 fail；部署三步骤全过；demo.mjs 两次 exit 0；四视图 DOM 计数与预期一致。"
+    },
+    {
+      "id": "调用名统一",
+      "conclusion": "有条件通过",
+      "evidence": "四脚本、三 reference、三测试命名已列明，反审入口改为 反审直连.mjs 并丢弃 scripts/反审.mjs；但无静态引用检查或调用图输出。"
+    },
+    {
+      "id": "main未污染",
+      "conclusion": "有条件通过",
+      "evidence": "批次声明自 main 2.0.3 + 09-17 补丁续起并丢弃 dsh/cc 适配层；未提供 git diff/status 或 main 基线未污染证明。"
+    },
+    {
+      "id": "安装副本分支标识",
+      "conclusion": "待补证",
+      "evidence": "部署检查含 lock 重算 + verifyBundle + status 冒烟，但内联材料未给出安装副本 branch/commit/标识输出。"
+    }
+  ],
+  "summary": "2.1.0 功能与集成证据充分且无功能阻塞，但审计证据链在 diff、分支标识与智谱替代复核上需补齐后方可最终放行。"
+}

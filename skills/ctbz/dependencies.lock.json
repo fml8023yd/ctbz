@@ -351,7 +351,7 @@
     },
     {
       "path": "scripts/派发闸.mjs",
-      "sha256": "d4582a25e0d3c2a343f47d57f5ad5c3b4fea6f31f161796bcce3518e9e5b7949"
+      "sha256": "cff9d366bf39b6417a446ee36d50fb7f9722762c3eefee489db8afdd03db9423"
     },
     {
       "path": "scripts/知识库.js",

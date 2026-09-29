@@ -1,0 +1,63 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.8-preview",
+  "round": "1",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-产物清单.md",
+  "plan_sha256": "5e367da4d7f0d173338f1c7e405e1d1c1077eecbdb384b637676ecac6d1507fa",
+  "generated_at": "2026-09-29T08:14:46.486Z",
+  "verdict": "2.1.0 产物清单 20 条目 sha 全 MATCH、测试 122/0、四路反审与 L2/L3 闸门全部通过，0 阻塞，可交付（附 3 项非阻塞整改）",
+  "fresh_agent_test": {
+    "conclusion": "间接证据充分：SKILL.md 11 节通过主文锚点测试，dependencies.lock.json 与演示 README 齐备，新 agent 具备冷启动条件；但本轮材料未含全新会话干净环境实测记录，建议发布前补跑一次",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "批次说明称移植'graph-math + 4 前端文件'，清单 dashboard 实为 4 文件（graph-math.js + app.js/index.html/style.css，即 graph-math + 3 前端文件），数量表述差 1；其余逐项对齐（4 scripts/3 references/4 tests/SKILL/CHANGELOG/lock/演示×2），条目数 20 自洽，无 dsh/cc 适配层残留",
+      "conclusion": "有条件接受",
+      "disposition": "与执行方确认系批次说明笔误而非漏列；若确有第 5 个前端文件须补入清单并重算 sha"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "派发闸/内审/反审直连/preflight + 三协议 references 构成宿主无关流水线；丢弃 dsh/cc 适配层降低耦合；2.0.3→2.1.0 为新增看板特性的 minor bump，符合 semver；白名单回退沿用腾讯席先例，机制复用一致",
+      "conclusion": "接受",
+      "disposition": "维持现状"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "node --test 122 pass / 0 fail，但 4 个测试文件未覆盖 反审直连.mjs 与 preflight.mjs，二者正确性依赖 L1 真实四路 round=2 运行与闸门 exit 0，缺自动化回归；docs/演示/demo.mjs 为演示非测试",
+      "conclusion": "有条件接受",
+      "disposition": "下一补丁为两脚本补最小单测（至少覆盖 429 分支与席位选择），或在现有测试头部声明覆盖关系"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "智谱席 glm-5.3-flash 429 额度耗尽时经白名单扩展回退同阵营 glm-5.3 完成补签，闸门仍 exit 0、8 席 4 阵营齐全；但材料未展示 429 的自动重试/排队策略，未验证白名单回退是否为该故障唯一依赖",
+      "conclusion": "有条件接受",
+      "disposition": "将 429→同阵营白名单回退路径的触发条件与降级顺序写入内审协议或 CHANGELOG"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "无性能基准数据（graph-math 纯前端计算，风险低）；白名单扩展属信任边界放宽，虽沿用先例但系执行中计划外变更，材料中未见留痕，且若白名单为运行时配置则不受 dependencies.lock.json 约束",
+      "conclusion": "有条件接受",
+      "disposition": "确认白名单变更已提交至版本控制的席位配置文件并写入 CHANGELOG 2.1.0 条目；若为临时改动须固化"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "SKILL.md 11 节且主文锚点测试通过，文档结构可被 agent 正确解析；看板多图 + 演示目录 README 提供可视化与上手材料；CHANGELOG 随版本更新",
+      "conclusion": "接受",
+      "disposition": "维持现状"
+    }
+  ],
+  "summary": "2.1.0 产物完整可交付（20/20 MATCH、122 测试全绿、四阵营闸门通过，阻塞 0），三项非阻塞留痕待补：前端文件数量表述核对、反审直连/preflight 补测、白名单变更入 CHANGELOG",
+  "implementer_camp": "deepseek",
+  "reviewer_camp": "moonshot",
+  "blocking": 0
+}

@@ -5,105 +5,112 @@
   "model": "kimi-k2.8-preview",
   "round": "2",
   "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
-  "plan_sha256": "83ed2d67b7655fc6f30c802c8df6af6bf23de2a10e09b599a017b3ebafe9e803",
-  "generated_at": "2026-09-29T07:39:35.208Z",
-  "verdict": "有条件通过：计划骨架完整、发布序列保守得当，须先补『派发.md ZCode 重写模板』『SKILL.md 九节插入锚点』『四脚本宿主依赖前置扫描』『T3 打包白名单与确认门禁』后放行；另：我无法读取 .ctbz-record/反审/ctbz-2.1.0-计划 记录目录，第二轮去重无法执行，本轮按首轮全量口径出具意见，若存在既往否决记录请内联提供。",
+  "plan_sha256": "a575a5b171770432a082263fa1c69b35042e0d1dd77dd3a9ac393e1e71ba80d2",
+  "generated_at": "2026-09-29T08:00:34.993Z",
+  "verdict": "有条件通过：移植主链与保守发布序列成立；放行前须补两道口子——(1) T3 步骤 6 删除源仓 tag 前核对 dsh 独立仓已持有同等 tag；(2) T1 补上 references/派发.md 的素材来源与内容验收；另开工第一步须 diff 确认 main 与 v2.0.3 基线关系。",
   "fresh_agent_test": {
-    "conclusion": "不能直接开工：复制类步骤（T1 改动 1–2、T2 改动 1–3）可照做，但两处文档改造与发布段缺输入，必然卡停发问——计划 §反审重点 4 自称『无创作环节』与实际不符。",
+    "conclusion": "不能直接开工：复制类任务可立即启动，但会在创作类缺口与「已执行」盘点两处卡住；且 20 个 ↗ 锚点全部指向未随附的取证文件，开工前必须先自行定位并通读它。",
     "blockers": [
-      "references/派发.md 的『ZCode 原生描述』无目标文本/模板/参照节（计划 §T1 具体改动 3），这是计划里唯一实质创作环节，执行者只能现编，编错即契约断裂（计划 §反审重点 1 自己承认此风险）",
-      "SKILL.md 九节增补的插入位置未指定（计划 §T1 具体改动 4 只说『增补多节』，未写插在哪一节之后），执行者需自选位置，且直接影响主文锚点测试能否通过",
-      "四脚本是否内含 dsh 宿主 API 调用（workflow.agent()/spawn_teammate 等）无任何扫描证据（计划 §T1 改动 1–2 的替换清单不含此项），『逐字节复制不改逻辑』能否成立未经证实；若反审直连.mjs 走 dsh 接口，复制后即坏，T1 的『不改逻辑』范围边界需重谈",
-      "T3 步骤 9『阿里云中转』无命令/工具说明；步骤 4 部署.js 是否有删除语义未述，决定回滚 rsync 是否需要 --delete（不对称回滚在部署新增了文件时清不干净）",
-      "tests/主文锚点.test.mjs 的锚点期望集对应 dsh 线文档结构，移植到 ZCode 线 SKILL.md 后是否直接可过、若需改期望允许改到什么程度，计划未定义（§T1 风险节只覆盖派发闸/内审夹具路径）"
+      "取证文件未随附：↗A–↗T 锚点悬空，须先自行找到并通读 docs/取证/ctbz-2.1.0-取证.md，才能拿到 13 项处置清单、逐文件哈希表与 app.js 8-hunk 清单（计划「现场核对」整表）",
+      "references/派发.md 重写无素材来源：计划只说「整节替换为 ZCode 原生描述」，未说明从 main 历史恢复还是新撰，且与「反审重点」第 4 条自称「无创作环节」直接矛盾（计划「任务契约·T1·具体改动 3」）",
+      "两处「本版已执行」（T1 改动 4 的 SKILL.md 九节、T2 改动 2 的 app.js 整文件复制）与待办混排，须先盘点工作树才能确定剩余工作量，计划本身不构成完整的剩余工作描述",
+      "preflight.mjs 的调用点全篇未写明，「派发前必跑」闸门链中它的装配位置不明（计划「任务契约·T1」write-set 有它、验收只有 node --check）",
+      "「迁移 dsh 线已占 tag」的目标端未指明：6 个 tag 未列名（可靠 T3 步骤 5 的 gh api 发现），但迁移去向（ctbz-dsh 远端）全篇未出现，步骤 6 无法无歧义执行"
     ]
   },
   "verdicts": [
     {
       "view": "需求一致性",
       "category": "非阻塞",
-      "evidence": "计划 §处置清单 表头（『四类，用户已确认评估结论』）与 §现场核对 ↗O（12 移植+1 删除=13 项）；全文无 2.3/2.4 变更枚举，仅 §前言 引用户原话『评估其内容是否有必要加入』；另 ↗O 计『1 项删除件』而 §处置清单 第四类列四件（反审.mjs・dsh-regression.test.mjs・迁移说明・与main差异清单），计数口径不一致",
+      "evidence": "计划「前言」引用户原话「从 2.0.3 作为基础版」，施工基线却取 main HEAD，二者关系仅锚定取证 §9（↗U），取证文件未随附 → 无法核验",
       "conclusion": "有条件接受",
-      "disposition": "补一份 2.3/2.4 dsh 线 CHANGELOG 与四类处置的对照表（可短至 5 行）使评估全覆盖可核验，并对齐删除件计数口径；或在 §T3 步骤 2 残留扫描中追加『与取证 §2 的 13 项清点逐一对账』"
+      "disposition": "开工第一步跑 git diff v2.0.3..HEAD --stat；有增量则向用户确认是否纳入 2.1.0，无增量则基线成立、无需动作"
     },
     {
       "view": "需求一致性",
       "category": "非阻塞",
-      "evidence": "§前言 引用户原话『从 2.0.3 作为基础版』；§行动账 A1 仅写『从 main 建 ctbz-2.1 分支』未钉 commit；§构建期六问 提到 main 行号冻结于 d24c2f5，但 §任务契约 T1 未引用该冻结点，若施工期间 main 前进则全部行号锚点漂移",
+      "evidence": "计划「构建期六问·覆盖」以「取证 §2 已逐行清点」自证完备，属循环论证；未给出 dsh 线 2.0.4→00e1951 全量变更的 diff 枚举（取证 §2/§4 未随附 → 无法核验）",
       "conclusion": "有条件接受",
-      "disposition": "A1 写明从冻结 commit 拉分支（如 git switch -c ctbz-2.1 d24c2f5），并先核对 SKILL.md 当前版本号确为 2.0.3、若 main 已超前于 2.0.3 则向用户说明差异"
+      "disposition": "补一步 git diff 3361bb0..00e1951 --stat（dsh 仓）逐文件归类到处置清单四象限，证明「评估其内容是否有必要加入」无漏项后再封版"
     },
     {
       "view": "架构合理性",
       "category": "非阻塞",
-      "evidence": "§T1 具体改动 1–2：替换清单仅覆盖注释文案/镜像标记/凭据路径/shebang；§反审重点 3 显示 dsh 线反审流程为『pick-profile → 反审.mjs 生成骨架 → workflow.agent() 执行』，workflow.agent() 是 dsh 宿主接口；§自疑 2 只有实施后的 dry-run 兜底（§T3 步骤 3），无复制前的依赖分析（取证 §2 据 ↗F–↗L 仅为行数清点）",
+      "evidence": "计划「任务契约·T1·具体改动 2」保留凭据路径 ~/.dsh/settings.yaml 与 ~/.dsh/.credentials.yaml 原样，依据 ↗Q（取证 §6 未随附 → 无法核验）",
       "conclusion": "有条件接受",
-      "disposition": "T1 步骤 1 后增加前置扫描：对四脚本 grep -nE 'spawn_teammate|workflow\\.agent|dsh' 并逐处判定；凡命中宿主 API 调用者退出『逐字节复制』策略、单独列出改写点后再施工——避免到 T3 dry-run 才暴露返工"
+      "disposition": "接受本次例外；CHANGELOG 与 SKILL.md 须显式声明「凭据落在 ~/.dsh/，无 dsh 使用历史的机器上反审直连不可用」，后续版本再做路径可配置化"
     },
     {
       "view": "架构合理性",
       "category": "非阻塞",
-      "evidence": "§T2 具体改动 2 有施工前置校验（diff 重跑与取证 §5 一致才整文件复制），§T1 逐字节复制四脚本+三 reference 却无对应的源仓 HEAD 核对条款；§T2 风险节声明『本版冻结点已定』但该声明未写成 T1 的可执行校验",
+      "evidence": "计划「任务契约·T1」中 preflight.mjs 仅 node --check（验收 1）、反审直连.mjs 仅 --dry-run（T3 步骤 3），且全篇未写明 preflight 在「派发前必跑」链中的调用点",
       "conclusion": "有条件接受",
-      "disposition": "T1 步骤 1 前置 git -C /Users/maolong/Betty/草台班子/ctbz-dsh rev-parse HEAD 核对等于 00e1951，不符即停并重跑取证"
+      "disposition": "验收补一条 preflight 在闸门链中的实测 smoke 记录；若其调用点已在「已执行」的 SKILL.md 节中，在验收里引用该节名以便复核"
+    },
+    {
+      "view": "测试完整性",
+      "category": "阻塞",
+      "evidence": "计划「任务契约·T1·具体改动 3」要求 references/派发.md 整节重写为 ZCode 版，但 T1 验收标准 1–4 无任何针对其内容的验收；且「反审重点」第 4 条自称「所有移植均为复制指定文件、无创作环节」，与本改动直接矛盾",
+      "conclusion": "不接受",
+      "disposition": "计划须补两行再放行：素材来源（优先 git show v2.0.3:skills/ctbz/references/派发.md 恢复，历史无此文件则明列为新撰并给要点）与验收（grep 无 workflow/subagent/spawn_teammate 作为可用通道残留 + 人审 ZCode 派发描述与 pick-profile/反审直连实际路径一致）"
     },
     {
       "view": "测试完整性",
       "category": "非阻塞",
-      "evidence": "§现场核对 ↗K：tests/主文锚点.test.mjs 215 行来自 dsh 线、属 T1 逐字节复制件；§T1 具体改动 4：SKILL.md 九节为『移植+去 dsh 化』非逐字节，且 main 文档结构本含 dsh 线没有的 initialize/所有权节（↗D/↗E）；§T1 风险节仅预告派发闸/内审夹具路径问题，未覆盖锚点期望适配",
+      "evidence": "计划「任务契约·T2·验收标准 4」以「curl 静态资源 200」作为四视图切换成功的可接受判据",
       "conclusion": "有条件接受",
-      "disposition": "T1 风险节增补：主文锚点测试若锚 dsh 线文档结构，允许同步更新锚点期望至 ZCode 线九节并记录偏离清单；同时明确『允许改夹具/期望、不改被测逻辑』的边界规则"
+      "disposition": "接受降级，但主判据须为 看板视图.test.mjs 全绿 + demo 输出 9 节点/2 轮/1 待决；curl 仅作 serve 可用性旁证，不得单独判过"
     },
     {
-      "view": "测试完整性",
-      "category": "非阻塞",
-      "evidence": "① §T1 验收标准 4 第一条『grep dsh 命中为 0 或全为溯源句』——『溯源句』无判定细则，且 §T1 具体改动 2 要求凭据路径 ~/.dsh/... 保留原样，SKILL.md 若引用凭据路径必产生命中，判定将流于主观；② §T2 验收标准 4 以『curl 静态资源 200』验证『四视图切换成功』，切换是前端 JS 行为，200 只能证资源可达",
-      "conclusion": "有条件接受",
-      "disposition": "① 改白名单制：列出允许含 dsh 字样的精确行（凭据路径两处），其余零命中；② 拆为两句：curl 仅证资源可达，视图切换逻辑由 tests/看板视图.test.mjs 断言覆盖，或改用无头浏览器实测"
+      "view": "边界条件",
+      "category": "阻塞",
+      "evidence": "计划「任务契约·T3·步骤 5–6」删除源仓 dsh 线 Release/tag 前，无任何「dsh 独立仓已持有同等 tag」的核对；回滚节仅称「本地 tag 与 bundle 均在」；授权节称用户已确认「迁移（↗T）」但 ↗T 未随附 → 无法核验",
+      "conclusion": "不接受",
+      "disposition": "步骤 6 之前插入核对：git ls-remote --tags <ctbz-dsh 远端> 确认 6 个 tag 已存在；缺失则先推送迁移、确认落位后再删源仓；远程删除分批逐条核对返回，任一失败即停"
     },
     {
       "view": "边界条件",
       "category": "非阻塞",
-      "evidence": "§T3 步骤 7：『报告用户确认后再决定是否合并到 main』，但步骤 8–9（打 tag 并推、Release+附件+阿里云中转）仅依赖步骤 6、不依赖用户确认——发布物会在用户看到分支之前发出，与 §T3 原则『不直接推 main，先推分支供确认』自相矛盾；§T3 步骤 6『按 release id 逐个删』未写『tag 存在但无对应 Release』的分支（dsh 线 6 个 tag 是否都有 Release 未证明）",
+      "evidence": "计划「任务契约·T3·步骤 4」rsync 备份目标 ~/Documents/.ctbz/备份/... 的父目录可能不存在（rsync 不建多级父目录），且备份无完整性校验即进入部署",
       "conclusion": "有条件接受",
-      "disposition": "将步骤 8–9 移至用户确认分支之后；若有意『发布先行、确认仅门禁合并』，改为显式决策句记录；步骤 6 补一句『无 Release 的 tag 跳过删 Release、直接删 tag』"
+      "disposition": "备份命令前加 mkdir -p；部署前校验备份目录与源文件数一致（或反向 rsync dry-run 差异为 0）再执行 部署.js"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "计划「任务契约·T3·步骤 9」白名单 tar 未含任何敏感信息扫描步骤；移植件来自另一仓库且含凭据读取逻辑（反审直连.mjs）",
+      "conclusion": "有条件接受",
+      "disposition": "打包前对 skills/ 跑密钥模式 grep（api[_-]?key|token|secret 等）并人工过命中，确认反审直连.mjs 只引用 home 路径凭据文件、无内嵌密钥或夹具真钥"
     },
     {
       "view": "性能安全",
       "category": "可接受",
-      "evidence": "§T3 步骤 5『先核对，不删』、步骤 6 先 Release 后 tag 且确认远程为空、回滚节『tag/Release 删除前先导出 gh api 元数据留档』；§T3 步骤 4 先 rsync 备份再部署、失败可回滚；授权节用户已确认迁移 tag 与覆盖部署",
+      "evidence": "计划「任务契约·T3·步骤 9」仅写「阿里云中转」无参数细节，但同句声明「与既有发布链一致」",
       "conclusion": "接受",
-      "disposition": "安全敏感操作的前置确认、留档、回滚三件套齐备，维持现状，无需改动"
-    },
-    {
-      "view": "性能安全",
-      "category": "非阻塞",
-      "evidence": "§T3 步骤 9 附件 ctbz-pack-v2.1.0-<日期>.tar.gz 无打包清单/排除项；§T2 步骤 3 demo『运行生成 .ctbz-record』未写明生成位置（仓库根还是演示目录），若打包脚本整目录收集可能混入 .ctbz-record 或本地配置；§T3 步骤 4 回滚用 rsync -a 无 --delete，若部署.js 有删除语义则回滚无法移除新增文件",
-      "conclusion": "有条件接受",
-      "disposition": "步骤 9 明写打包白名单（skills/ctbz + tests + docs，排除 .ctbz-record、*.yaml 本机配置、node_modules）；T2 写明 demo 输出目录；回滚命令补 --delete 或在计划内确认部署.js 为纯覆盖式"
-    },
-    {
-      "view": "用户体验",
-      "category": "阻塞",
-      "evidence": "§T1 具体改动 3：references/派发.md『原三通道表整节替换为 ZCode 原生描述（Agent 工具 + profile 派发 + 反审直连）』——仅三个关键词，无目标文本、无模板、无参照节；§反审重点 4 却声称『所有移植均为复制指定文件，无创作环节』，两者直接矛盾；§反审重点 1 承认重写可能引入契约断裂",
-      "conclusion": "有条件接受",
-      "disposition": "开工前补派发.md ZCode 版的目标小节文本，或给出可机械执行的组装规则（如：通道表参照 main SKILL.md ## 一句话初始化 节的 Agent 工具表述 + 保留 dsh 线字段契章节原样 + 反审行替换为反审直连.mjs 调用），并明确其余章节逐字节保留的清单"
+      "disposition": "按既有发布链执行，不在本版扩张范围；若发现既有链无鉴权或过期机制，另立任务处理"
     },
     {
       "view": "用户体验",
       "category": "非阻塞",
-      "evidence": "§T1 具体改动 4：SKILL.md 九节增补未写插入位置（哪一节之前/之后或追加自治区块）；§T3 步骤 9『→ 阿里云中转』无任何命令或既有脚本引用；§T3 步骤 3 反审直连 --dry-run 的语义（是否触网、是否校验凭据有效性）未定义，exit 0 可能掩盖配置错误",
+      "evidence": "计划「任务契约·T3」步骤 4（本地覆盖部署）早于步骤 7（推分支待用户确认合并），用户若否决合并，本机 ~/.agents/skills/ctbz 已呈现 2.1.0，与 T3 首段「先推分支供确认」原则语义不一致",
       "conclusion": "有条件接受",
-      "disposition": "T1 步骤 4 写明九节插入锚点（建议：以 ## 所有权 节为锚）并说明锚点测试对该位置的预期；步骤 9 补中转命令或引用既有发布工具；步骤 3 补 dry-run 预期输出与『不触网』假设"
+      "disposition": "有备份可一键 rsync 回滚，可接受；更稳做法是把部署挪到步骤 7 用户确认之后，保持「确认再落地」语义一致"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "计划「现场核对 ↗B」SKILL.md 基线 253 行（取证 §1 未随附 → 无法核验），T1 改动 4 再增九节，体积与可发现性无预算约束",
+      "conclusion": "接受",
+      "disposition": "用户原话明确要求评估并入 dsh 机制，膨胀属预期结果；后续版本若继续增长再议分层索引"
     }
   ],
-  "summary": "六视角 11 条意见：仅『派发.md 重写无 ZCode 模板』1 条阻塞，其余为开工前可一次性补齐的非阻塞项，删除/部署安全序列与看板复制策略设计得当，无颠覆性缺陷。",
+  "summary": "因无文件读取工具、无法访问第一轮反审记录目录，本轮按全量六视角核查：12 项意见含 2 项阻塞（tag 迁移目标端核对、派发.md 重写来源与验收），其余为可修补的非阻塞项，移植与发布主链总体可接受。",
   "dispatch": {
     "mode": "direct-http",
     "transport": "stream",
     "endpoint": "http://101.133.151.121:18890/v1/chat/completions",
     "http_status": 200,
-    "latency_ms": 578413,
+    "latency_ms": 394026,
     "model_echo": "kimi-k2.8-preview"
   }
 }

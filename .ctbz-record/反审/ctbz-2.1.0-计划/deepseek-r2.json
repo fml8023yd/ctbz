@@ -5,71 +5,72 @@
   "model": "deepseek-flash",
   "round": "2",
   "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
-  "plan_sha256": "83ed2d67b7655fc6f30c802c8df6af6bf23de2a10e09b599a017b3ebafe9e803",
-  "generated_at": "2026-09-29T07:35:17.809Z",
-  "verdict": "方向合理，但源→目标文件映射与取证清单未内联、基线确认与部署入口未定，新鲜 Agent 不能直接开工；补充后可再审。",
+  "plan_sha256": "a575a5b171770432a082263fa1c69b35042e0d1dd77dd3a9ac393e1e71ba80d2",
+  "generated_at": "2026-09-29T08:01:10.808Z",
+  "verdict": "有条件接受：方向与复制策略可行，但当前文本缺取证内联、源路径和施工基线结论，不能直接开工。",
   "fresh_agent_test": {
-    "conclusion": "不能直接开工；计划只能支撑「从 dsh 仓复制指定文件」的意图，但源文件相对路径、取证清单、部分命令入口和验收对象未内联，单凭本计划无法无歧义执行。",
+    "conclusion": "不能直接开工；只能确认方向，无法无上下文执行。",
     "blockers": [
-      "T1 要求逐字节复制「清单见 ↗F–↗L」，但 ↗F–↗L 只给行数与「取证文件 §2」，未给 dsh 仓源相对路径与目标映射。",
-      "T2 的 graph-math.js、看板视图测试、app.js/index.html/style.css、docs/演示/进度可视化演示/ 均只说从 dsh 仓复制，未内联源相对路径。",
-      "取证文件未内联，↗A–↗T 锚点无法解析；计划内未附 13 项处置哈希表、§5 hunk 清单、§6/§7 grep 清单。",
-      "references/派发.md 要求重写为 ZCode 版，但未给目标文本或字段契样例，属于创作而非复制，新鲜 Agent 无法确定验收。",
-      "T2 验收标准第3条调用 dashboard show，T3 第4步调用 skills/ctbz/scripts/部署.js，均未说明入口是否存在、参数与输出。",
-      "T3 第6步删除远程 Release/tag 需要实际 release id 映射与权限，计划未内联这些信息。"
+      "所有 ↗ 锚点依赖未内联的 docs/取证/ctbz-2.1.0-取证.md，源文件清单、哈希、diff hunk、main/v2.0.3 关系均不可见。",
+      "未在计划内给出 main HEAD 与 v2.0.3 的具体关系，无法确认施工基线是否确为 2.0.3。",
+      "T1/T2 时态矛盾：既有“新建/移植”，又有“本版已执行/已复制”，fresh agent 无法判断从零施工还是复核。",
+      "references/派发.md 重写为 ZCode 版只给替换原则，未给目标契约/文本，存在创作环节。",
+      "T3 删除远程 Release/tag 依赖先查询 release id 映射，且每步需用户确认，fresh agent 不能无人值守继续。",
+      "dashboard show、demo.mjs/serve 的 cwd、依赖与命令入口未定义。",
+      "去 dsh 化规则不完整，保留 ~/.dsh 凭据路径与 grep dsh 命中为 0 的自查需要白名单/例外规则。"
     ]
   },
   "verdicts": [
     {
       "view": "需求一致性",
       "category": "阻塞",
-      "evidence": "计划前言用户原话要求「从 2.0.3 作为基础版」；关键事实与行动账 A1 改从 main 建 ctbz-2.1 分支施工，未内联 main 与 2.0.3 的哈希或差异核对。",
-      "conclusion": "有条件接受",
-      "disposition": "第二轮处置：要求补充 main 与 2.0.3 tag/commit 的 diff 或哈希比对，确认 main 等同用户指定基线；若不一致，改从 2.0.3 建分支。未补充则维持阻塞。"
+      "evidence": "计划前言用户原话“从 2.0.3 作为基础版”；《现场核对》表“main HEAD 与 v2.0.3 tag 的关系（施工基线）”仅指向取证 §9，未内联关系结论。",
+      "conclusion": "不接受",
+      "disposition": "先内联取证 §9 的 git log/diff 结论：main HEAD、与 v2.0.3 的差异/包含关系、是否混入 2.0.4 后改动；确认后才可施工。"
     },
     {
       "view": "架构合理性",
       "category": "非阻塞",
-      "evidence": "T1 具体改动第2条要求保留凭据路径 ~/.dsh/settings.yaml 与 ~/.dsh/.credentials.yaml 原样，并以 ↗Q 说明两宿主共用；未说明 ZCode 线无该路径时的行为。",
+      "evidence": "T1 具体改动 1 要求“逐字节复制”并“仅做 dsh 措辞替换，不改逻辑”；具体改动 3 又要求 references/派发.md“重写为 ZCode 版”；反审重点 1 自认可能契约断裂。",
       "conclusion": "有条件接受",
-      "disposition": "第二轮处置：补充 ZCode 线无 ~/.dsh 凭据文件时的 fallback 或配置项；将「保留原样」限定为经核验共用凭据后的明确前置条件。"
+      "disposition": "明确机械替换与重写边界；把 references/派发.md 目标内容/字段契约内联，或将重写降级为可审查的替换表；补充 dsh 仓内相对路径。"
     },
     {
       "view": "测试完整性",
       "category": "非阻塞",
-      "evidence": "T1 验收标准第4条只检查 skills/ctbz/SKILL.md 的 dsh 残留；T1 具体改动第2条要求替换 scripts 与 references 中的 dsh 文案，但验收未覆盖这些目录。",
+      "evidence": "T1 验收含 node --check、node --test、grep/test；T2 验收含看板视图测试、diff、demo 幂等；自疑 1-4 结果均为“待实施后跑”。",
       "conclusion": "有条件接受",
-      "disposition": "第二轮处置：增加对 skills/ctbz/scripts 与 skills/ctbz/references 的去 dsh 化 grep 及白名单；对 references/派发.md 增加字段契校验。"
+      "disposition": "把自疑实验前置为实施门禁；补充 references 契约静态校验/人工清单；明确“溯源句”白名单；为 T3 远程删除增加元数据转存与二次核验。"
     },
     {
       "view": "边界条件",
-      "category": "阻塞",
-      "evidence": "T1 具体改动第1条「逐字节复制（清单见 ↗F–↗L）自 dsh 仓」；T2 具体改动第1条同样依赖 dsh 仓逐字节复制，但均未内联源相对路径；T2 验收标准第3条与 T3 第4步调用未说明入口的命令。",
-      "conclusion": "不接受",
-      "disposition": "第二轮处置：必须内联或提供源→目标路径映射与哈希，补齐 dashboard show、serve、部署.js 的入口与参数；否则新鲜 Agent 无法定位复制源与验收对象。"
+      "category": "非阻塞",
+      "evidence": "T1 风险称测试夹具可能引用 dsh 专有路径，跑红再改；T1 改动 2 保留 ~/.dsh 凭据路径；T2 风险称 dsh 仓冻结点已定；T3 步骤 6 要求先清占用后打 tag。",
+      "conclusion": "有条件接受",
+      "disposition": "补充夹具路径替换规则、凭据文件缺失/权限不足失败模式、远程 tag 删除竞态与二次空值核验、shell/OS 兼容说明。"
     },
     {
       "view": "性能安全",
       "category": "非阻塞",
-      "evidence": "T3 第3-4步有 dry-run、备份、rsync 回滚；第6步删除 dsh 线已占 Release/tag，计划未内联实际 release id 映射与权限检查。",
+      "evidence": "T3 步骤 4 有 rsync 备份失败回滚；步骤 5 远程只读；步骤 6 逐个删 Release/tag；步骤 9 打包含白名单；授权“迁移 dsh 线已占 tag”已确认。",
       "conclusion": "有条件接受",
-      "disposition": "第二轮处置：远程删除前增加二次确认、权限检查与 API 响应留档；说明部署源 ~/.agents/skills/ctbz/ 与 workspace 的映射关系。"
+      "disposition": "远程删除前列出 release id/tag 映射并留档元数据，执行前 dry-run/人工确认；补发布包哈希校验；为看板图设节点规模或渲染性能上限。"
     },
     {
       "view": "用户体验",
       "category": "可接受",
-      "evidence": "T2 包含看板多图、演示目录、四视图切换验收；T1 要求更新 CHANGELOG.md 顶部 2.1.0 段。",
-      "conclusion": "接受",
-      "disposition": "第二轮：本视角无未解决项；按 T2 验收执行浏览器或 curl 实测，并补充 demo 输出说明即可。"
+      "evidence": "T2 验收含四视图切换、dashboard show 输出 9 节点/2 轮/1 待决、docs/演示；T3 步骤 7 推分支不碰 main，报告用户确认后再合并。",
+      "conclusion": "有条件接受",
+      "disposition": "补充 dashboard 启动命令、serve 端口与 curl 断言示例；对 SKILL.md 九节插入锚点做目录/锚点校验；确认用户确认门禁的具体提示语。"
     }
   ],
-  "summary": "计划方向与回归 ZCode 线意图一致，但源→目标映射、取证内联、基线确认、去 dsh 化验证和部署入口存在阻塞或条件项；第一轮记录未内联，本轮仅基于计划文本判定。",
+  "summary": "未提供第一轮记录，无法核验已否决意见重提；仅凭内联文本，计划方向可行但取证锚点与施工基线未内联，当前不能交付新鲜 Agent 直接开工。",
   "dispatch": {
     "mode": "direct-http",
     "transport": "stream",
     "endpoint": "https://api.deepseek.com/chat/completions",
     "http_status": 200,
-    "latency_ms": 48684,
+    "latency_ms": 35748,
     "model_echo": "deepseek-flash"
   }
 }

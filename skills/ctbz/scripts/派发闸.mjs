@@ -36,7 +36,7 @@ const CHECK_IDS = ["集成一致性", "调用名统一", "main未污染", "安�
 // deepseek 席 v4-pro 为历史兼容值（2.0.6/2.0.7/2.0.8 旧回执），新回执一律 deepseek-flash。
 const SEAT_TABLE = {
   deepseek: { provider: "deepseek-official", models: ["deepseek-flash", "deepseek-v4-pro"] },
-  zhipu:    { provider: "workbuddy",         models: ["glm-5.3-flash"] },
+  zhipu:    { provider: "workbuddy",         models: ["glm-5.3-flash", "glm-5.3"] },
   tencent:  { provider: "workbuddy",         models: ["hy4-preview-f", "hy3"] },
   moonshot: { provider: "workbuddy",         models: ["kimi-k2.8-preview"] },
 };

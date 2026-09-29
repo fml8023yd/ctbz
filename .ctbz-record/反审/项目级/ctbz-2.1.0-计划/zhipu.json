@@ -1,0 +1,82 @@
+{
+  "camp": "zhipu",
+  "camp_label": "智谱",
+  "provider": "workbuddy",
+  "model": "glm-5.3",
+  "round": "1",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-计划.md",
+  "plan_sha256": "a575a5b171770432a082263fa1c69b35042e0d1dd77dd3a9ac393e1e71ba80d2",
+  "generated_at": "2026-09-29T07:53:24.117Z",
+  "verdict": "有条件通过：功能交付与批次声明逐项对应，122/122 全绿，部署、双跑演示与四视图探测证据齐备；唯一未闭环项为 L1 智谱路的 glm-5.3 替补补齐在途，达标后即可定稿。",
+  "fresh_agent_test": {
+    "conclusion": "通过：干净部署三步骤（lock 重算 + verifyBundle + status 冒烟）全过；demo.mjs 连跑两次 exit 0；全量测试 122 pass / 0 fail（基线 17 + 新增 105）；四视图 DOM 探测达标（甘特 rect=9 / 依赖图 rect=9 / 里程碑 text=18 / 图例 5）。新代理依 SKILL.md 增补 11 节与 docs/演示/ 可复现，未发现测试层阻塞。",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "声明与交付物逐项对应：T1 四脚本 + 三 reference + 三测试（主文锚点已改 ZC_HOME 路径与 ZCode 断言）+ SKILL.md 增 11 节 + 版本 2.0.3→2.1.0；T2 四文件 + 看板视图测试 + docs/演示/；scripts/反审.mjs 与 tests/dsh-regression.test.mjs 确认丢弃。唯一在途项：L1 三路 round=2 达标，智谱路因上游额度用尽由 glm-5.3 替补补齐中。",
+      "conclusion": "有条件接受",
+      "disposition": "功能项判接受；glm-5.3 补齐后复核其 round 结果——若协议要求四路全达标，该项即为定稿前置条件。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "机制自 dsh 仓 00e1951 逐字节复制，去 dsh 化仅措辞替换不动逻辑，移植保真可控；丢弃 dsh/cc 适配层使 ZCode 线不背宿主包袱，preflight/派发闸/内审/反审直连四闸门分层清晰；T2 经 8 hunk 实测确认全为多图改动后整文件复制，无夹带。",
+      "conclusion": "接受",
+      "disposition": "维持。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "可接受",
+      "evidence": "122 pass / 0 fail；新增派发闸/内审/主文锚点/看板视图四类测试覆盖 T1 闸门链与 T2 视图渲染；demo 两连跑 exit 0 验证可重复性；丢弃 dsh-regression.test.mjs 合理（dsh 专属回归不属 ZCode 线职责），且丢弃后套件仍全绿，证明无残留引用断链。",
+      "conclusion": "接受",
+      "disposition": "维持；定稿前由未参与代理全量复跑一次留档。"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "demo.mjs 连跑两次 exit 0 覆盖状态残留与幂等边界；智谱上游额度耗尽有同阵营 glm-5.3 替补路径，单点上游故障未中断交付流程；主文锚点测试完成 ZC_HOME 环境路径迁移断言。",
+      "conclusion": "接受",
+      "disposition": "维持；glm-5.3 补齐后复核其 round 结果。"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "本批变更非热路径（闸门脚本为流程件、看板为渲染件），四视图 DOM 元素规模可控（rect=9/9、text=18、图例 5），无性能回归迹象；无新增外部输入面声明。材料未含显式安全审计，此为证据薄项而非负面发现。",
+      "conclusion": "接受",
+      "disposition": "接受；建议下批次抽查反审直连/preflight 对上游 API 异常响应、超时、畸形 JSON 的解析健壮性。"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "看板由单图扩为四视图（甘特/依赖图/里程碑/图例）并经 DOM 探测确认渲染到位；docs/演示/ 提供演示材料；SKILL.md 增 11 节使新代理可按文档上手，status 冒烟通过。",
+      "conclusion": "接受",
+      "disposition": "维持。"
+    }
+  ],
+  "checks": [
+    {
+      "id": "集成一致性",
+      "conclusion": "通过",
+      "evidence": "122 pass = 基线 17 + T1/T2 新增 105，无失败无跳过；SKILL.md 版本统一升 2.1.0，新增 11 节与四脚本三 reference 一一对应；部署检查三步骤全过，T1/T2 合批无交叉破坏。"
+    },
+    {
+      "id": "调用名统一",
+      "conclusion": "通过（以测试绿为间接证据）",
+      "evidence": "去 dsh 化为逐字节复制 + 措辞替换，逻辑未动；主文锚点断言已改 ZC_HOME 与 ZCode；派发闸/内审测试通过覆盖脚本互调名；scripts/反审.mjs（dsh 适配层）由反审直连.mjs 替代且命名区分清晰，套件全绿表明无残留旧名引用。"
+    },
+    {
+      "id": "main未污染",
+      "conclusion": "通过",
+      "evidence": "批次自 main（2.0.3 + 09-17 补丁）分出 ZCode 线续起，交付物均落 ZCode 分支与独立副本，材料中无任何直接落 main 的动作，main 停留 2.0.3 基线。"
+    },
+    {
+      "id": "安装副本分支标识",
+      "conclusion": "待补证",
+      "evidence": "status 冒烟通过仅证服务可起；材料未含安装副本显示分支/版本标识的记录（是否标明 ZCode 线 2.1.0），为本批复核唯一证据缺口。"
+    }
+  ],
+  "summary": "技术与集成证据链完整全绿，判有条件通过：解除条件为 glm-5.3 补齐 L1 智谱路且 round 达标，并补一屏安装副本分支标识（ZCode/2.1.0）留档。"
+}

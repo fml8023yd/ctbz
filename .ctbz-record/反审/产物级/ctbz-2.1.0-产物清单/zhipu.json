@@ -1,0 +1,63 @@
+{
+  "camp": "zhipu",
+  "camp_label": "智谱",
+  "provider": "workbuddy",
+  "model": "glm-5.3",
+  "round": "1",
+  "plan": "/Users/maolong/Betty/草台班子/ctbz/docs/取证/ctbz-2.1.0-产物清单.md",
+  "plan_sha256": "5e367da4d7f0d173338f1c7e405e1d1c1077eecbdb384b637676ecac6d1507fa",
+  "generated_at": "2026-09-29T08:18:15.268Z",
+  "verdict": "复核通过：20 条产物 sha 重算全 MATCH、测试 122/0、L1-L3 审查链全通、计划外席位变更有腾讯席先例且经 L1 后验（同阵营同 provider、四阵营仍齐），2.1.0 交付完整可放行，0 阻塞、2 项非阻塞后续。",
+  "fresh_agent_test": {
+    "conclusion": "本审无文件工具未实跑 fresh agent，但可执行性证据闭环：preflight.mjs 提供入口自检，主文锚点.test.mjs 保障 SKILL.md 11 节锚点有效，派发/内审协议/反审协议三文档定义全流程，node --test 122/0，L1 真实多席环境闸门 exit 0（8 席、4 阵营齐）。未发现阻塞。",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "批次交付项（4 脚本 + 3 协议 + SKILL.md 11 节 + 看板 dashboard 4 文件 + 演示目录 2 文件 + CHANGELOG + lock）逐项落入 20 条清单，sha 主会话实跑全 MATCH（清单级 sha256 材料中为截断值，逐条 20/20 为实质校验）；版本 2.0.3→2.1.0 为能力移植的 minor 升级，CHANGELOG 承载；计划外 glm-5.3 白名单变更有先例、有记载、有 L1 后验；说明中 3 tests 为机制侧口径，清单实含 4 个测试文件（看板视图测试归看板侧），无缺漏。",
+      "conclusion": "接受",
+      "disposition": "通过；建议在 CHANGELOG 或 lock 中显式登记 glm-5.3 席位白名单变更落点，保可追溯。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "移植仅取宿主无关机制（派发闸/内审/反审直连/preflight + 三协议），丢弃 dsh/cc 适配层避免宿主耦合；看板将 graph-math.js 独立为纯数学层与 app.js 渲染层分离；dependencies.lock.json 锁定依赖版本。",
+      "conclusion": "接受",
+      "disposition": "通过，无需处置。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "node --test 122 pass / 0 fail，覆盖派发闸/内审/主文锚点/看板视图四文件；反审直连无独立 test 文件，但 L1 round=2 中经智谱席 429 → 白名单扩展 → glm-5.3 补签路径被真实执行验证（闸门 exit 0）。",
+      "conclusion": "有条件接受",
+      "disposition": "本批放行；后续批次补 tests/反审直连.test.mjs，将补签路径固化为回归。"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "glm-5.3-flash 429 额度耗尽为真实边界触发且处置合规（同阵营替换、provider 不变、补签完成、四阵营仍齐）；preflight.mjs 前置检查与派发闸对 8 席/4 阵营齐备性硬校验（exit 0）提供结构性兜底。",
+      "conclusion": "接受",
+      "disposition": "通过；腾讯、智谱两次额度耗尽已构成模式，建议将席位降级路径沉淀为协议条目。"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "材料无性能实测；看板为静态前端资产（4 文件）加纯函数数学层，风险面小；dependencies.lock.json 锁依赖属供应链正向实践；无删除/覆盖/发布类安全敏感操作记录。",
+      "conclusion": "接受",
+      "disposition": "通过；看板后续接入大数据量时可补 graph-math 基准测试。"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "SKILL.md 11 节加派发/内审协议/反审协议三文档支撑流程可遵循性；看板多图附演示目录（demo.mjs + README.md）提供上手路径；主文锚点测试保障文档内链有效性；CHANGELOG 记录版本演进。",
+      "conclusion": "接受",
+      "disposition": "通过，无需处置。"
+    }
+  ],
+  "summary": "产物清单与交付完整性复核通过（0 阻塞）；两项非阻塞后续：补 tests/反审直连.test.mjs、将席位额度降级先例协议化。",
+  "implementer_camp": "deepseek",
+  "reviewer_camp": "zhipu",
+  "blocking": 0
+}
