@@ -1,0 +1,76 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.1-产物清单.md",
+  "plan_sha256": "5f35b6efa8cf4fbdee10718be736634a354bb41f8a5b0f3f877498c485478fca",
+  "generated_at": "2026-09-29T19:21:43.383Z",
+  "verdict": "有条件接受：核心凭据定位修复证据链成立、架构合理，但新增 CLI 能力与 fresh-agent 可执行性不足，需补测试、文档与执行上下文。",
+  "fresh_agent_test": {
+    "conclusion": "不能独立开工",
+    "blockers": [
+      "计划文本只列 6 个产物的 sha256 与改动摘要，未内联源码；fresh agent 无文件读取工具，无法定位并编辑具体文件。",
+      "未给出复现命令、Node 版本、CTBZ_ZC_CONFIG 结构与必填字段，无法复现 129 例全绿。",
+      "新增 CLI 标志 --attach / --reasoning-effort 的行为契约（可重复次数、覆盖优先级、非法参数报错）在计划层面未定义。",
+      "席位模型改判标准（本机网关约 120 秒硬上限）仅为定性描述，缺少自动阈值判定脚本，fresh agent 无法据此独立重选模型。"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划 §2 改动表中 preflight.mjs / 反审直连.mjs 的 provider→前缀列表、baseMatches、endpoint 取命中值均直接对应批次目标“凭据按 baseURL 前缀定位失配”；同表另增 --attach 与 --reasoning-effort，虽在 §2 中说明为“ reviewer 无文件工具 / 网关 120s 上限”之用，但 §1 目标段未明确列出。",
+      "conclusion": "有条件接受",
+      "disposition": "将 --attach 与 --reasoning-effort 记录为同批次派生需求，补需求条目与文档。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "计划 §3 说明前缀匹配为封闭集合；附件 diff preflight.mjs 中 baseMatches 仅接受 base === hint 或 base.startsWith(hint + '/')，拒绝后缀伪装；endpoint 取值优先级为覆盖 > 配置命中 > 席位表兜底，逻辑一致。",
+      "conclusion": "接受",
+      "disposition": "无需处置。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "计划 §4 称“全量测试 129 例全绿（基线 122 + 新增 7）”，但具体运行输出未内联，无法核验；附件 tests/凭据定位.test.mjs 仅覆盖凭据解析逻辑，未覆盖新增的 --attach 与 --reasoning-effort。",
+      "conclusion": "有条件接受",
+      "disposition": "为 --attach 与 --reasoning-effort 增加回归测试，并内联测试运行命令与环境变量说明。"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "计划 §3 与附件 diff 中已覆盖 v1.evil 后缀伪装、空 baseURL、多前缀命中确定性三条边界，且附件凭据定位.test.mjs 第 35–67 行对三者均有断言。",
+      "conclusion": "接受",
+      "disposition": "无需处置。"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "计划 §2 反审直连新增 --attach 内联附件，仅总量 MAX_PLAN_CHARS 限制，缺少单文件大小/类型控制；附件 diff resolveApiKey 错误信息 source 包含 hints（如 http://101.133.151.121:18890），计划 §3 称“凭证不打印”但内部端点仍可能进入日志。",
+      "conclusion": "有条件接受",
+      "disposition": "给 --attach 增加单文件大小与类型白名单，并将错误信息中的 hints/IP 在普通输出中脱敏。"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "计划 §5 明示 L3 项目级反审未做、tag/push/release 未执行、DeepSeek 因欠费缺席；§2 仅 SKILL.md 版本号更新，未说明新 flag 用法已写入 SKILL.md/CHANGELOG。",
+      "conclusion": "有条件接受",
+      "disposition": "将 --attach / --reasoning-effort 用法补入 SKILL.md/CHANGELOG，并另开工单跟踪 DeepSeek 欠费导致的 L3 缺口。"
+    }
+  ],
+  "summary": "核心修复证据充分、架构与边界处理可接受，但新增 CLI 能力缺测试与文档，且计划对 fresh agent 不够自包含。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 75033,
+    "model_echo": "kimi-k2.7"
+  },
+  "implementer_camp": "deepseek",
+  "reviewer_camp": "moonshot",
+  "blocking": 0
+}

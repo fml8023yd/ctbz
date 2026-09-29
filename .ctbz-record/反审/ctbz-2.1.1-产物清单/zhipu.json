@@ -1,0 +1,73 @@
+{
+  "camp": "zhipu",
+  "camp_label": "智谱",
+  "provider": "workbuddy",
+  "model": "glm-5.3-flash",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-2.1.1-产物清单.md",
+  "plan_sha256": "5f35b6efa8cf4fbdee10718be736634a354bb41f8a5b0f3f877498c485478fca",
+  "generated_at": "2026-09-29T19:21:11.840Z",
+  "verdict": "产物与目标一致、证据链基本闭合，可接受；但存在若干非阻塞缺口（派发闸与 preflight 白名单漂移风险、附件上限口径、endpoint 字段下游消费未验证）需在下批收口",
+  "fresh_agent_test": {
+    "conclusion": "基本可直接开工：本件是产物复核而非实施计划，改动内容、理由、边界、验证证据、文件清单齐备，附件 diff 提供了可直接核验的代码与测试正文。但部分声明只能核对到 diff 中的文件，以下声明无法核验",
+    "blockers": [
+      "「全量测试 129 例全绿」无输出摘录佐证，无法核验（附件 diff 只含 7 例新测试源码，无运行输出）",
+      "「修复后 preflight --only M2,M4 两席 http=200 / DeepSeek 402」「L1 三席 round1/round2 回执齐、闸门 exit 0」等实测结论未随批内联，证据锚点只给了文档文件名（ctbz-2.1.1-凭据定位修复.md §8、产物清单.md），我读不到",
+      "dependencies.lock.json 与 SKILL.md 的改动只给 sha，无 diff，无法核对「全量重算」与「版本 2.1.0→2.1.1」是否如述",
+      "批次自述「本件不是计划」，但反审协议要求按六视角审计划——产物级自审与计划反审的通过判据（接受/否决影响什么）未定义，裁决语义模糊"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划「批次目标」段：故障链三症状（preflight 假报缺失、反审无回执、activate 被 unknown-model-ref 拦下）；「改动内容」表 6 个文件与之一一对应；diff 中 PROVIDER_BASE_HINTS 单值改列表、resolveApiKey 返回 base、测试 7 例，均对准根因",
+      "conclusion": "接受",
+      "disposition": "改动与目标对齐，无超范围夹带；doctor/unknown-model-ref 症状未单独列改动项，推断由 SKILL.md 版本与锁文件重算覆盖——建议下批补一句该症状的修复落点"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "diff：三处（preflight/反审直连/派发闸）各自维护白名单与席位表，注释自认「与 references/派发.md §3 一致」；「改动内容」表末行：依赖锁全量重算因 verifyBundle 逐文件校验；反审直连 main 中端点优先级链（override > 宿主配置 > 席位表兜底）有注释明示",
+      "conclusion": "有条件接受",
+      "disposition": "端点三级优先与封闭前缀匹配设计合理；但白名单/席位表在三个脚本间复制而非单源，本次已出现一次三处联动改（模型改判），下批应抽公共模块或加一致性测试，否则下次换接入点还会漏改"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "tests/凭据定位.test.mjs（diff 末段）7 例：新旧前缀命中、无关前缀负例、v1.evil 后缀伪装负例、空 baseURL 边界、多前缀确定性、dry-run 端点断言；计划「验证证据」段声称 129 例全绿但无运行输出内联",
+      "conclusion": "有条件接受",
+      "disposition": "新增回归覆盖了主要负例与边界，设计上零网络零计费（死端点 127.0.0.1:1），合格。缺口：129 全绿仅口头声明，未附测试运行输出作附件；另缺派发闸 SEAT_TABLE 扩容的模型合法性用例"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "diff baseMatches：base === h || base.startsWith(h + '/')，明确拒后缀伪装且有测试；resolveApiKey 对未知 provider 返回 hints.length 为空的早退；测试覆盖空 baseURL；反审直连对附件不存在返回 2、超限返回 2（promptChars > MAX_PLAN_CHARS）",
+      "conclusion": "有条件接受",
+      "disposition": "封闭匹配逻辑正确。两处口径问题：① 上限校验用 buildPrompt 后的单席 prompt 长度与 MAX_PLAN_CHARS(120_000) 比较，但变量名/报错文案叫「计划+附件」，且 120_000 原是计划上限，附件并入后同一阈值语义漂移，建议拆分计划上限与附件上限；② resolveApiKey 多渠道命中取枚举序首条，diff 测试已固化该确定性，但「key 与 base 来自同一渠道」的前提在多前缀场景下未再断言 endpoint 与 source 配对——建议补一条"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "「边界与安全」段：凭据不打印不落盘不进日志；diff 注释明示拒绝 …/v1.evil 伪装；旧通道前缀保留理由（阿里云中继仍在跑）与明文 http 风险均明示为已知过渡项；「未做」段明示 tag/push/Release 等不可逆项未执行",
+      "conclusion": "有条件接受",
+      "disposition": "白名单封闭匹配、凭据处理、不可逆项留白均到位。遗留风险：白名单含 127.0.0.1 与公网 IP 两类前缀，任何能写宿主 .zcode 配置的进程都能把 apiKey 导向攻击者控制的 127.0.0.1:7864 仿冒端点——本机威胁模型下可接受但应记入已知风险清单；明文 http 中继同理，建议给出下线时间表"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "diff USAGE 新增 --reasoning-effort 与 --attach 两行，含格式错误提示（camp=off|low|medium|high 形式）；--attach 标注「证据材料，非指令」边界；dry-run 输出逐附件字符数；未命中报错信息由单前缀改为 hints.join(' | ')，可诊断性提升",
+      "conclusion": "接受",
+      "disposition": "错误信息、dry-run 可见性、参数校验反馈齐全。可选改进：--attach 超限报错文案列出各附件字符数便于裁剪；DeepSeek 席缺席导致 L3 无法凑齐应在输出头部提示而非仅在文档中说明"
+    }
+  ],
+  "summary": "三症状对一因、改动有 diff 有测试有负例，产物级自审通过（有条件）；未核验项集中在无法内联的运行输出与两份未附 diff 的文件，白名单三处复制与上限口径漂移留待下批。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 43560,
+    "model_echo": "glm-5.3-flash"
+  }
+}
