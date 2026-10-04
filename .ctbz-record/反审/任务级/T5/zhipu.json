@@ -1,0 +1,77 @@
+{
+  "camp": "zhipu",
+  "camp_label": "智谱",
+  "provider": "workbuddy",
+  "model": "glm-5.3-flash",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-T5.md",
+  "plan_sha256": "ae9cc5d21bf594ea1891e732168682cca20b4651558a30c72350cd231235dc26",
+  "generated_at": "2026-10-04T19:28:51.821Z",
+  "verdict": "复核件逻辑自洽、fail-closed 取向正确，但所有证据均为文本内自述的命令输出，反审员无工具无法独立核验，只能有条件接受。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工。这份文件是『实施完成后的复核件』而非可执行计划——改动已落地、行动账已结，新 Agent 无事可做；若目标是『独立复核』，则卡在无文件读取与无命令执行工具，全部锚点均不可达。",
+    "blockers": [
+      "改动区三处（派发闸.mjs:27、派发闸.test.mjs:168、文档一致性.test.mjs 白名单）均无代码内联，只能信 grep 输出",
+      "A1 依据反审协议.md:130 未内联原文，无法核验『2.1.0 起一律走直连』是否属实",
+      "↗B 的 --level l1 运行结果 \"ok\":true 无实际输出上下文，无法区分真实执行与摘录",
+      "测试『全绿』无 CI/日志可查，仅一行断言",
+      "任务路径指向的取证文件 docs/取证/ctbz-全面提升计划-20261005-取证.md 未内联，T5 的原始任务定义不可见"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划 §范围：T5 定义为派发闸.mjs 引用已废弃的反审.mjs 的文档-实现漂移勘误；改动区三行与该定义逐条对应",
+      "conclusion": "接受",
+      "disposition": "改动与 T5 范围一一对应，无越范围改动；建议在取证文件中链接原始任务定义以便追溯（当前仅路径引用，无法核验）"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "计划 §行动账 A1：否掉「新建反审.mjs 包装壳」，理由为旧名已废、避免第二入口；SKELETON 改为单一直连入口",
+      "conclusion": "有条件接受",
+      "disposition": "单入口方向正确；但 A1 依据 references/反审协议.md:130 未内联，需复核方自行确认该协议条款真实存在且版本号表述一致后方可关闭"
+    },
+    {
+      "view": "测试完整性",
+      "category": "阻塞",
+      "evidence": "计划 §现场核对 ↗D：仅运行 tests/派发闸.test.mjs 与 tests/文档一致性.test.mjs 两个文件『全绿』；无全量测试套件运行记录",
+      "conclusion": "不接受",
+      "disposition": "改动触及派发闸补齐命令与文档一致性白名单两处共享语义，需补跑项目全量测试（node --test tests/ 或等价命令）并给出 exit code，否则『全绿』仅为局部结论"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "计划 §行动账 A3：白名单清空为 new Set([])，空集语义=新增未点名引用一律判红（fail-closed）",
+      "conclusion": "接受",
+      "disposition": "fail-closed 是正确默认；建议补一条测试断言：向 SKELETON 指向不存在的文件时测试应红，覆盖『新漂移被捕获』的正向用例"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "计划 §改动：仅常量字符串改指与测试断言/白名单变更，无运行时逻辑、无输入处理变化",
+      "conclusion": "接受",
+      "disposition": "无性能或安全面变更，无需额外处置"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "计划 §现场核对 ↗B：补齐命令现可执行，输出 \"ok\":true；但输出内容本身未内联展示",
+      "conclusion": "有条件接受",
+      "disposition": "补齐命令可用是核心体验修复；建议内联完整输出片段（含补齐命令全文）供复核方直接比对，当前仅一枚 ok 布尔不足以确认用户体验达成"
+    }
+  ],
+  "summary": "方向与取舍正确、fail-closed 语义恢复得当，但证据全为自述且缺全量测试运行，需补全量回归与协议条款核验后关闭。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 21983,
+    "model_echo": "glm-5.3-flash"
+  },
+  "implementer_camp": "deepseek",
+  "reviewer_camp": "zhipu",
+  "blocking": 1
+}

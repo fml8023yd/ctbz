@@ -1,0 +1,89 @@
+{
+  "camp": "zhipu",
+  "camp_label": "智谱",
+  "provider": "workbuddy",
+  "model": "glm-5.3-flash",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-L3.md",
+  "plan_sha256": "e305cb1fccffd298647378c1853da0a339473c9ccc8ea136396eecb224b992aa",
+  "generated_at": "2026-10-04T19:28:06.501Z",
+  "verdict": "2.1.4 批 1 交付与批次事实相符，四个整体项可核验通过，未完成项如实披露，有条件接受并待批 2–4 推进",
+  "fresh_agent_test": {
+    "conclusion": "新代理可依复查件四条可复跑命令（全量测试、发布检查、派发闸、diff 安装副本）独立复现结论，批次事实与未完成清单自洽，无隐瞒项",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "T1–T5 及文档任务均有对应交付物且任务级闸门 exit 0（↗C）；170 测试 = 基线 139 + 新增 31，账目吻合；未完成项（B1/B2/C1/C2/D4/E1/A1/A2/A4/A7）如实列出",
+      "conclusion": "接受",
+      "disposition": "批 2–4 按计划推进，A5 后半与 A7 在后续批次补齐"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "健康账本独立模块接线至模型健康与 pick-profile，体检/内审命令独立成文件，模块划分清晰；但 A5 自动激活与 A7 租约未接，体检目前只读不写",
+      "conclusion": "有条件接受",
+      "disposition": "后续批次接线自动激活与租约前，体检结果仅作参考不作为自动裁决依据"
+    },
+    {
+      "view": "测试完整性",
+      "category": "可接受",
+      "evidence": "node --test 全量 170 pass / 0 fail（↗A），新增 31 例覆盖 T1–T4；文档一致性测试 6 例且白名单清空（T5 配套）",
+      "conclusion": "接受",
+      "disposition": "探活真跑（计费路径）无测试覆盖，归入 A7 批次补测"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "调用名统一：grep 仅剩 CHANGELOG 历史段与勘误说明，活引用已清零；假设与边界、兜底链当前仅文档条款，无代码兜底行为",
+      "conclusion": "有条件接受",
+      "disposition": "B2 兜底链代码实施前，异常路径依赖文档约定，需在批内明确降级行为"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "发布检查三步骤全过（↗B）；探活真跑涉及计费，本批未接，无意外计费风险；健康账本接线不改变外部接口",
+      "conclusion": "接受",
+      "disposition": "接探活真跑时须先落计费上限与租约（A7）"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "体检命令、内审三问为用户可感知交付；SKILL.md/unified-workflow/failure-policy 等文档同步更新至 2.1.4；异议义务与黏菌协议成文",
+      "conclusion": "接受",
+      "disposition": "D4 决策清单落点未定，文档入口暂以 SKILL.md 为准，定落点后补交叉引用"
+    }
+  ],
+  "checks": [
+    {
+      "id": "集成一致性",
+      "conclusion": "通过",
+      "evidence": "170/170 测试绿（基线 139+31），发布检查 ok:true steps:3，T1–T4 闸门均 exit 0"
+    },
+    {
+      "id": "调用名统一",
+      "conclusion": "通过",
+      "evidence": "反审.mjs 活引用清零，SKELETON 改指反审直连.mjs，grep 仅剩 CHANGELOG 历史段与勘误说明，白名单已清空"
+    },
+    {
+      "id": "main未污染",
+      "conclusion": "通过（按本线口径）",
+      "evidence": "本批提交在本机 main 未 push，origin/main 仍为 2edfe7f（ls-remote 可复跑验证）；push 为待授权项 E1"
+    },
+    {
+      "id": "安装副本分支标识",
+      "conclusion": "通过",
+      "evidence": "diff -rq ~/.agents/skills/ctbz skills/ctbz 空输出，两侧版本号均 2.1.4，部署基线已写入"
+    }
+  ],
+  "summary": "批次事实可复跑核验、未完成项如实披露，六视角无阻塞，批 2–4 待启动",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 18064
+  }
+}

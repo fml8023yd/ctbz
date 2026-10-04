@@ -1,0 +1,70 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-产物清单.md",
+  "plan_sha256": "f622b18e6e150f5d55b521186318b9b4a365687fc9cda3de0fc65844436185b7",
+  "generated_at": "2026-10-04T19:29:02.170Z",
+  "verdict": null,
+  "fresh_agent_test": {
+    "conclusion": "提交证据表明干净环境 node --test 170 例全过且发布检查三步骤通过，但复查员未独立执行字节级校验",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "改动表与批次目标一一对应：健康账本退避与清零、体检幽灵对账、内审G11、文档锁均落地；真机抓幽灵3例实证",
+      "conclusion": "接受",
+      "disposition": "准予合并"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "派发闸.mjs 将 SKELETON 指向反审直连.mjs，但产物清单未列该文件 sha，需确认受控",
+      "conclusion": "有条件接受",
+      "disposition": "确认反审直连.mjs 已存在并补入锁文件"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "新增31例单测覆盖账本/体检/文档一致性，但探活真跑未做（计费）、体检自动激活未接，缺少集成覆盖",
+      "conclusion": "有条件接受",
+      "disposition": "补充探活模拟用例或显式标注豁免范围"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "退避30m→1h→4h→24h与3连击清零已实现，但健康账本文件损坏/并发碰撞恢复未述",
+      "conclusion": "有条件接受",
+      "disposition": "增加文件异常与并发写边界测试"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "零网络零计费测试，CTBZ_HEALTH_FILE通过环境变量注入，无硬编码密钥；发布检查通过",
+      "conclusion": "接受",
+      "disposition": "保持现行隔离策略"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "SKILL.md 六段模板与异议义务明晰，G11机械校验降低误交付，但体检自动激活未接需手动触发",
+      "conclusion": "有条件接受",
+      "disposition": "后续批补自动激活或文档明示手动步骤"
+    }
+  ],
+  "summary": "2.1.4批次目标一致、核心闭环与测试完整，仅存非阻塞的文档清单遗漏与部分集成未覆盖，建议有条件接受",
+  "implementer_camp": "deepseek",
+  "reviewer_camp": "tencent",
+  "blocking": 0,
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 32276
+  }
+}

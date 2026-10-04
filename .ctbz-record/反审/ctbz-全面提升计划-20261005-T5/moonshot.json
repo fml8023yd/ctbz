@@ -1,0 +1,74 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-T5.md",
+  "plan_sha256": "ae9cc5d21bf594ea1891e732168682cca20b4651558a30c72350cd231235dc26",
+  "generated_at": "2026-10-04T19:29:24.244Z",
+  "verdict": "有条件接受：引用修正方向正确，测试已同步更新，但所有结论均受限于无法核验外部文件与运行环境。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工。该件为实施后复核件，未内联源文件内容、完整 diff 或依赖上下文，仅靠本 prompt 无法复现或验证任何改动。",
+    "blockers": [
+      "无法读取 `skills/ctbz/scripts/派发闸.mjs` 全文，仅知其第 27 行摘要",
+      "无法读取 `tests/派发闸.test.mjs:168` 与 `tests/文档一致性.test.mjs` 的具体断言",
+      "无法核验 `references/反审协议.md` §6 及 `:130` 的原文是否支持 2.1.0 替换论断",
+      "无法执行现场核对的 `node --test`、`grep`、`node` 命令，绿/红结果不可复现",
+      "无 `派发闸.mjs` 调用方清单，不能判断是否存在其他 `反审.mjs` 硬编码残留"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划 §1 范围：T5 目标为「文档-实现漂移勘误」，明确 `派发闸.mjs` 的 SKELETON 应由已废弃的 `反审.mjs` 改指 `反审直连.mjs`；行动账 A1 依据 `references/反审协议.md:130`",
+      "conclusion": "有条件接受",
+      "disposition": "内联逻辑一致，但需人工核验 `反审协议.md` 原文确认 2.1.0 替换事实"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "计划 §2 改动；行动账 A1 取舍栏：否掉「新建反审.mjs 包装壳」，理由为旧名已废、壳会制造第二入口",
+      "conclusion": "有条件接受",
+      "disposition": "同意删除间接层以避免双入口；待确认 `反审直连.mjs` 接口与旧调用点完全兼容"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "计划 §2 改动列明更新 `tests/派发闸.test.mjs:168` 与 `tests/文档一致性.test.mjs` 白名单；现场核对 ↗D 显示两测试文件全绿",
+      "conclusion": "有条件接受",
+      "disposition": "已覆盖引用名切换与回归断言，但缺少 `反审直连.mjs` 缺失/异常路径的负向测试"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "计划全文未讨论 `反审直连.mjs` 缺失、权限失败、无效 `--level`、跨 workspace 等异常；改动仅涉及单点 SKELETON 常量",
+      "conclusion": "有条件接受",
+      "disposition": "主路径验证通过，建议补充全库扫描确认无其他 `反审.mjs` 硬编码残留"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "行动账 A1 取舍：去掉包装壳减少一次间接调用；范围段落说明改为直连执行器",
+      "conclusion": "接受",
+      "disposition": "无新增风险，维持当前处置"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "现场核对 ↗B 命令行参数 `--plan`、`--workspace`、`--level` 与输出 `ok:true` 保持不变；无用户界面或交互变更描述",
+      "conclusion": "接受",
+      "disposition": "CLI 语义未变，无需额外动作"
+    }
+  ],
+  "summary": "单点引用修正逻辑自洽，测试更新到位，但受限于无文件读取能力，全部结论均为基于内联文本的有条件接受。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 54365,
+    "model_echo": "kimi-k2.7"
+  }
+}

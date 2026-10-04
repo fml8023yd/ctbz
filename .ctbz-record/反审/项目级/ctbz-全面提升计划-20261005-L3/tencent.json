@@ -1,0 +1,89 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-L3.md",
+  "plan_sha256": "e305cb1fccffd298647378c1853da0a339473c9ccc8ea136396eecb224b992aa",
+  "generated_at": "2026-10-04T19:28:19.568Z",
+  "verdict": "批次 2.1.4 交付物与计划一致，测试全绿，四整体项核验通过，未完成项已如实披露",
+  "fresh_agent_test": {
+    "conclusion": "基于可复跑命令（node --test, 发布检查.js, 派发闸.mjs, diff）新代理可独立验证，无阻断",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "批次内容表 T1-T5 与交付物一一对应；node --test 170 pass 0 fail；发布检查三步骤全过",
+      "conclusion": "接受",
+      "disposition": "无"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "新模块 lib/健康账本.mjs 等通过现有钩子接入；T1-T4 任务级闸门 exit 0；安装副本与源 diff 空",
+      "conclusion": "接受",
+      "disposition": "无"
+    },
+    {
+      "view": "测试完整性",
+      "category": "可接受",
+      "evidence": "全量测试 170 例绿（基线139+新增31），含 T1 11例 T2 10例 T3 6例 T4 +4例 T5 引用勘误用例；无失败",
+      "conclusion": "接受",
+      "disposition": "无"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "派发闸白名单清空、文档一致性锁用例覆盖；但 A5 后半体检自动激活与 A7 租约属批外未做，不在本批范围",
+      "conclusion": "接受",
+      "disposition": "记录批外未完成项，不阻断本批"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "无独立性能压测，但脚本为 node 轻量模块；安装副本逐字节一致，无未授权改动；main 未 push 未污染",
+      "conclusion": "接受",
+      "disposition": "后续批次补性能验证"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "SKILL.md 等文档更新，版本号 2.1.4 两侧一致；CHANGELOG 记录；异议义务/黏菌协议等文档条款落地",
+      "conclusion": "接受",
+      "disposition": "无"
+    }
+  ],
+  "checks": [
+    {
+      "id": "集成一致性",
+      "conclusion": "通过",
+      "evidence": "node --test tests/*.test.mjs → 170 pass 0 fail；发布检查.js steps:3 ok:true；T1-T4 闸门 exit 0"
+    },
+    {
+      "id": "调用名统一",
+      "conclusion": "通过",
+      "evidence": "grep -rn '反审.mjs' 仅存 CHANGELOG 历史与勘误；SKELETON 改指 反审直连.mjs，测试断言同步"
+    },
+    {
+      "id": "main未污染",
+      "conclusion": "通过（本线口径）",
+      "evidence": "本批提交在本地 main 未 push；git ls-remote origin 显示 origin/main 仍为 2edfe7f"
+    },
+    {
+      "id": "安装副本分支标识",
+      "conclusion": "通过",
+      "evidence": "diff -rq ~/.agents/skills/ctbz skills/ctbz 空输出；两侧版本号均 2.1.4；部署基线已写"
+    }
+  ],
+  "summary": "2.1.4 批交付完整、测试全绿、四整体项合规，已知延期项已透明列出",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 31129
+  }
+}

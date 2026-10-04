@@ -1,0 +1,70 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-产物清单.md",
+  "plan_sha256": "f622b18e6e150f5d55b521186318b9b4a365687fc9cda3de0fc65844436185b7",
+  "generated_at": "2026-10-04T19:29:02.094Z",
+  "verdict": "2.1.4 批次目标与产物基本一致，测试、发布检查与真机验证证据成立，已知未完成项已明示且无阻塞项，可进入下一批次。",
+  "fresh_agent_test": {
+    "conclusion": "未提供独立 fresh-agent 在全新克隆环境下的复现日志；现有 node --test 与 发布检查.js 在提交环境通过，真机验证覆盖健康账本退避/清零与幽灵模型抓取。",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "健康账本接线、体检命令集（版本/名单/探活/账本/待办）、幽灵模型对账、编制检查、文档一致性锁、G11 交付前三问、分级兜底链与 T5 勘误在改动清单、SKILL.md 及 references 中均有对应产物；批 2-4 与探活真跑、体检自动激活等未完成项已主动披露，不纳入本批次范围。",
+      "conclusion": "接受",
+      "disposition": "维持进入下一批次，后续按 disclosed 清单补齐未完成项"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "新增 lib/健康账本.mjs 独立封装退避与成功衰减，体检.mjs 作为聚合入口，pick-profile 增加冷却过滤，内审.mjs 复命闸六段化；派发闸 SKELETON 改指 反审直连.mjs 引入了新的硬编码路径耦合，反审直连脚本的职责边界与错误回退未在清单中显式说明。",
+      "conclusion": "有条件接受",
+      "disposition": "补充派发闸与 反审直连.mjs 的调用约定、入出参及失败回退说明后关闭"
+    },
+    {
+      "view": "测试完整性",
+      "category": "可接受",
+      "evidence": "新增 31 例测试（健康账本 11、体检 10、文档一致性 6 等），改造 内审/派发闸/主文锚点 测试；node --test 结果 170 pass / 0 fail；发布检查.js 三步骤全过；声明零网络零计费。",
+      "conclusion": "接受",
+      "disposition": "保持测试与代码同批次交付，后续将新功能用例纳入回归套件"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "退避阶梯 30m→1h→4h→24h、成功 3 连击清零、冷却兜底 cooling:true、碰撞语义明文已写入代码并通过测试；真机验证 30 分钟退避与清零生效。未见对时间上限钳制、时间溢出、并发写入冲突的显式边界测试。",
+      "conclusion": "有条件接受",
+      "disposition": "补充最大退避上限、时间溢出及并发写入冲突的边界单测后关闭"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "dependencies.lock.json 已重算，发布检查.js 三步骤通过；CTBZ_HEALTH_FILE 环境变量化避免硬编码路径；SKILL 假脚本注入测试转红，证明存在基础注入防护验证；测试零网络零计费，风险面可控。",
+      "conclusion": "接受",
+      "disposition": "将注入防护与路径遍历用例纳入常规回归，进入下一批次前复核"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "SKILL.md 升级 2.1.4，统一异议义务/黏菌协议/六段模板/编号修复；references 补齐兜底链 L0-L5、字段标注与执行器勘误；体检输出五行摘要。但探活真跑未接、体检自动激活未接，导致部分命令端到端体验仍为半悬挂状态。",
+      "conclusion": "有条件接受",
+      "disposition": "在下一批次落地探活真跑与体检自动激活，避免用户可见功能未闭环"
+    }
+  ],
+  "summary": "2.1.4 批次产物与目标基本一致，测试、发布检查与真机验证证据成立，已知未完成项已明示；六视角无阻塞问题，建议补充架构耦合文档与边界用例后进入下一批次。",
+  "implementer_camp": "deepseek",
+  "reviewer_camp": "moonshot",
+  "blocking": 0,
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 32199
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "camp": "deepseek",
+  "camp_label": "DeepSeek",
+  "provider": "workbuddy",
+  "model": "deepseek-v4.1-flash",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-L3.md",
+  "plan_sha256": "e305cb1fccffd298647378c1853da0a339473c9ccc8ea136396eecb224b992aa",
+  "generated_at": "2026-10-04T19:28:03.575Z",
+  "verdict": "批次交付物与声明基本一致，170测试/发布检查/任务闸门证据均可复跑；保留项集中在 main「未污染」口径重定义与批2-4未启动，整体属有条件接受。",
+  "fresh_agent_test": {
+    "conclusion": "可复现。A2 提供可复跑命令（node --test 170例、发布检查三步骤、T1–T4 闸门 exit 0），fresh agent 可独立核验批次事实；未完成项在「已知未完成项」节显式披露，续接需依赖计划文档与取证§14。",
+    "blockers": [
+      "main「未污染」采用本线口径（未 push 即未污染），非通用定义，fresh agent 续接前须取得 YG 对该口径的显式确认，否则无法据此判定 main 干净"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "T1–T5 交付物（健康账本.mjs、体检.mjs、文档一致性.test.mjs、内审.mjs +4例、派发闸.mjs:27 勘误）与计划 docs/ctbz-全面提升计划-20261005.md l1 八席双轮一致，未见漏项。",
+      "conclusion": "接受",
+      "disposition": "通过，纳入批次基线。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "新增健康账本.mjs 独立模块、体检.mjs 独立命令，接线至 模型健康.js / pick-profile，模块边界清晰；SKELETON 改指 反审直连.mjs 后调用链无环。",
+      "conclusion": "接受",
+      "disposition": "通过。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "基线139+新增31=170 例 pass/0 fail；健康账本11例、体检10例、文档一致性6例、内审+4例均有断言。但未实现功能（A1路由表/A2兜底链/A4跨渠道/A7租约/A5后半自动激活）无对应测试，属批2–4范围。",
+      "conclusion": "有条件接受",
+      "disposition": "接受本批覆盖；批2–4启动前须为 A1/A2/A4/A7 补测试锚点。"
+    },
+    {
+      "view": "边界条件",
+      "category": "可接受",
+      "evidence": "T5 对 派发闸.mjs:27 引用勘误并将 文档一致性.test.mjs 白名单清空，边界（历史引用 vs 活引用）已隔离；grep 仅剩 CHANGELOG 历史段与勘误说明。",
+      "conclusion": "接受",
+      "disposition": "通过。"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "本批为治理/文档/接线类改动，运行时性能面小；未提供任何性能或安全压测证据（探活真跑因计费未接）。",
+      "conclusion": "有条件接受",
+      "disposition": "接受；探活接入（计费）时须补性能与安全复测。"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "体检.mjs 提供统一自检入口，文档一致性.test.mjs 锁住文档漂移，交付前三问（G11）内置内审，降低使用者的核对成本。",
+      "conclusion": "接受",
+      "disposition": "通过。"
+    }
+  ],
+  "checks": [
+    {
+      "id": "集成一致性",
+      "conclusion": "通过",
+      "evidence": "node --test tests/*.test.mjs → 170 pass/0 fail（基线139+新增31）；发布检查.js 三步骤 ok:true；T1–T4 三席反审闸门各 \"ok\":true，集成面无断点。"
+    },
+    {
+      "id": "调用名统一",
+      "conclusion": "通过",
+      "evidence": "反审.mjs 已无活引用，SKELETON 改指 反审直连.mjs，测试断言同步、白名单清空；grep -rn \"反审\\.mjs\" skills/ctbz/ 仅剩 CHANGELOG 历史段与勘误说明。"
+    },
+    {
+      "id": "main未污染",
+      "conclusion": "有条件通过",
+      "evidence": "本批提交落在本机 main 且未 push，origin/main 仍 2edfe7f；本线以「未 push 即未污染」口径判通过。该口径为自定定义，非通用标准，须 YG 显式确认后方可判定 main 干净。"
+    },
+    {
+      "id": "安装副本分支标识",
+      "conclusion": "通过（附注）",
+      "evidence": "diff -rq ~/.agents/skills/ctbz skills/ctbz 空输出，两侧逐字节一致且版本号均 2.1.4，部署基线已写；因内容一致故无独立分支标识字段差异，未见显式分支标识项。"
+    }
+  ],
+  "summary": "批次事实成立、证据可复跑、未完成项如实披露；唯一实质保留是 main 口径重定义与批2–4空缺，均为有条件接受项。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 14659
+  }
+}

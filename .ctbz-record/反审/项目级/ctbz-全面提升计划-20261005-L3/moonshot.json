@@ -1,0 +1,89 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-L3.md",
+  "plan_sha256": "e305cb1fccffd298647378c1853da0a339473c9ccc8ea136396eecb224b992aa",
+  "generated_at": "2026-10-04T19:28:23.749Z",
+  "verdict": "ctbz 2.1.4 批 1 可接受：当前交付项全部可复现通过，但已知未完成项需在后续批次补齐。",
+  "fresh_agent_test": {
+    "conclusion": "按复查件提供的可复跑命令与锚点证据，fresh agent 应能复现 170/170 通过、发布检查三步骤通过、T1–T4 闸门 exit 0，当前无阻塞。",
+    "blockers": []
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "T1–T4 交付物均存在且对应测试通过，任务级闸门 exit 0；批次 2–4 需求未纳入本批范围并在已知未完成项中完整披露。",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "本批接线、命令、文档锁、内审、派发闸勘误均集成通过；反审.mjs 已下线且引用统一。但 A1 路由表、A2 兜底链代码、A4 跨渠道、A7 租约等架构件尚未实现，仅文档或占位。",
+      "conclusion": "有条件接受",
+      "disposition": "批 2–4 补齐路由表、兜底链、跨渠道、租约等架构项"
+    },
+    {
+      "view": "测试完整性",
+      "category": "可接受",
+      "evidence": "node --test tests/*.test.mjs → 170/170 通过；健康账本 11 例、体检 10 例、文档一致性 6 例、内审 +4 例、派发闸用例已更新。",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "当前测试覆盖本批功能边界；但兜底链代码、租约/探活真跑、自动激活后半段未接入，极端失败路径与租约边界尚未被代码级覆盖。",
+      "conclusion": "有条件接受",
+      "disposition": "待批 2 完成兜底链与探活/租约边界用例"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "main 未污染、安装副本与源一致、调用名统一，减少了误调用风险；但无性能基准测试，A7 租约/探活未真实运行，安全与稳定性验证不完整。",
+      "conclusion": "有条件接受",
+      "disposition": "后续批次补充性能基线与真实探活安全验证"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "体检、派发闸、内审、发布检查等用户路径在本批均通过；未连接的自动激活、D4 决策清单落点、A4 跨渠道已在已知未完成项中披露，不影响本批可用性。",
+      "conclusion": "接受",
+      "disposition": "当前批次交付物可用；未连接项已披露"
+    }
+  ],
+  "checks": [
+    {
+      "id": "集成一致性",
+      "conclusion": "通过",
+      "evidence": "node --test tests/*.test.mjs → 170 pass / 0 fail；node skills/ctbz/scripts/发布检查.js skills/ctbz → ok:true, steps:3；派发闸.mjs --level l2 --task T{1..4} 各 ok:true"
+    },
+    {
+      "id": "调用名统一",
+      "conclusion": "通过",
+      "evidence": "反审.mjs 已改为 SKELETON，活引用指向 反审直连.mjs，测试断言与白名单同步清空；grep -rn \"反审\\.mjs\" skills/ctbz/ 仅 CHANGELOG 历史段与勘误说明"
+    },
+    {
+      "id": "main未污染",
+      "conclusion": "通过（按本线口径）",
+      "evidence": "本批提交落在本机 main 但尚未 push；git ls-remote --heads origin 显示 origin/main 仍为 2edfe7f 前缀"
+    },
+    {
+      "id": "安装副本分支标识",
+      "conclusion": "通过",
+      "evidence": "diff -rq ~/.agents/skills/ctbz skills/ctbz 空输出；两侧版本号均为 2.1.4；部署基线已写"
+    }
+  ],
+  "summary": "2.1.4 批 1 当前事实清晰、测试全绿、四整体项通过，但有条件接受三项因后续批次待补齐的架构、边界、性能/安全项。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 35309
+  }
+}
