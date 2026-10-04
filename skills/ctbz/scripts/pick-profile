@@ -2,6 +2,7 @@
 // 成本选型器（包工头）：父会话派发前决定子 Agent 的渠道档位与并行预算的模块（不是 Agent 角色）。
 // 命中规则只是『优先尝试方向』（首中即胜，priority 升序，同 priority 按文件序）：
 // 命中规则的派发失败后，带 --exclude <规则id> 重跑即滑向下一条；同档位已断流可加 --exclude-profile <短名> 跳过。
+// A3：候选槽位的模型查健康账本，冷却中出局；全部冷却时兜底输出并打 cooling:true（不卡死任务）。
 // 全部落空走 team config 原 route 降级，任何情况不卡死任务。
 // 用法: pick-profile --role <角色[,角色2,...]> [--now "2026-09-04T23:01:00+08:00"]
 //       [--vendor <glm|ds|gpt|opds>] [--exclude <规则id>[,<id2>]] [--exclude-profile <短名>[,<短名2>]]
@@ -10,6 +11,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isCooling } from "./lib/健康账本.mjs"; // A3：冷却过滤读账本；CTBZ_HEALTH_FILE 可覆盖账本路径
 
 class CliError extends Error {}
 
@@ -218,6 +220,20 @@ function evaluate(rules, args, role, now, warn) {
   const chain = [];
   const sorted = [...rules.rules].sort((x, y) => x.priority - y.priority); // 稳定排序：同 priority 按文件序
 
+  // A3 冷却过滤：候选槽位的 profile 或规则声明的 model 任一命中账本即出局，滑向下一条；
+  // 全部冷却时 cooled_first 兜底（永不空解，调用方打 cooling:true）。
+  let cooledFirst = null;
+  const take = (rule, candidate) => {
+    const refs = [candidate.profile, rule?.model].filter(Boolean);
+    if (refs.some((ref) => isCooling(ref))) {
+      if (!cooledFirst) cooledFirst = candidate;
+      (hit ? chain : skipped).push({ rule: rule.id, skipped: "冷却中（健康账本），滑向下一条" });
+      return;
+    }
+    if (!hit) hit = candidate;
+    else chain.push({ rule: rule.id, superseded: "低优先级命中，仅作备选" });
+  };
+
   for (const rule of sorted) {
     const st = ruleStatus(rule, now, excluded, excludedProfiles, args);
     if (st.state === "skipped" || st.state === "excluded") {
@@ -243,8 +259,7 @@ function evaluate(rules, args, role, now, warn) {
         continue;
       }
       const candidate = { rule: rule.id, profile, parallel: 1, aggregate: false, vendor: args.vendor, tier };
-      if (!hit) hit = candidate;
-      else chain.push({ rule: rule.id, superseded: "低优先级命中，仅作备选" });
+      take(rule, candidate);
       continue;
     }
     // free_window / free_model 命中：首中即胜，后续命中仅作备选；降档即冗余（heavy_only 时 light 角色单发）
@@ -253,9 +268,9 @@ function evaluate(rules, args, role, now, warn) {
       candidate.tier = tierOf(role);
       if (candidate.tier === "light") { candidate.parallel = 1; candidate.aggregate = false; }
     }
-    if (!hit) hit = candidate;
-    else chain.push({ rule: rule.id, superseded: "低优先级命中，仅作备选" });
+    take(rule, candidate);
   }
+  if (!hit && cooledFirst) { hit = cooledFirst; hit.cooling = true; } // 全候选冷却：兜底不卡死
   if (hit) {
     hit.requested_parallel = hit.parallel;
     if (args.kind !== 'read') hit.parallel = 1;

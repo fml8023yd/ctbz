@@ -1,0 +1,74 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "2",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/ctbz-全面提升计划-20261005.md",
+  "plan_sha256": "98fb2286918c570a0461e41314b7e21825f5a04f9e0ea0774c09235fd74c0688",
+  "generated_at": "2026-10-04T18:04:14.932Z",
+  "verdict": "不接受：v2 补上了 schema 与回滚，但路由表语义存在自洽缺口，且关键行为仍靠演练而非可执行用例，不足以作为批 1 实施依据。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工。",
+    "blockers": [
+      "计划 §0/§6 要求用户回「开工」才启动，fresh agent 无用户授权无法取得开工指令",
+      "§10.1 路由表 schema 仅给出 planner 示例与 seats 占位注释，其余 7 角色 slots 与四反审席数据未内联，无法直接编码",
+      "§A3 只说「模型健康.js 升级 + 两个选型器接线」，未给出账本 schema/读写接口/失败分类，无法接线",
+      "§10.1 声明 crossProvider:false，但 §A2 L4 要求「换 provider」、§A4 要求跨渠道 1→2→3，「渠道」与 provider/slot 关系未定义",
+      "多数验收项（A2/A4/A5/A6/A7/C1/C2/B2）仍是「演练」而无 node --test 可执行断言"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "计划 §0/§6 把「批准开工」作为唯一待用户裁决项，其余默认预决；§B1–B4 将用户原话（假设边界、黏菌探索、交付前三问、异议义务）转译为可执行条款；§A2/A4/A7 回应了用户对失败冷却、跨渠道、租约的诉求。",
+      "conclusion": "接受",
+      "disposition": "通过；保持 §0 的单一决策点设计，不必新增待裁决项。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "阻塞",
+      "evidence": "计划 §10.1 给出 policy: { fallback: 'declared', crossProvider: false }，但 §A2 兜底链 L4 写明「换 provider」、§A4 要求「路由表声明备选渠道（渠道 1→2→3）」；同节 seats 用注释占位，roles 仅列 planner 并注「同形」，旧三表「投影或废除」未指明哪张如何投影。",
+      "conclusion": "不接受",
+      "disposition": "修订 §10.1：定义「渠道」与 provider/model/slot 的映射，统一 crossProvider 语义，补全 8 角色 slots 与四反审席具体数据，写明旧三表迁移/废弃策略。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "阻塞",
+      "evidence": "答辩 §1.11 明确「每行动项 ≥1 个 node --test 自动化用例，演练降为辅助证据」；但计划 §A2/§A4/§A5/§A6/§A7/§C1/§C2/§C4/§B2 验收栏仍写「演练」或「一个真实研究任务走一遍」，仅 §10.5 列出一个一致性测试文件的四条断言。",
+      "conclusion": "不接受",
+      "disposition": "将 A2/A3/A5/A7/C1/C2 的关键路径验收改为可执行 node --test 用例（输入、预期输出、断言清单），并在 §10 新增「测试规格」小节；演练仅作辅助证据。"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "计划 §10.6 规定锁重试 3×2s 后「不自动激活，继续其余体检项」，若激活为刚需则边界失败静默；§10.3 只说读兼容旧键、写新键，未说明两键并存优先级与迁移幂等；§10.1 的 CTBZ_ROUTING_V2=0 未说明注入点（env/arg/配置）；§10.4 --workspace 缺默认值与单个子命令超时。",
+      "conclusion": "有条件接受",
+      "disposition": "在 §10 补全：锁失败后的回退与报错、键迁移幂等优先级与去重规则、开关读取方式、workspace 默认值及 git/preflight 子超时。"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "计划 §10.6 沿用 wx 独占锁并加 3×2s 重试；§7 自疑 #1 已提出多会话并发 activate 竞态待验证；§10.4 体检预算 ≤20s 但无各子任务超时/退避；§A7 过期档案「只读放行 + 并行验证」期间可能读到待验证档。",
+      "conclusion": "有条件接受",
+      "disposition": "批 1 前置跑自疑#1 并发实验，为 git remote/preflight/profile 枚举加独立超时，明确租约验证期只读隔离与失败回退。"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "计划 §D1/§D2 承诺降级/熔断中文一行明示与一站式体检报告；§0 给出四个体感变化承诺；§A5 体检命令输出形态为人读一行摘要；§6 仅留一个用户拍板。",
+      "conclusion": "接受",
+      "disposition": "通过；建议把 §0 的四个体感承诺转成一个置顶验收清单，交付时逐条回检。"
+    }
+  ],
+  "summary": "v2 把第一轮的 schema、迁移与回滚缺口补到了可施工级，但架构语义存在自相矛盾、关键行为仍缺可执行测试用例，不足以让批 1 直接开工。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 126409,
+    "model_echo": "kimi-k2.7"
+  }
+}

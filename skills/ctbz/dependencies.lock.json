@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "50c4b040a278b3cdbaeb3e9685fbeb570c21edc31e374729a7ef3a9a31d7344c"
+      "sha256": "d36ce72594ff324bdb4b1c430371ff36d2099a391dfd17d42be31368c276ecb9"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -175,7 +175,7 @@
     },
     {
       "path": "references/failure-policy.md",
-      "sha256": "bd10674dbf112ff962eaff14fc21fe3a3ebd6b456dc9c35267015c287a792b48"
+      "sha256": "126a22019c11812eee90d7970fa6e22f7f447ded00b317e43bfdf96bf1b89c5f"
     },
     {
       "path": "references/methods.md",
@@ -187,7 +187,7 @@
     },
     {
       "path": "references/unified-workflow.md",
-      "sha256": "8d0c00316d05fa3a953c7364e2e3a08ab2520f6d054c3e9af7a99a381353e8db"
+      "sha256": "467a7bf3941c3d0309e6be1c2da3c9f72fbd85be014e0c8c241babc121be99ef"
     },
     {
       "path": "references/upstream-updates.md",
@@ -207,11 +207,11 @@
     },
     {
       "path": "references/反审协议.md",
-      "sha256": "da7f3c6873934204f0f1c17a7e31ee45db5dd15dc62ef52bb0f2e79042e8b37c"
+      "sha256": "78c7babc3d912b3d53ab579f48043168858d132bc6cd31301d50f25f59631b99"
     },
     {
       "path": "references/派发.md",
-      "sha256": "57836cc245e65bd6dbcced8cc9703895b85bbb14b19143796e260e911867425a"
+      "sha256": "3bb633bc8343d93fbe37761044ab59939a4f19e588cb9e42d31b0424770a849c"
     },
     {
       "path": "references/流程治理.md",
@@ -266,6 +266,10 @@
       "sha256": "047390c43ac2cbfbfdb71aaa870cbad750cbdc47e8e7bc9c2fd5badcf3bf2a0e"
     },
     {
+      "path": "scripts/lib/健康账本.mjs",
+      "sha256": "0c992730cc6011a36af8b619243453beee4a6bd15a889344fa473f2c555521af"
+    },
+    {
       "path": "scripts/lib/初始化.mjs",
       "sha256": "0e5af5e31407a852e257abe8b4c2e7e96f792c3e3059f91e55fdcf37aa75664e"
     },
@@ -291,7 +295,7 @@
     },
     {
       "path": "scripts/pick-profile",
-      "sha256": "fb5516600e58f4913ca641845f47997c449a92612efe5bbe8f7f6efdb46ea2f7"
+      "sha256": "3890d51940a42ee7056adae56a9730dca7bb88311dbac2440123ffab46d1d53d"
     },
     {
       "path": "scripts/preflight.mjs",
@@ -330,8 +334,12 @@
       "sha256": "4030ec7923bf84f4927a838a6edb442a020546d2ea40a4a37a07ef4724f82dbf"
     },
     {
+      "path": "scripts/体检.mjs",
+      "sha256": "e0b1ca0773bd29c804544f1396a211d00c8489233f252f208e42d03f7be49daf"
+    },
+    {
       "path": "scripts/内审.mjs",
-      "sha256": "cea9da75c3b9a8d03269c761ad4d94205e48d854cc495e729c22ecee71ef6363"
+      "sha256": "dceb6ac16d263de8c4273d317d430d29522a975264801da97b5b1657c16aa471"
     },
     {
       "path": "scripts/反审直连.mjs",
@@ -351,11 +359,11 @@
     },
     {
       "path": "scripts/模型健康.js",
-      "sha256": "13e8d4b4a639c5bec90ac229e14be0aebb6ff5b70b4a28b0d0e796b756c41908"
+      "sha256": "13bf50ea92873215b2f8d31075e3bc6148c28d6c248421e9f72652f666c3322e"
     },
     {
       "path": "scripts/派发闸.mjs",
-      "sha256": "e6396782bc6034b6074f0636d4dddec584658f8e1efc0518c890849b66072525"
+      "sha256": "f4703a2bc9b51b15f45c67ab5aaa2f520a4ec9bfcecab2d0c27353dbe8ef08a2"
     },
     {
       "path": "scripts/知识库.js",

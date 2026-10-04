@@ -16,7 +16,7 @@
 //   - 待办固定 <ws>/.ctbz-record/内审/pending.json；--dir 只管内审 md 落点（默认 <ws>/docs/内审）。
 //   - check 按被检文件向上找 pending.json：派发闸 audit 的 spawnSync 不保证 cwd，缺了会漏登记。
 //   - 只用 node 标准库；零网络；中文路径原样输出，不做 percent-encode。
-//   - 复命 = 复命闸（G1–G10）：段标题＝行首零缩进恰为 `自主延伸:` / `自主修复:` / `待裁决:` / `自疑:` / `行动账增量:` 的行，
+//   - 复命 = 复命闸（G1–G11）：段标题＝行首零缩进恰为 `自主延伸:` / `自主修复:` / `交付前三问:` / `待裁决:` / `自疑:` / `行动账增量:` 的行，
 //     段内容＝标题之后至下一段标题或文件末尾的非空行；只读不写盘，与 check 互不调用。
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -62,8 +62,8 @@ const FILE_PATH_RE = /\.(mjs|js|md|json|yaml|yml|sh)(?![0-9A-Za-z_])/;
 const ACCEPT_RE = /判据|退出码|预期/;
 const FIELD_LINE_RE = /^([^\s:：]+)[:：](.*)$/;
 
-const FUMING_SECTIONS = ["自主延伸", "自主修复", "待裁决", "自疑", "行动账增量"];
-const SECTION_RE = /^(自主延伸|自主修复|待裁决|自疑|行动账增量)\s*[:：]\s*$/;
+const FUMING_SECTIONS = ["自主延伸", "自主修复", "交付前三问", "待裁决", "自疑", "行动账增量"];
+const SECTION_RE = /^(自主延伸|自主修复|交付前三问|待裁决|自疑|行动账增量)\s*[:：]\s*$/;
 const NONE = "无";
 const ADMISSION = ["四扇门", "不可逆", "用户要求二选一"];
 const ADMISSION_RE = /准入\s*[:：]\s*(.*)$/;
@@ -77,6 +77,11 @@ const DOUBT_RESULT_RE = /exit\s*[0-2]\b|pass\s*\d+|\d+\s*fail|[^\s:：]+\.(mjs|j
 // G10（2.2.0）：与 派发闸.mjs LEDGER_EMPTY_WORDS 同表；取舍取值整值等于任一项即判红。
 const LEDGER_EMPTY_WORDS = ["无", "N/A", "—", "显而易见", "常规做法", "最佳实践", "一般来说", "通常"];
 const LEDGER_LABELS = ["依据", "取舍", "证伪"];
+// G11（2.1.4）：交付前三问——三行三问，各带证据痕迹；占位词（无 / N/A 等）不算证据。
+const DELIVER3_LABELS = ["答案对齐", "半途扫描", "跑偏检查"];
+const DELIVER3_EMPTY = new Set(["无", "n/a", "none"]);
+// 段缺失时的补充提示（仅对 2.1.4 起必填的新段生效，其余段保持原文案）。
+const SECTION_HINTS = { 交付前三问: "（2.1.4 起必填）" };
 
 function usage(msg) {
   console.error("[内审.mjs] " + msg);
@@ -222,7 +227,7 @@ function judge(text) {
   return { ok, level, excellent: ok && l3, reason };
 }
 
-// 段标题＝行首（零缩进）恰为五段名之一（自主延伸 / 自主修复 / 待裁决 / 自疑 / 行动账增量）的行；段内容＝该行之后至下一段标题或文件末尾的非空行。
+// 段标题＝行首（零缩进）恰为六段名之一（自主延伸 / 自主修复 / 交付前三问 / 待裁决 / 自疑 / 行动账增量）的行；段内容＝该行之后至下一段标题或文件末尾的非空行。
 function parseFuming(text) {
   const secs = {};
   const heads = {};
@@ -279,6 +284,14 @@ function ledgerScalar(v) {
   return v.replace(/\s+/g, "").replace(new RegExp(`^[${P}]+`), "").replace(new RegExp(`[${P}]+$`), "");
 }
 
+// G11 证据判定：标签冒号后须有非占位内容（无 / N/A / none 不算）；否则整行命中 → / 文件:行号 / exit / pass / 命令样式（反引号段须含空格或斜杠，`无` 不算）。
+function hasDeliverEvidence(line, label) {
+  const m = new RegExp(label + "\\s*[:：]\\s*(.*)$").exec(line);
+  const value = m ? ledgerScalar(m[1]) : "";
+  if (value && !DELIVER3_EMPTY.has(value.toLowerCase())) return true;
+  return /→\s*\S|->\s*\S|\.(mjs|js|md|json|ts|sh|yaml|yml):\d+|\bexit\b|\bpass\b|`[^`]*[ /][^`]*`/.test(line);
+}
+
 // G8 三判据：箭头 ≥2（原始行）/ 证伪实验非空且非推理词 / 结果命中命令回显形态。
 function hasEvidence(line) {
   if ((line.match(/→|->/g) || []).length < 2) return false;
@@ -293,7 +306,7 @@ function judgeFuming(text) {
   const errors = [];
 
   for (const k of FUMING_SECTIONS) {
-    if (!secs[k]) errors.push("0: 缺段标题「" + k + ":」");
+    if (!secs[k]) errors.push("0: 缺段标题「" + k + ":」" + (SECTION_HINTS[k] || ""));
   }
 
   for (const k of FUMING_SECTIONS) {
@@ -319,6 +332,28 @@ function judgeFuming(text) {
       }
       if (LEDGER_EMPTY_WORDS.includes(ledgerScalar(ledgerField(it.text, "取舍")))) {
         errors.push(it.no + ": 行动账增量 取舍为空话（整值等于词表任一项）");
+      }
+    }
+  }
+
+  // G11（2.1.4）：交付前三问——须 3 行、三问各一且各带证据；整段 `无` 不豁免（三行均必填）。
+  // 段存在即校验（含空段）：空段走条数不足；段整体缺失只报 G1 缺段标题，不叠报。
+  const deliver = secs["交付前三问"];
+  if (deliver) {
+    const items = deliver.filter((it) => it.text.startsWith("- "));
+    const head = heads["交付前三问"] || 0;
+    if (items.length < 3) {
+      errors.push(head + ": 交付前三问条数不足：需 3 行（" + DELIVER3_LABELS.join(" / ") + "）");
+    }
+    const used = new Set();
+    for (const label of DELIVER3_LABELS) {
+      const it = items.find((x) => x.text.includes(label) && !used.has(x));
+      if (!it) errors.push(head + ": 交付前三问缺「" + label + "」行");
+      else {
+        used.add(it);
+        if (!hasDeliverEvidence(it.text, label)) {
+          errors.push(it.no + ": 交付前三问「" + label + "」缺证据（冒号后须有内容，或含 → / 文件:行号 / exit / pass）");
+        }
       }
     }
   }

@@ -1,0 +1,74 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-T3.md",
+  "plan_sha256": "717c81df6faebfb8a7172bf3632c81dc6a451040a2c6efe8c088afbb4a76e372",
+  "generated_at": "2026-10-04T18:55:53.858Z",
+  "verdict": "有条件接受：T3 方向与测试结果可重放，但父计划原文与测试源码未内联，新鲜代理无法直接开工，需补齐上下文后归档。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工",
+    "blockers": [
+      "未提供 tests/文档一致性.test.mjs 源码，无法审阅实现细节与断言锚点",
+      "未内联父计划 C3、P4 原文，需求映射无法逐条核验",
+      "未提供 SKILL.md、派发.md 等被测文档内容，无法验证断言是否正确",
+      "未说明运行环境（Node 版本、依赖、workspace 初始状态）",
+      "未给出测试失败时的诊断信息样例"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划 §需求映射 声称对应 C3/P4，但父计划 C3、P4 原文未在本 prompt 内联，无法核验措辞是否精确匹配",
+      "conclusion": "有条件接受",
+      "disposition": "要求内联父计划 C3、P4 原文或提供 diff 引用，确认 6 条断言确实覆盖其全部要求"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "计划 §交付物 仅新增 tests/文档一致性.test.mjs 一个文件，§行动账 A2 说明采用文本提取而非硬编码清单",
+      "conclusion": "有条件接受",
+      "disposition": "补充测试文件解析策略、被测文档路径约定及失败回退机制说明，降低 Markdown 格式变更导致脆断的风险"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "§已知限制 1、2 明确说明测试仅覆盖少数关键断言，非文档全量；新增关键事实需随 A1 扩展",
+      "conclusion": "有条件接受",
+      "disposition": "在测试文件或 README 中显式列出未覆盖的关键事实清单与扩展触发条件，避免后续遗漏"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "§独立证伪实验 验证了对不存在的脚本能转红；§已知限制 1 对 反审.mjs 使用白名单放行，但未说明路径大小写、空格、注释行、重复引用等处理",
+      "conclusion": "有条件接受",
+      "disposition": "增加边界用例：路径空格/大小写、注释行中的伪引用、重复脚本引用、空/缺失 SKILL.md 等"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "§现场核对显示 node --test tests/*.test.mjs 156 例全通过；§实测输出显示测试仅做本地文件/文本检查，无网络或敏感操作",
+      "conclusion": "接受",
+      "disposition": "保持现状，后续若文档规模显著增长时评估 I/O 重复读取"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "§实测输出 给出中文断言名称且 6 例全绿，但未展示断言失败时的诊断信息",
+      "conclusion": "有条件接受",
+      "disposition": "补充失败断言的详细诊断输出样例（含具体文件路径、行号、期望值与实际值）"
+    }
+  ],
+  "summary": "T3 任务方向正确、测试结果可重放，但文档与源码未内联导致新鲜代理无法开工，反审以有条件接受放行，需补齐上下文后归档。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 28955,
+    "model_echo": "kimi-k2.7"
+  }
+}

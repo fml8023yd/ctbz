@@ -1,0 +1,72 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-T2.md",
+  "plan_sha256": "ff914bbf9cd09e3a33563e3c2db6fe75e34019d4e62557293630646f7870f2df",
+  "generated_at": "2026-10-04T19:04:43.775Z",
+  "verdict": null,
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工，计划为已完成任务的复核件而非实施指南，缺代码与上下文",
+    "blockers": [
+      "计划未包含体检.mjs具体实现代码仅断言行数",
+      "依赖取证文件docs/取证/ctbz-全面提升计划-20261005-取证.md读不到无法核验",
+      "自动激活等未实现部分无接驳步骤且锁契约未验证"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划 §范围 与 §需求映射：A5落地前四项，自动激活留待A7（↗F）",
+      "conclusion": "有条件接受",
+      "disposition": "自动激活延迟至A7，需后续验证并发锁语义"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "计划 §行动账 A1：探活接线走CTBZ_PREFLIGHT注入桩，否掉测试直跑真实preflight",
+      "conclusion": "接受",
+      "disposition": "无"
+    },
+    {
+      "view": "测试完整性",
+      "category": "可接受",
+      "evidence": "计划 §现场核对 ↗A：node --test 10例全绿；§独立证伪实验5处变异全部被测试杀死",
+      "conclusion": "接受",
+      "disposition": "无"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "计划 §已知限制 1-4：宿主认档口径未叠reasoning、探活未真跑、依赖锁未入、决策清单未知",
+      "conclusion": "有条件接受",
+      "disposition": "待父会话裁决口径并执行发布检查.js重算依赖锁"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "计划 §现场核对 ↗D：实跑0.24s账本/状态文件mtime未变，只读无副作用",
+      "conclusion": "接受",
+      "disposition": "无"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "计划 §实测输出：五行摘要清晰但待办决策清单输出「未知」不编数",
+      "conclusion": "有条件接受",
+      "disposition": "需定型决策清单落点以消除未知显示"
+    }
+  ],
+  "summary": "T2复核件主体测试与架构可接受，但含四项标注清晰的待裁决非阻塞项需父会话收敛。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 18835,
+    "model_echo": "hy3"
+  }
+}

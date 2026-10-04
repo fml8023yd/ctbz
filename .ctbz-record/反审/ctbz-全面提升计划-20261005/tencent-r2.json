@@ -1,0 +1,72 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "2",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/ctbz-全面提升计划-20261005.md",
+  "plan_sha256": "98fb2286918c570a0461e41314b7e21825f5a04f9e0ea0774c09235fd74c0688",
+  "generated_at": "2026-10-04T18:02:44.973Z",
+  "verdict": "腾讯阵营：v2主线清晰，测试与并发边界规格已补但待落地验证，有条件接受",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工",
+    "blockers": [
+      "路由表合并需改接六处消费方（select/pick-profile/派发闸/反审直连/体检/preflight）但§10.1仅给数据schema未给函数接口与调用改造点",
+      "每行动项自动化测试用例未附（仅§10.5一致性测试），fresh agent无法执行验证",
+      "关键数字锚定答辩§12而非计划正文闭合，单独交计划缺失内联具体值如锁重试3x2s仅引外件"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "计划§1.4八大缺口对照取证§10用户原话；§3 B包覆盖假设边界/黏菌探索/交付三问/异议义务",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "计划§10.1路由表单一真源schema、§10.2兜底链六级数值、§8列明六处消费方改接",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "计划§10.5仅列C3一致性测试断言；A2/A3验收仍写‘演练’（§3 A2验收）；答辩§1.11承诺每行动项≥1 node --test但v2未全展开",
+      "conclusion": "有条件接受",
+      "disposition": "记录至.ctbz-record/反审/ctbz-全面提升计划-20261005/tencent.json；于§10补A1-A7自动化用例清单与入口"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "§10.6锁契约定义wx锁重试但§7自疑1承认多会话并发竞态未验证；宽限验证失败行为§10.2引答辩未实跑",
+      "conclusion": "有条件接受",
+      "disposition": "记录至.ctbz-record/反审/ctbz-全面提升计划-20261005/tencent.json；批1前置实验补并发与宽限验证"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "§10.4体检耗时预算≤20秒、§10.7黏菌探针路径×轮次≤18次、§10.6锁重试限3次",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "§5验收1新会话零手工、§3 D1降级熔断中文一行明示、§10.4体检一行摘要",
+      "conclusion": "接受",
+      "disposition": "无需处置"
+    }
+  ],
+  "summary": "六视角中需求/架构/性能/体验可接受，测试与边界有条件接受需补实例并归档",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 36451,
+    "model_echo": "hy3"
+  }
+}

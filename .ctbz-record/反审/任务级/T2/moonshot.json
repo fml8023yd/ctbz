@@ -1,0 +1,77 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-T2.md",
+  "plan_sha256": "ff914bbf9cd09e3a33563e3c2db6fe75e34019d4e62557293630646f7870f2df",
+  "generated_at": "2026-10-04T19:04:57.633Z",
+  "verdict": "有条件接受：T2 四项核心交付已实现并通过自证，但遗留口径、预算、锁依赖与决策清单落点四项非阻塞项待裁决。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工",
+    "blockers": [
+      "宿主认档口径未裁决：24 档与 16 档的差异取决于是否叠加 reasoning 校验（计划 §已知限制 1）",
+      "探活预算冲突未裁决：有探活时 60s 超时与 §10.4 的 20s 预算相斥（计划 §已知限制 2）",
+      "决策清单落点未定型，输出仅标注「未知」而无数据结构或判定规则（计划 §已知限制 4）",
+      "自动激活依赖 A7 锁契约，当前未定义并发重试语义（计划 §需求映射 A5 段、§行动账 A4）",
+      "dependencies.lock.json 未更新，新增文件入锁规则与命令未知（计划 §已知限制 3）"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划 §范围 声明 T2 = A5/A6/D2/D3；§需求映射 A5 段说明自动激活因 §10.6 锁契约留待 A7 接 ↗F；§现场核对 ↗E 列出 A5/A6/D2/D3 需求条目并对应输出",
+      "conclusion": "有条件接受",
+      "disposition": "记录 A5 自动激活为 ↗F 依赖，A7 锁契约验证并补跑并发激活实验后验收"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "计划 §交付物（write-set 两文件）给出 体检.mjs + 体检.test.mjs；§行动账 A1 说明探活接线通过 CTBZ_PREFLIGHT 注入桩；§实测输出展示 --workspace/--no-probe 命令行调用形态",
+      "conclusion": "接受",
+      "disposition": "保持当前命令行脚本 + 测试双文件结构；决策清单占位在落点定型后替换为正式字段"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "计划 §现场核对 ↗A 给出 10 例全绿；§独立证伪实验列出 5 处变异全部被测试杀死；§已知限制 2 承认真实探活未跑、使用注入桩验证",
+      "conclusion": "有条件接受",
+      "disposition": "补充真实探活回归用例，或取得计费授权后补跑含探活的全链路测试"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "计划 §已知限制 1 指出宿主认档口径 24/16 待裁决；§已知限制 2 指出有探活时 60s 超时与 20s 预算冲突；§已知限制 4 指出决策清单输出「未知」；§实测输出展示 --no-probe 路径结果",
+      "conclusion": "有条件接受",
+      "disposition": "文档化 ghost 统计口径与 reasoning 校验策略；统一探活 timeout 预算；决策清单落点定型后更新"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "计划 §现场核对 ↗D 显示只读性：0.24s 且账本/状态文件 mtime 未变；§行动账 A4 因锁契约未验证而拒绝裸接 activate；§已知限制 2 指出有探活时预算冲突",
+      "conclusion": "有条件接受",
+      "disposition": "锁契约验证后接入自动激活；统一探活预算前默认 --no-probe 为安全快速路径"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "计划 §实测输出展示五行摘要一屏可见；§交付物列出 --json 与 --no-probe 等开关；§现场核对 ↗C 显示编制告警以可读单行呈现",
+      "conclusion": "接受",
+      "disposition": "为「未知」字段补充文档或注释；保持 D2/D3 一屏摘要形态"
+    }
+  ],
+  "summary": "T2 体检命令与编制检查器实现自洽、测试覆盖充分，但口径、预算、锁依赖与决策清单落点尚待父会话裁决。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 32690,
+    "model_echo": "kimi-k2.7"
+  },
+  "implementer_camp": "deepseek",
+  "reviewer_camp": "moonshot",
+  "blocking": 0
+}

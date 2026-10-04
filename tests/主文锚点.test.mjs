@@ -112,7 +112,7 @@ test("V1 自证与自疑节：插在硬门行之后、边界延伸之后，四�
     SKILL.indexOf(BOUNDARY_HEAD) < i && i < SKILL.indexOf("## 统一模式规则"),
     "「自证与自疑」节须插在「边界延伸」整节之后、「统一模式规则」之前",
   );
-  for (const s of ["自证优先于自述", "先证伪，后确认", "自疑:", "五段均为必填"]) {
+  for (const s of ["自证优先于自述", "先证伪，后确认", "自疑:", "六段均为必填"]) {
     assert.ok(SKILL.includes(s), `SKILL.md 缺「${s}」`);
   }
 });
@@ -199,7 +199,7 @@ test("F5 派发前必跑：第 1 步含 --workspace、l2 含 --task、无过时 
 
   const step1 = sec.split("\n").find((l) => l.startsWith("1. 计划反审："));
   assert.ok(step1, "「派发前必跑」节缺第 1 步「计划反审」行");
-  assert.ok(step1.includes("反审.mjs"), `第 1 步缺「反审.mjs」：${step1}`);
+  assert.ok(step1.includes("反审直连.mjs"), `第 1 步缺「反审直连.mjs」（勘误后实际执行器）：${step1}`);
   assert.ok(step1.includes("--workspace"), `第 1 步缺「--workspace」（照抄必 exit 2）：${step1}`);
 
   assert.ok(

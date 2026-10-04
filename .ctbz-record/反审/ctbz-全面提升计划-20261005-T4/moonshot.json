@@ -1,0 +1,74 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-T4.md",
+  "plan_sha256": "f0d23eaa93909083c520a300422ecf5e02778a1dd3bdf0f9ccfcb36a039c706a",
+  "generated_at": "2026-10-04T19:19:57.544Z",
+  "verdict": "计划主链路清晰、测试全绿，但可核验材料不足且边界覆盖不全，建议补附源码与 SKILL.md 片段并扩展边界用例后复评。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工。",
+    "blockers": [
+      "write-set 源码（skills/ctbz/scripts/内审.mjs、tests/内审.test.mjs）未内联，无法核验实现细节。",
+      "SKILL.md 模板相关片段未提供，「已同步」无法核验。",
+      "未说明 Node 版本、依赖安装、运行环境等开工前提。",
+      "任务目标不明确（复核/修改/验证？）。",
+      "现场核对引用的代码行号（内审.mjs:65-66、80-84、288、339-359）在未提供源码时无法核验。"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划 §3 第 2 段「本任务把「复命闸校验非空」从文字要求落成 G11 机械校验」；§B3 父计划原文列明三问及六段必填。",
+      "conclusion": "有条件接受",
+      "disposition": "要求将 SKILL.md 模板「交付前三问:」必填片段补入计划正文，使「已同步」可核验。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "行动账 A4「改造落点（均只动复命路径，link/check/init 零改动）」；机制落点说明 FUMING_SECTIONS 六段、G11 常量、G11 校验三段职责分离。",
+      "conclusion": "接受",
+      "disposition": "维持当前设计，无需处置。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "现场核对 ↗A、↗B、↗C 与实测输出：内审 38 例/全量 170 例全绿；V6b 组 4 例覆盖六段齐全、缺段、仅 2 行、写「无」判红。",
+      "conclusion": "有条件接受",
+      "disposition": "建议补充 N/A、纯反引号占位、多行自然语言证据用例，并展示 V6b 组测试代码片段。"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "已知限制 §1、§2、§3 已列明证据口径、老五段判红、dependencies.lock.json 归属；但未提及顺序错乱、段内混入内容、多行证据等边界。",
+      "conclusion": "有条件接受",
+      "disposition": "建议补充「顺序错乱」「段内混入内容」「多行证据」等边界说明或测试用例。"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "计划未内联性能/安全数据；从交付物规模（内审.mjs +45/-6 行，tests +50 行）及无新增外部依赖推断影响极小。",
+      "conclusion": "接受",
+      "disposition": "维持当前实现，如后续出现大文件解析延迟再评估。"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "现场核对 ↗C 报错含「2.1.4 起必填」；已知限制 §2 声明老五段存量文件判红属预期。",
+      "conclusion": "有条件接受",
+      "disposition": "建议补附老复命文件迁移示例或 SKILL.md 升级说明，降低存量文件迁移摩擦。"
+    }
+  ],
+  "summary": "计划主链路清晰、范围收敛、测试全绿，但源码与 SKILL.md 未内联、边界用例与迁移指引不足，建议补材后复评。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 41262,
+    "model_echo": "kimi-k2.7"
+  }
+}

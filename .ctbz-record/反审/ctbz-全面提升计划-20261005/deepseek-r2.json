@@ -1,0 +1,75 @@
+{
+  "camp": "deepseek",
+  "camp_label": "DeepSeek",
+  "provider": "workbuddy",
+  "model": "deepseek-v4.1-flash",
+  "round": "2",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/ctbz-全面提升计划-20261005.md",
+  "plan_sha256": "98fb2286918c570a0461e41314b7e21825f5a04f9e0ea0774c09235fd74c0688",
+  "generated_at": "2026-10-04T18:02:30.686Z",
+  "verdict": "方向与用户诉求对齐、证据链完整，但路由表 schema 的 provider 口径与 as-built modelRef 前缀不一致、消费方改接清单两处打架、体检脚本名未冻结，批 1 施工前须先冻结这三项。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工。批 1 核心交付物（路由表、体检命令、兜底链接线）的关键标识与范围未闭合，且启动信号被设计性闸门拦住。",
+    "blockers": [
+      "路由表 provider 口径冲突：§10.1 写 provider:\"workbuddy\"，而取证 §3 实存 48 档 modelRef 前缀为 custom:0f0bc352-25a1-4813-9a02-1534a94e9977:…；建表键到底用哪个前缀，计划未定。",
+      "消费方改接清单不一致：§8 列「initialize 的 select、pick-profile、派发闸、反审直连、模型健康.js、preflight」，§10.1 列「select/pick-profile/派发闸/反审直连/体检/preflight」，第六项一为「模型健康.js」一为「体检」，改接范围不可确定。",
+      "体检脚本名未冻结：§3 A5 写「新脚本 scripts/体检（暂名）」，§10.4 又写成既定命令 `node skills/ctbz/scripts/体检.mjs`，命名与落点未定案。",
+      "角色 tiers 只给了一个：§10.1 仅给 planner 的 slots，其余 7 角色注「同形」；§10.8 只给 slot 顺序与 kind，未给每角色的 provider/model 对，建表缺数据。",
+      "启动信号缺失：§6 待裁决 1 默认「你回『开工』即启动」，无用户授权即无开工动作（答辩 §3 承认此为设计），fresh agent 无自启动权。",
+      "§10.6 所引 initialize:117 `flag:\"wx\"` 与答辩 §2.3 所引「既有 139 例」在所提供的取证正文中均无对应回显，无法核验。"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "计划 §0 BLUF 三条承诺（新会话零手工、渠道挂掉自动绕路、讨论必有反对栏）与取证 §10 用户原话（黏菌式多路探索、假设与边界、交付前三问、异议义务、跨渠道优先级、冷却退避、租约制）逐条对应；§1.5 明确「一个人+语音+不想动脑」的用法前提。",
+      "conclusion": "接受",
+      "disposition": "维持现方向，不重写诊断与排序。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "阻塞",
+      "evidence": "计划 §10.1 路由表 schema 用 provider:\"workbuddy\"/model:\"glm-5.3\"，取证 §3 实存 48 档 modelRef 前缀为 custom:0f0bc352-25a1-4813-9a02-1534a94e9977:glm-5.3；§10.3 账本键口径写「如 workbuddy/hy3」，取证 §6 实存键为 custom:8d56774b-…:omen-alpha；§8 消费方含「模型健康.js」而 §10.1 改接清单含「体检」，同一清单两处不同。",
+      "conclusion": "不接受",
+      "disposition": "批 1 开工前先冻结：① 路由表/账本键的 provider 字段是逻辑渠道名（workbuddy）还是完整 modelRef 前缀（custom:0f0bc352…），二者映射写进 schema；② 统一消费方改接清单（是否含 模型健康.js 与 体检，一次列全）。此为第一轮未解决项，重提须带上述新证据。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "计划 §10.5 只给 C3 的断言清单（①–④）；A1–A7 的验收仍以「演练」表述（如 A2「演练：主渠道 402 → 自动降级出结果」、A5「新会话零手工激活演练 3 次全过」）；答辩 §1.11 承诺「每行动项 ≥1 个 node --test 自动化用例」，v2 正文未把该承诺逐项落到 §3 表格验收列。",
+      "conclusion": "有条件接受",
+      "disposition": "批 1 每行动项补一条可复跑 node --test 用例编号，写入 §3 验收列；演练降为辅助证据。"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "已定义：§10.6 锁契约（wx 独占 + 忙时重试 3×2s + 失败不自动激活）、§10.2 熔断后行为与租约宽限、§10.3 账本读兼容旧键写新键。未定义：§10.1「旧表一版内保留双读」中「一版」无时限/结束判据；§10.3 `--migrate-ledger` 迁移期遇并发写的处理未写；§7 自疑 1 自认并发 activate 竞态「待跑」。",
+      "conclusion": "有条件接受",
+      "disposition": "补双读迁移的退出条件（以哪次发布/tag 为界）与迁移期并发写策略；并发 activate 竞态实验提到批 1 前置。"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "计划 §10.4 给体检耗时预算 ≤20 秒并注明「探活并发、git 命令限时」；§10.4 输出含 preflight 探活（取证 §2 为网络调用，答辩 §4 记录 4 路 8 秒内全断）；发布动作 E1 明确标「待你授权」，未越权。",
+      "conclusion": "有条件接受",
+      "disposition": "20 秒预算需在批 1 用真机实测（含最坏情形网关重启窗口）后回填；发布门保持，不提前执行。"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "计划 §2 P1「默认无感，仅在降级、熔断、不可逆三处通知」；D1 降级/熔断中文一行明示、D2 体检一行摘要、D3 版本一屏四方对比、D4 待裁决收口至 ≤3 条；§5 验收 6 条含主观回访。",
+      "conclusion": "接受",
+      "disposition": "维持 D 包，随批 4 落地。"
+    }
+  ],
+  "summary": "六视角中仅架构合理性判为阻塞/不接受（路由表 provider 口径与 as-built modelRef 前缀冲突、消费方清单两处不一致），其余五视角为接受或有条件接受；fresh agent 因 schema 未冻结、脚本名暂定、启动闸门而无法直接开工。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "https://api.deepseek.com/chat/completions",
+    "http_status": 200,
+    "latency_ms": 21717,
+    "model_echo": "deepseek-v4.1-flash"
+  }
+}

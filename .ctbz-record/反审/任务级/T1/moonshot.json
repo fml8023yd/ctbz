@@ -1,0 +1,76 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-T1.md",
+  "plan_sha256": "e102c5a5328bb28a9f59cfe216548fccc989298ad79c773f4137e5a219dbd989",
+  "generated_at": "2026-10-04T18:42:21.819Z",
+  "verdict": "有条件通过：T1 核心接线已完成且测试绿，但渠道级粒度、slots[] 契约、集成测试覆盖和默认文件权限需后续 A1/A5 补全。",
+  "fresh_agent_test": {
+    "conclusion": "不能，仅凭本计划无法直接开工。",
+    "blockers": [
+      "未内联 lib/健康账本.mjs、pick-profile、模型健康.js 的源码或接口签名，无法复现实现。",
+      "未说明 Node.js 版本、依赖安装方式、CTBZ_HEALTH_FILE 默认路径约定。",
+      "缺少 pick-profile 输入输出结构、rule.model ref 格式、三命令向后兼容的精确契约。",
+      "A1/A5 依赖未落地（slots[] 字段、渠道映射表、48→16 体检），复接边界不明确。"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "需求映射第 1 项称 pick-profile 已实现 take() 冷却过滤；已知限制 1 指出 pick-profile 尚无 slots[] 输出且需 A1 复接；已知限制 3 与行动账 A2 说明渠道级粒度按同名共享退避处理，渠道隔离列为 A1 备选。",
+      "conclusion": "有条件接受",
+      "disposition": "接受当前 model/ref 级实现；A1 落地时补 slots[] 契约与渠道级粒度，并更新需求映射验收。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "交付物清单列出 lib/健康账本.mjs、模型健康.js、pick-profile、dependencies.lock.json 四文件；需求映射说明 take() 过滤、noteFailure/noteSuccess 与 BACKOFF_MS 档位封装。",
+      "conclusion": "接受",
+      "disposition": "保持模块化边界；A1 完成路由表后抽 slots[] 适配层，避免 pick-profile 与账本硬编码耦合。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "现场核对 ↗A：node --test tests/健康账本.test.mjs → 11/11；↗B：全量 150/150；但交付物与现场核对未列出 pick-profile 与 模型健康.js 的集成/回归用例。",
+      "conclusion": "有条件接受",
+      "disposition": "补充 pick-profile 冷却过滤端到端测试与 模型健康.js 子命令回归测试，纳入全量 test run。"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "需求映射第 3、4 项定义 BACKOFF_MS 封顶与 3 连击清零；行动账 A3 给出 4 次失败断言脚本；计划未列出账本文件缺失/损坏/并发写/恰好 3 次边界测试。",
+      "conclusion": "有条件接受",
+      "disposition": "增加文件损坏回退、并发写保护、第 3/4 档临界点及连续成功恰好 3 次的边界用例。"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "行动账 A4 说明测试使用 CTBZ_HEALTH_FILE 注入以避免污染生产账本；交付物含 dependencies.lock.json 与 发布检查.js 通过；计划未说明默认账本文件权限、读取频次与并发安全。",
+      "conclusion": "有条件接受",
+      "disposition": "设置默认文件权限 0o600、评估高频 take() 的 I/O 成本、补充并发写入锁或原子写。"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "需求映射第 1 项说明 skipped_rules 理由为「冷却中（健康账本），滑向下一条」；交付物 模型健康.js 保留三命令兼容并新增 ok/migrate 子命令。",
+      "conclusion": "接受",
+      "disposition": "完善命令 help/文档，说明 ok/migrate 用法、全冷却兜底行为及如何查看当前冷却状态。"
+    }
+  ],
+  "summary": "T1 实现与 A3 核心需求基本对齐，测试全绿，但计划本身不足以上手复现，需在 A1/A5 阶段补全契约、粒度、集成测试与权限。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 42978,
+    "model_echo": "kimi-k2.7"
+  },
+  "implementer_camp": "deepseek",
+  "reviewer_camp": "moonshot",
+  "blocking": 0
+}

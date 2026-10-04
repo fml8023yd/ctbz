@@ -1,0 +1,77 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-T1.md",
+  "plan_sha256": "e102c5a5328bb28a9f59cfe216548fccc989298ad79c773f4137e5a219dbd989",
+  "generated_at": "2026-10-04T18:41:48.050Z",
+  "verdict": null,
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工。计划为已完成实施的任务级复核件，无构建步骤、无完整代码、无接口签名，仅描述落盘结果与测试命令，新 agent 无法据此复现或扩展。",
+    "blockers": [
+      "未提供 lib/健康账本.mjs 等四文件源码，仅给行数与函数名，无法读取或改造",
+      "pick-profile 真实候选槽位结构未定义，仅称接在 profile/档位短名/规则 model 完整 ref 上，无 schema",
+      "A1 路由表与 slots[] 字段漂移未给复接规范，仅标注待办",
+      "取证 §12 定值表未内联，退避档与键口径来源不可本地核验",
+      "无构建/运行环境说明（node 版本、依赖安装命令缺失）"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划「需求映射」回指 A3 账本接线/失败写账/退避档/成功衰减，与「范围」T1=A3 项一致",
+      "conclusion": "接受",
+      "disposition": "需求回溯闭合，标注 A1/A5 外溢项不视为偏离"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "已知限制 1-3：pick-profile 无 slots[] 接真实候选、档位短名不互认、归一化碰撞同名共享；行动账 A1-A4 取舍有依据",
+      "conclusion": "有条件接受",
+      "disposition": "待 A1 路由表落地复接 slots[]，补充完整 ref 映射表消歧"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "现场核对 ↗A↗B：新测试 11 例绿、全量 150 例绿；tests/健康账本.test.mjs 167 行零网络零计费",
+      "conclusion": "接受",
+      "disposition": "覆盖账本核心逻辑，集成点依赖 A1 后续补测"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "BACKOFF_MS 索引 min(fail_count,3) 封顶；已知限制 3 碰撞语义明文约定；A4 测试注入隔离生产",
+      "conclusion": "接受",
+      "disposition": "封顶与隔离已防永久拉黑与污染，同名碰撞语义待 A1 确认"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "无性能基准文本；A4 证伪用 CTBZ_HEALTH_FILE 注入防生产写；依赖锁 ↗E verifyBundle ok",
+      "conclusion": "接受",
+      "disposition": "无反常，锁重算通过，运行时开销未述但账本为轻量 JSON"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "已知限制 4：世代 48 档仅 16 可派属 A5 未处理；pick-profile 冷却兜底 cooling:true 滑下条",
+      "conclusion": "有条件接受",
+      "disposition": "派发链冷却透明但组织级档位空洞致可用集缩水，归 A5 解决"
+    }
+  ],
+  "summary": "T1 实施完成且测试全绿、需求闭合，但架构待 A1 复接、组织级档位问题外溢 A5，复核有条件通过。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 9210,
+    "model_echo": "hy3"
+  },
+  "implementer_camp": "deepseek",
+  "reviewer_camp": "tencent",
+  "blocking": 0
+}

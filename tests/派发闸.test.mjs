@@ -165,7 +165,7 @@ test('V2 无回执 → exit 1 且输出含可直接执行的补齐命令；补 4
   assert.match(empty.out, /✗/);
   const cmds = cmdLines(empty.out);
   assert.ok(cmds.length >= 2, `补齐命令应 ≥2 行，实际 ${cmds.length}`);
-  assert.ok(cmds.some((l) => l.includes('反审.mjs')), '应有生成骨架的补齐命令');
+  assert.ok(cmds.some((l) => l.includes('反审直连.mjs')), '应有反审直连的补齐命令');
   assert.ok(cmds.some((l) => l.includes('派发闸.mjs') && l.includes('--level l1')), '应有复跑闸门命令');
   for (const c of cmds) {
     assert.ok(c.includes(plan) && c.includes(ws), `占位符未替换为绝对路径：${c}`);

@@ -1,0 +1,73 @@
+{
+  "camp": "tencent",
+  "camp_label": "腾讯",
+  "provider": "workbuddy",
+  "model": "hy3",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/ctbz-全面提升计划-20261005.md",
+  "plan_sha256": "34d810bf6daba3cda886207ac7abda076abd0111e40c935e2c4cc34a6e2752b2",
+  "generated_at": "2026-10-04T18:00:10.886Z",
+  "verdict": "诊断成立、行动包对齐用户需求，但测试完整性与并发边界待验证，建议有条件批准批0与批1",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工，计划为讨论稿缺乏具体代码规格与仓库上下文",
+    "blockers": [
+      "路由表 schema 未定义（计划 A1 仅描述目标未给字段）",
+      "消费方接口契约未详述（select/pick-profile 等改接细节缺失）",
+      "依赖取证文件锚点但新 agent 无文件读取工具无法核验",
+      "自动激活名单生成器算法未给出伪代码"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "附件 §10 用户原话；计划 §1.5、B1-B4、A2-A4、§0 承诺",
+      "conclusion": "接受",
+      "disposition": "需求覆盖完整，无需修改"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "计划 A1-A7、§7 自疑1；附件 §3、§5、§6",
+      "conclusion": "有条件接受",
+      "disposition": "批1前置实验验证并发激活锁与路由表合并引用面"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "计划 §5 验收标准、C3；附件 §9 机械门断点",
+      "conclusion": "有条件接受",
+      "disposition": "补充路由表一致性自动化测试与兜底链单元测试"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "计划 A2 L5 熔断、A7 租约宽限、§7 自疑1 并发",
+      "conclusion": "接受",
+      "disposition": "需演练多会话并发激活与全渠道断网边界"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "计划无专节；附件 §2 preflight 探活；A5 自动激活",
+      "conclusion": "有条件接受",
+      "disposition": "补充自动激活名单生成器的权限校验与注入防护说明"
+    },
+    {
+      "view": "用户体验",
+      "category": "可接受",
+      "evidence": "计划 D1-D5、§0 体感承诺、§5 验收1-3",
+      "conclusion": "接受",
+      "disposition": "保持中文一行明示与零手工激活体感"
+    }
+  ],
+  "summary": "六视角核查无阻塞，计划供电修复主线清晰，需补测试与并发边界验证后开工",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 43118,
+    "model_echo": "hy3"
+  }
+}

@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 
 const SELF_DIR = dirname(fileURLToPath(import.meta.url));
 const SELF = join(SELF_DIR, "派发闸.mjs");
-const SKELETON = join(SELF_DIR, "反审.mjs");
+const SKELETON = join(SELF_DIR, "反审直连.mjs");
 const INNER = join(SELF_DIR, "内审.mjs");
 
 const DEFAULT_HOST_MODEL = "deepseek-flash";

@@ -327,7 +327,14 @@ const DOUBT = [
   '- 闸门口径可能与计划不符 → 证伪实验: node scripts/内审.mjs 复命 --file /tmp/f.md → 结果: exit 0',
 ];
 
-function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['- 修了部署.js 的 PATH 缺陷 → skills/ctbz/scripts/部署.js'], pending = ['- 删远端数据 | 准入: 不可逆'], doubt = DOUBT, ledger = ['无']} = {}) {
+// 2.1.4 §B3：交付前三问逐字三行——答案对齐 / 半途扫描 / 跑偏检查，各带证据（路径:行号 或正文）。
+const DELIVER3 = [
+  '- 答案对齐: 复命闸六段齐全 → tests/内审.test.mjs:360',
+  '- 半途扫描: 全部动作有终态，无悬空项',
+  '- 跑偏检查: 交付内容条条回指 B3 复命段',
+];
+
+function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['- 修了部署.js 的 PATH 缺陷 → skills/ctbz/scripts/部署.js'], deliver = DELIVER3, pending = ['- 删远端数据 | 准入: 不可逆'], doubt = DOUBT, ledger = ['无']} = {}) {
   const list = (items) => (items.length ? items : ['无']);
   return [
     '# 复命 ctbz-2.0.7',
@@ -337,6 +344,9 @@ function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['
     '',
     '自主修复:',
     ...list(fix),
+    '',
+    '交付前三问:',
+    ...list(deliver),
     '',
     '待裁决:',
     ...list(pending),
@@ -511,6 +521,44 @@ test('V6 复命五段：全齐 exit 0；缺第 5 段报缺段标题；非 无 �
   const c = runFuming(emptyTrade);
   assert.equal(c.status, 1, c.stdout);
   assert.match(c.stdout, /取舍为空话/);
+});
+
+// V6b（2.1.4 §B3 / G11）：复命第 3 段 `交付前三问:`——3 行三问，各带证据；段缺失 / 行不足 / 缺证据均判红。
+test('V6b G11 六段齐全且三问各带证据 → exit 0；缺交付前三问段 → exit 1 且提示 2.1.4 起必填', () => {
+  const ok = fumingFixture(fumingText());
+  const a = runFuming(ok);
+  assert.equal(a.status, 0, a.stdout);
+  assert.match(a.stdout, /✓ 复命闸通过/);
+
+  const json = runFuming(ok, ['--json']);
+  assert.equal(json.status, 0, json.stdout);
+  assert.deepEqual(JSON.parse(json.stdout), {ok: true, mode: '复命'});
+
+  const noDeliver = fumingFixture(fumingText().replace('\n交付前三问:\n' + DELIVER3.join('\n') + '\n', '\n'));
+  const b = runFuming(noDeliver);
+  assert.equal(b.status, 1, b.stdout);
+  assert.match(b.stdout, /缺段标题「交付前三问:」（2\.1\.4 起必填）/);
+});
+
+test('V6b G11 交付前三问只有 2 行 → exit 1', () => {
+  const file = fumingFixture(fumingText({deliver: DELIVER3.slice(0, 2)}));
+  const r = runFuming(file);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /交付前三问条数不足：需 3 行/);
+});
+
+test('V6b G11 三问行缺证据（答案对齐: 无）→ exit 1', () => {
+  const file = fumingFixture(fumingText({deliver: ['- 答案对齐: 无', DELIVER3[1], DELIVER3[2]]}));
+  const r = runFuming(file);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /交付前三问「答案对齐」缺证据/);
+});
+
+test('V6b G11 交付前三问整段写 无 → exit 1（三行均必填，无 不豁免）', () => {
+  const file = fumingFixture(fumingText({deliver: []}));
+  const r = runFuming(file);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /交付前三问条数不足：需 3 行/);
 });
 
 test('V2 出处指向本 skill 的待裁决条目 → exit 1', () => {
