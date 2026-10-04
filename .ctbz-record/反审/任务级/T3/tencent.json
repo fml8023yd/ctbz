@@ -5,68 +5,68 @@
   "model": "hy3",
   "round": "1",
   "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-T3.md",
-  "plan_sha256": "717c81df6faebfb8a7172bf3632c81dc6a451040a2c6efe8c088afbb4a76e372",
-  "generated_at": "2026-10-04T18:55:55.759Z",
-  "verdict": "T3文档一致性测试锁落地合规，反审有条件接受，须随A1扩断言并待T5消白名单",
+  "plan_sha256": "ad6d20c9a1ac0551c3755638ce3a1658745e5fb2a41f64a36eb4cb56b9c0fa5a",
+  "generated_at": "2026-10-04T19:34:49.821Z",
+  "verdict": "T3交付物与父计划映射一致，测试自证有效，但白名单属临时绕过需T5关闭",
   "fresh_agent_test": {
-    "conclusion": "不能直接开工，计划未内联测试源码与被测文件，仅描述断言清单与命令，属欠具体",
+    "conclusion": "不能直接开工，本文为复核件而非实现规格，缺源码与外件上下文",
     "blockers": [
-      "未提供 tests/文档一致性.test.mjs 实际代码，仅引行号无法获知文本提取实现",
-      "未提供 skills/ctbz/SKILL.md、派发.md 等被测文件内容，无法重放存在性检查",
-      "白名单注释格式与已知缺陷来源仅描述未示例，直接编码易错"
+      "计划未内联 tests/文档一致性.test.mjs 实际代码，仅列断言描述",
+      "依赖 skills/ctbz/SKILL.md、派发.md 等 workspace 文件未随文提供",
+      "白名单注释格式与文本提取实现细节未具体化，新代理需逆向推测"
     ]
   },
   "verdicts": [
     {
       "view": "需求一致性",
       "category": "可接受",
-      "evidence": "计划『需求映射』节回指 C3 与 P4 原文，交付物 tests/文档一致性.test.mjs 6例对应一致性测试锁与具名用例",
+      "evidence": "计划 §需求映射 引 C3 与 P4 原文，且 §交付物 列 6 例对应用例",
       "conclusion": "接受",
-      "disposition": "确认 C3/P4 映射闭合，无需补充"
+      "disposition": "无需修正，映射闭合"
     },
     {
       "view": "架构合理性",
       "category": "可接受",
-      "evidence": "计划『行动账』A2 称断言用文本提取而非硬编码清单，依据 tests/文档一致性.test.mjs:44（内联声明但代码未附）",
+      "evidence": "计划 §独立证伪实验 与 §行动账 A2 表明文本提取+存在性检查，非硬编码",
       "conclusion": "接受",
-      "disposition": "架构选型合理，排除硬编码漏检；建议保留注释来源"
+      "disposition": "维持当前轻量架构"
     },
     {
       "view": "测试完整性",
       "category": "非阻塞",
-      "evidence": "计划『已知限制』第2条：测试只覆盖少数关键断言非文档全量，新增关键事实须随 A1 扩断言",
+      "evidence": "计划 §已知限制 1-2 标明白名单放行及仅覆盖少数关键断言；§现场核对 ↗C 列 6 条",
       "conclusion": "有条件接受",
-      "disposition": "标记待办：A1 扩断言覆盖路由表 schema 等新增事实后方可称完整"
+      "disposition": "T5 修复后删白名单，随 A1 扩断言"
     },
     {
       "view": "边界条件",
-      "category": "可接受",
-      "evidence": "计划『独立证伪实验』节：注入假脚本名转红恢复转绿，『已知限制』1 白名单放行反审.mjs 带注释来源",
-      "conclusion": "接受",
-      "disposition": "边界与伪阳性处理清晰，白名单须 T5 修复后移除"
+      "category": "非阻塞",
+      "evidence": "计划 §独立证伪实验 注入假脚本转红，但 §已知限制 未提路径变更等其他边界",
+      "conclusion": "有条件接受",
+      "disposition": "建议增补源路径变动与空文件边界用例"
     },
     {
       "view": "性能安全",
       "category": "可接受",
-      "evidence": "计划『现场核对』↗B：全量测试 156 例全绿，命令 node --test tests/*.test.mjs 锁重算后 pass 156 fail 0",
+      "evidence": "计划 §现场核对 ↗B 全量 156 例 pass 0 fail，本地 node test 无外部调用",
       "conclusion": "接受",
-      "disposition": "测试套件无性能瓶颈与安全风险，可合入"
+      "disposition": "无"
     },
     {
       "view": "用户体验",
-      "category": "非阻塞",
-      "evidence": "计划『交付物』断言⑥ tests/ 命名自洽无副本散落，『实测输出』六段结构含交付前三问；但未提及报错信息友好度",
-      "conclusion": "有条件接受",
-      "disposition": "建议补充断言失败时的可读差异输出，提升反审者排错体验"
+      "category": "可接受",
+      "evidence": "计划 §实测输出 显式 ✔ 六例命名清晰，§行动账 A3 保六段结构",
+      "conclusion": "接受",
+      "disposition": "无"
     }
   ],
-  "summary": "T3文档一致性锁实施可证伪且全绿，六视角反审除测试完整性待A1扩断言与UX报错可读待补外均接受",
+  "summary": "T3一致性测试锁落地自证充分，反审放行但挂白名单移除与扩断言条件",
   "dispatch": {
     "mode": "direct-http",
     "transport": "stream",
     "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
     "http_status": 200,
-    "latency_ms": 30858,
+    "latency_ms": 32019,
     "model_echo": "hy3"
   },
   "implementer_camp": "deepseek",
