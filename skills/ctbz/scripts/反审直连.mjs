@@ -466,6 +466,14 @@ async function main() {
     };
     let used = camp;
     let r = await attempt(camp);
+    // 瞬时抖动重试（L1 同档重试一次）：四路并发时网关偶发流式截断/空流（实测 tencent 席
+    // 4 路并发 stream-broken，单跑 39s 成功）。此类非渠道级故障，先重试一次再判降级——
+    // 与 failure-policy「先重试后记账」一致；渠道级故障（http 4xx）不在此列。
+    const TRANSIENT = new Set(["stream-broken", "no-stream-data", "timeout", "network"]);
+    if (!r.ok && !r.missing && TRANSIENT.has(r.kind)) {
+      const again = await attempt(camp);
+      if (again.ok) r = { ...again, retryNote: "瞬时抖动，同档重试一次成功" };
+    }
     if (!r.ok && camp.fallback) {
       const alt = { ...camp, provider: camp.fallback.provider, model: camp.fallback.model, base: undefined };
       const { base } = resolveApiKey(alt.provider);

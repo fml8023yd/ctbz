@@ -343,7 +343,7 @@
     },
     {
       "path": "scripts/反审直连.mjs",
-      "sha256": "0d26f4702f39ae0bc9190e88465dc99d1eec00f0fa5bf90b9dc9720a943de4a1"
+      "sha256": "99b65da4fc1ed1411eb6c0345485fefca3d872d062f386c800a29e3b7b68ccd3"
     },
     {
       "path": "scripts/发布检查.js",
