@@ -37,7 +37,7 @@ function planFixture() {
 test('deepseek 席在官方凭据缺失时尝试声明的降级渠道（不触及官方端点）', () => {
   const r = spawnSync(process.execPath,
     [DIRECT, '--plan', planFixture(), '--workspace', process.cwd(), '--camps', 'deepseek', '--dry-run'],
-    {encoding: 'utf8', env: {...process.env, CTBZ_ZC_CONFIG: fixtureConfig()}});
+    {encoding: 'utf8', env: {...process.env, CTBZ_ZC_CONFIG: fixtureConfig(), CTBZ_PROVIDER_CONFIG: join(tmpdir(), 'ctbz-seat-nonexistent.json')}});
   assert.equal(r.status, 0, r.stderr);
   // dry-run 仍打印官方端点（降级发生在实际调用路径），但不得因凭据缺失直接判死。
   assert.match(r.stdout, /deepseek/);
@@ -61,7 +61,7 @@ test('双渠道都不可用时判 fail，且明示降级已尝试（失败级联
   const ws = mkdtempSync(join(tmpdir(), 'ctbz-seat-none-ws-'));
   const r = spawnSync(process.execPath,
     [DIRECT, '--plan', planFixture(), '--workspace', ws, '--camps', 'deepseek', '--json'],
-    {encoding: 'utf8', env: {...process.env, CTBZ_ZC_CONFIG: cfg}});
+    {encoding: 'utf8', env: {...process.env, CTBZ_ZC_CONFIG: cfg, CTBZ_PROVIDER_CONFIG: join(tmpdir(), 'ctbz-seat-nonexistent.json')}});
   assert.equal(r.status, 1);
   assert.match(r.stdout + r.stderr, /凭据缺失/);
   assert.match(r.stdout + r.stderr, /已尝试降级到 workbuddy-remote\/deepseek-v4\.1-flash/);
@@ -111,7 +111,7 @@ test('主渠道可用时优先主渠道，回执 provider 落主渠道', () => {
   // 两条尝试的 provider 都在配置中可解析（证明顺序可执行，而非纸面约定）。
   const r = spawnSync(process.execPath,
     [DIRECT, '--plan', planFixture(), '--workspace', process.cwd(), '--camps', 'deepseek', '--dry-run'],
-    {encoding: 'utf8', env: {...process.env, CTBZ_ZC_CONFIG: cfg}});
+    {encoding: 'utf8', env: {...process.env, CTBZ_ZC_CONFIG: cfg, CTBZ_PROVIDER_CONFIG: join(tmpdir(), 'ctbz-seat-nonexistent.json')}});
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /127\.0\.0\.1:7864/);
 });

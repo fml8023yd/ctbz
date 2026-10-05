@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.1.6] - 2026-10-06
+
+凭据解析双代兼容：宿主迁新格式后，DeepSeek 链路恢复（四阵营 4/4）。
+
+### 修复
+- `scripts/preflight.mjs` 与 `scripts/反审直连.mjs`：凭据读取改「两代格式，新格式优先」——
+  ① `~/.zcode/v2/provider_config.json`（宿主当前权威：config.providerConfigRules.providerRules[]）
+  ② `~/.zcode/v2/config.json`（旧格式，回退）。此前只读旧格式，宿主迁新端点后旧端点过期
+  （实测 WB 旧端点 127.0.0.1:7864 的 deepseek 因账号池限流 503，新端点 work.htibinak.com 200），
+  导致可用链路被误判为故障。
+- `scripts/lib/反审席位表.mjs`：WORKBUDDY_BASE 由退役自建通道改指宿主权威端点。
+- 新增环境变量 `CTBZ_PROVIDER_CONFIG` 供测试注入隔离。
+
+### 新增
+- `tests/凭据定位.test.mjs`：+2 例（新格式命中凭据、新格式优先于旧格式），测试夹具统一隔离双代路径。
+
+### 验收
+- preflight ok=5/5（M1 deepseek 恢复 200，凭据来源标注 `provider-config:`）。
+- 四阵营反审实测 4/4，回执端点均为宿主权威通道。
+- `node --test tests/*.test.mjs` 172 例全绿（169 + 新增 2 + 既有调整）。
+
 ## [2.1.5] - 2026-10-05
 
 四渠道修复与模型清理：DeepSeek 官方欠费不再阻断班子，四阵营全通。

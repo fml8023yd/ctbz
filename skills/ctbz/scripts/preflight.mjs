@@ -38,21 +38,36 @@ const MODELS = [
   { code: "M5", provider: "workbuddy", model: "kimi-k2.8-preview", vendor: "月之暗面", cost: "credit 0.1", base: WORKBUDDY_BASE },
 ];
 
-// ---------- 凭据（ZCode 线：读 ~/.zcode/v2/config.json 的 provider.<id>.options） ----------
-// 本机凭据落点即 ZCode 配置；按 baseURL 前缀定位渠道，不硬编码 provider id（id 随接入变化）。
+// ---------- 凭据（ZCode 线） ----------
+// 凭据落点两代格式，**新格式优先**（2026-10-06 升级）：
+//   ① ~/.zcode/v2/provider_config.json  宿主当前权威（config.providerConfigRules.providerRules[]:
+//      {providerId, providerName, config:{access:{apiKey}, api:{baseUrl}, personalModelIds}}）
+//   ② ~/.zcode/v2/config.json           旧格式（provider.<id>.options.{apiKey,baseURL}），回退用
+// 为什么必须双读：宿主迁移到新格式后，旧 config.json 里的端点会过期（实测 WB 旧端点 127.0.0.1:7864
+// 的 deepseek 因账号池限流 503，而新格式端点 work.htibinak.com 的 deepseek 200）——只读旧格式会把
+// 可用链路判成故障。按 baseURL 前缀定位渠道，不硬编码 provider id（id 随接入变化）。
 
 const ZC_CONFIG = process.env.CTBZ_ZC_CONFIG || join(homedir(), ".zcode", "v2", "config.json");
+const ZC_PROVIDER_CONFIG = process.env.CTBZ_PROVIDER_CONFIG || join(homedir(), ".zcode", "v2", "provider_config.json");
 
 // 席位表 provider 语义名 → 候选 baseURL 前缀（用于在 ZCode 配置中定位渠道）。
 // 每个语义名可给多个前缀：渠道换接入点时旧前缀仍列出，避免「凭据没变却报凭据缺失」。
 const PROVIDER_BASE_HINTS = {
   "deepseek-official": ["https://api.deepseek.com"],
-  workbuddy: ["http://101.133.151.121:18890/v1", "http://127.0.0.1:7864/v1"],
+  workbuddy: ["https://work.htibinak.com/v1", "http://101.133.151.121:18890/v1", "http://127.0.0.1:7864/v1"],
   "workbuddy-remote": ["https://wb.2btocken.xyz/v1"],
 };
 
 function readZcodeProviders() {
   try { return JSON.parse(readFileSync(ZC_CONFIG, "utf8"))?.provider ?? {}; } catch { return {}; }
+}
+
+// 新格式宿主配置的渠道条目（无文件/坏 JSON → 空数组，回退旧格式）
+function readProviderConfigRules() {
+  try {
+    const rules = JSON.parse(readFileSync(ZC_PROVIDER_CONFIG, "utf8"))?.config?.providerConfigRules?.providerRules;
+    return Array.isArray(rules) ? rules : [];
+  } catch { return []; }
 }
 
 // 前缀白名单封闭匹配：base 恰等于前缀，或前缀后紧跟 "/" 分段；
@@ -62,9 +77,16 @@ function baseMatches(base, hints) {
 }
 
 // 返回配置中命中的那个渠道条目：key 为凭据，base 为实际请求端点（脚本不写死端点地址）
+// 查找顺序：新格式 provider_config.json 优先，未命中回退旧格式 config.json。
 function resolveApiKey(provider) {
   const hints = (PROVIDER_BASE_HINTS[provider] ?? []).map((h) => h.replace(/\/+$/, ""));
   if (!hints.length) return { key: null, base: null, source: `未知 provider：${provider}` };
+  for (const rule of readProviderConfigRules()) {
+    const base = String(rule?.config?.api?.baseUrl ?? "").replace(/\/+$/, "");
+    if (!base || !baseMatches(base, hints)) continue;
+    const key = rule?.config?.access?.apiKey;
+    if (typeof key === "string" && key.trim()) return { key: key.trim(), base, source: `provider-config:${rule.providerId}` };
+  }
   for (const [id, cfg] of Object.entries(readZcodeProviders())) {
     const base = String(cfg?.options?.baseURL ?? "").replace(/\/+$/, "");
     if (!base || !baseMatches(base, hints)) continue;

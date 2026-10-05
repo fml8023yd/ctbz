@@ -13,6 +13,7 @@ const PREFLIGHT = join(REPO, 'skills/ctbz/scripts/preflight.mjs');
 const DIRECT = join(REPO, 'skills/ctbz/scripts/反审直连.mjs');
 const DEAD = 'http://127.0.0.1:1'; // 连接必拒绝：走到「发请求」即证明凭据已解析
 
+const dir_isolated = mkdtempSync(join(tmpdir(), 'ctbz-cred-iso-'));  // 隔离新格式 provider_config.json
 function writeConfig(baseURL, apiKey = 'fixture-key') {
   const dir = mkdtempSync(join(tmpdir(), 'ctbz-cred-'));
   const file = join(dir, 'config.json');
@@ -23,7 +24,7 @@ function writeConfig(baseURL, apiKey = 'fixture-key') {
 function preflight(config) {
   const r = spawnSync(process.execPath,
     [PREFLIGHT, '--json', '--only', 'M2', '--endpoint-override', `M2=${DEAD}`],
-    {encoding: 'utf8', env: {...process.env, CTBZ_ZC_CONFIG: config}});
+    {encoding: 'utf8', env: {...process.env, CTBZ_ZC_CONFIG: config, CTBZ_PROVIDER_CONFIG: join(dir_isolated, 'nonexistent-provider_config.json')}});
   return JSON.parse(r.stdout);
 }
 
@@ -73,7 +74,56 @@ test('反审直连 dry-run 取宿主配置命中的端点，不写死地址', ()
   const plan = join(dir, 'fixture-plan.md');
   writeFileSync(plan, '# 夹具计划（仅用于 dry-run 端点断言）\n');
   const r = spawnSync(process.execPath, [DIRECT, '--plan', plan, '--dry-run'],
-    {encoding: 'utf8', env: {...process.env, CTBZ_ZC_CONFIG: config}});
+    {encoding: 'utf8', env: {...process.env, CTBZ_ZC_CONFIG: config, CTBZ_PROVIDER_CONFIG: join(dir_isolated, 'nonexistent-provider_config.json')}});
   assert.equal(r.status, 0);
   assert.match(r.stdout, /127\.0\.0\.1:7864\/v1\/chat\/completions/);
 });
+
+// ── 2.1.5：双代配置读取（新格式 provider_config.json 优先）──
+// 背景：宿主迁新格式后，旧 config.json 端点会过期（实测旧端点 deepseek 503 而新端点 200），
+// 只读旧格式会把可用链路判成故障。此用例锁定「新格式优先、旧格式回退」两条路径。
+
+function writeProviderConfig(baseURL, apiKey = 'fixture-new-key') {
+  const dir = mkdtempSync(join(tmpdir(), 'ctbz-pc-'));
+  const file = join(dir, 'provider_config.json');
+  writeFileSync(file, JSON.stringify({
+    schemaVersion: 1,
+    config: { providerConfigRules: { providerRules: [
+      { providerId: 'fixture-new-wb', providerName: 'WB-New', config: {
+        access: { type: 'api-key', apiKey },
+        api: { type: 'openai-chat-completions', baseUrl: baseURL },
+        personalModelIds: ['glm-5.3'],
+      } },
+    ] } },
+  }));
+  return file;
+}
+
+test('新格式 provider_config.json 命中凭据（宿主迁新格式后不再假报缺失）', () => {
+  const pc = writeProviderConfig('https://work.htibinak.com/v1');
+  const r = spawnSync(process.execPath,
+    [PREFLIGHT, '--json', '--only', 'M2', '--endpoint-override', `M2=${DEAD}`],
+    {encoding: 'utf8', env: {...process.env, CTBZ_PROVIDER_CONFIG: pc, CTBZ_ZC_CONFIG: join(tmpdir(), 'ctbz-no-such-config.json')}});
+  const j = JSON.parse(r.stdout);
+  assert.equal(j.credentials.workbuddy.present, true, '新格式应命中凭据');
+  assert.match(j.credentials.workbuddy.source, /provider-config:/);
+  assert.doesNotMatch(j.rows[0].detail, /凭据缺失/);
+});
+
+test('新格式优先于旧格式：两者都命中时取新格式端点', () => {
+  const pc = writeProviderConfig('https://work.htibinak.com/v1');
+  const old = writeConfig('http://127.0.0.1:7864/v1');
+  const r = spawnSync(process.execPath,
+    [DIRECT, '--plan', planFilePath(), '--workspace', process.cwd(), '--camps', 'zhipu', '--dry-run'],
+    {encoding: 'utf8', env: {...process.env, CTBZ_PROVIDER_CONFIG: pc, CTBZ_ZC_CONFIG: old}});
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /work\.htibinak\.com/, '新格式端点应优先');
+  assert.doesNotMatch(r.stdout, /127\.0\.0\.1:7864/, '旧格式端点不应被选中');
+});
+
+function planFilePath() {
+  const dir = mkdtempSync(join(tmpdir(), 'ctbz-cred-plan-'));
+  const file = join(dir, 'plan.md');
+  writeFileSync(file, '# 夹具\n\nreview_scale: 轻\n');
+  return file;
+}

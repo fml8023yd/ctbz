@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "7eb1f27e934d20505a09d497f73a87ed2bbc48f1fe15d74fdcef6050cd08b8d4"
+      "sha256": "45cac9d1a8286d5c0abdee64304da38042bfba79b3b6ca512d6712f071ac60ef"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -275,7 +275,7 @@
     },
     {
       "path": "scripts/lib/反审席位表.mjs",
-      "sha256": "f4ace98fcf8e34640c2777820686059a532d69bfa23548f8eb1917df68b53c24"
+      "sha256": "a6777f0d65ff042ec6939af692d3582ad419ec35f133bcfb8f8403d849f3db68"
     },
     {
       "path": "scripts/lib/反审链.mjs",
@@ -299,7 +299,7 @@
     },
     {
       "path": "scripts/preflight.mjs",
-      "sha256": "34bdc95bad1f4e17a38c6b5abc988b077caae09345bb7c30def58da3faafdcac"
+      "sha256": "6681fb7c1aabc62033c74d3d5d0c552ad7b5b461f551a46e0088423ae09ec05e"
     },
     {
       "path": "scripts/render-agents",
@@ -343,7 +343,7 @@
     },
     {
       "path": "scripts/反审直连.mjs",
-      "sha256": "99b65da4fc1ed1411eb6c0345485fefca3d872d062f386c800a29e3b7b68ccd3"
+      "sha256": "3579fe1caf63312bb6b44d036aa92c493ee00692c5f968d66f4561e9cf9730c2"
     },
     {
       "path": "scripts/发布检查.js",

@@ -6,14 +6,14 @@
 // 本文件只放数据，不放逻辑：两边 import 同一份声明。
 
 export const DEEPSEEK_BASE = "https://api.deepseek.com";
-export const WORKBUDDY_BASE = "http://101.133.151.121:18890/v1"; // 自建通道（已知 http 明文风险）
+export const WORKBUDDY_BASE = "https://work.htibinak.com/v1"; // 宿主权威端点（2026-10-06；旧自建通道 101.133.151.121:18890 已退役）
 export const WORKBUDDY_REMOTE_BASE = "https://wb.2btocken.xyz/v1"; // 备用 WB 网关（独立账号池，deepseek 席备路）
 
 // 席位表：camp → 主 provider/模型 + 可选备选 provider（同源席降级用）。
 // - deepseek 席取 DeepSeek 家族模型（与主进程同源，不计独立性；独立性由另三席保证）。
-//   2026-10-05 改判：官方渠道欠费（402）且本地 WB 网关 deepseek 账号池限流期间，
-//   主链＝本地 WB 网关（免费额度；账号限流恢复后自动优先）→ 备路＝wb.2btocken 远程网关
-//   （独立账号池，实测 deepseek-v4.1-flash 200）。官方渠道移出调用链，仅作历史回执兼容。
+//   2026-10-06 更新：凭据解析改为「新格式 provider_config.json 优先」后，主链 = 宿主权威端点
+//   work.htibinak.com/v1（实测 deepseek-v4.1-flash 200）；备路 = wb.2btocken 远程网关
+//   （独立账号池，兜底用）。此前因只读旧格式 config.json 指向已限流的本地网关（503）而误判。
 // - zhipu 席 reasoningEffort "off"：glm 在反审这类长结构化任务上会无限推理（实测 15 分钟、
 //   正文 0 字），关推理后立即出正文；反审是结构化判断，不依赖长思维链。
 // - 2026-09-30 模型改判：本机网关对单次上游生成有 ~120s 硬上限，超时即断流/502
