@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.1.5] - 2026-10-05
+
+四渠道修复与模型清理：DeepSeek 官方欠费不再阻断班子，四阵营全通。
+
+### 变更
+- `scripts/lib/反审席位表.mjs`：DeepSeek 席主链改本地 WB 网关（免费额度）→ 备路 wb.2btocken 远程网关（独立账号池）；官方渠道降为历史回执兼容（altProviders 放行旧组合，不新增调用能力）。
+- `scripts/preflight.mjs`：M1 探测目标同步改判（主渠道 + 降级探测 + 明示），PROVIDER_BASE_HINTS 增 workbuddy-remote。
+- `scripts/反审直连.mjs`：PROVIDER_BASE_HINTS 增 workbuddy-remote；dispatch.endpoint 修正为实际使用端点；新增 normalizeReceiptFields 错栏归一化（category↔conclusion 语义一一对应，只修字段名位）。
+- `scripts/discover-config`：allowlistReasoning 透传 highestReasoning（宿主档位词汇表外档位如 enabled 的显式标注），候选构造同步带出。
+- `references/派发.md`：M1 行与注更新为新事实。
+- 本机桥接配置重建（非仓库文件）：WB 网关 4 模型（glm-5.3/hy3/kimi-k2.7/minimax-m3）+ 2b-global 2 模型（deepseek-v4.1-flash/-sg），档位逐条对照宿主内置规则表验证合法。
+
+### 验收
+- 四阵营反审实测 4/4 全通（DeepSeek 席自动降级出回执 http 200）。
+- `node --test tests/*.test.mjs` 170 例全绿（席位降级 5 例按新设计重写断言）。
+- preflight ok=5/5（M1 标注「主渠道失败，已降级 workbuddy-remote」）。
+- 内审记录：docs/内审/2026-10-05-反审席渠道改判与四阵营恢复.md。
+
 ## [2.1.4] - 2026-10-05
 
 全面提升批 1：紫禁城供电（健康账本接线 / 体检命令 / 文档一致性锁 / 交付前三问 / 分级兜底链）。

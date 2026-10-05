@@ -104,6 +104,11 @@ function allowlistReasoning(value) {
   if (typeof defaultVariant === "string" || defaultVariant === null) {
     reasoning.defaultVariant = defaultVariant;
   }
+  // 宿主档位词汇表外的档位（如 "enabled"，见 zcode-builtin.json modelConfigRules 兜底规则）
+  // 需显式标注 highestReasoning，由初始化器按此名生成 thoughtLevel（布尔开关类模型）。
+  if (typeof value.highestReasoning === "string" && value.highestReasoning.length > 0) {
+    reasoning.highestReasoning = value.highestReasoning;
+  }
   return reasoning;
 }
 
@@ -196,6 +201,9 @@ function discoverProviders(config) {
       providerId: provider.id,
       modelId: model.id,
       reasoningVariants: model.reasoning?.variants ?? [],
+      ...(model.reasoning?.highestReasoning
+        ? { highestReasoning: model.reasoning.highestReasoning }
+        : {}),
     }));
   });
 
