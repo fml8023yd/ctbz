@@ -7,17 +7,20 @@
 
 export const DEEPSEEK_BASE = "https://api.deepseek.com";
 export const WORKBUDDY_BASE = "http://101.133.151.121:18890/v1"; // 自建通道（已知 http 明文风险）
+export const WORKBUDDY_REMOTE_BASE = "https://wb.2btocken.xyz/v1"; // 备用 WB 网关（独立账号池，deepseek 席备路）
 
-// 席位表：camp → 主 provider/模型 + 可选备选 provider（同源席欠费降级用）。
-// - deepseek 席取 deepseek-flash（与主进程同源，不计独立性）；官方两渠道同时欠费时可降级到
-//   WB 网关的 DeepSeek 模型（仍同源，独立性由另三席保证）；官方可用时优先官方。
+// 席位表：camp → 主 provider/模型 + 可选备选 provider（同源席降级用）。
+// - deepseek 席取 DeepSeek 家族模型（与主进程同源，不计独立性；独立性由另三席保证）。
+//   2026-10-05 改判：官方渠道欠费（402）且本地 WB 网关 deepseek 账号池限流期间，
+//   主链＝本地 WB 网关（免费额度；账号限流恢复后自动优先）→ 备路＝wb.2btocken 远程网关
+//   （独立账号池，实测 deepseek-v4.1-flash 200）。官方渠道移出调用链，仅作历史回执兼容。
 // - zhipu 席 reasoningEffort "off"：glm 在反审这类长结构化任务上会无限推理（实测 15 分钟、
 //   正文 0 字），关推理后立即出正文；反审是结构化判断，不依赖长思维链。
 // - 2026-09-30 模型改判：本机网关对单次上游生成有 ~120s 硬上限，超时即断流/502
 //   （实测 hy4-preview-f 与 kimi-k2.8-preview 断流、kimi-k3 502；hy3/kimi-k2.7/kimi-k2.6 正常）。
 export const CAMPS = {
-  deepseek: { key: "deepseek", label: "DeepSeek", provider: "deepseek-official", model: "deepseek-flash", base: DEEPSEEK_BASE,
-              fallback: { provider: "workbuddy", model: "deepseek-v4.1-flash" } },
+  deepseek: { key: "deepseek", label: "DeepSeek", provider: "workbuddy", model: "deepseek-v4.1-flash", base: WORKBUDDY_BASE,
+              fallback: { provider: "workbuddy-remote", model: "deepseek-v4.1-flash" } },
   zhipu:    { key: "zhipu",    label: "智谱",     provider: "workbuddy",         model: "glm-5.3-flash",   base: WORKBUDDY_BASE, reasoningEffort: "off" },
   tencent:  { key: "tencent",  label: "腾讯",     provider: "workbuddy",         model: "hy3",             base: WORKBUDDY_BASE },
   moonshot: { key: "moonshot", label: "月之暗面", provider: "workbuddy",         model: "kimi-k2.7",       base: WORKBUDDY_BASE },
@@ -34,12 +37,20 @@ export function buildSeatTable(camps = CAMPS) {
     const camp = camps[key];
     const models = [camp.model];
     // 历史兼容：旧回执用过的模型名继续放行（不新增调用能力）。
-    if (key === "deepseek") models.push("deepseek-v4-pro");
     if (key === "zhipu") models.push("glm-5.3");
     if (key === "tencent") models.push("hy4-preview-f");
     if (key === "moonshot") models.push("kimi-k2.8-preview", "kimi-k2.6");
     const entry = { provider: camp.provider, models };
     if (camp.fallback) entry.altProviders = { [camp.fallback.provider]: [camp.fallback.model] };
+    // deepseek 席历史兼容（2026-10-05）：官方渠道移出调用链后，旧回执用过的
+    // deepseek-official/deepseek-flash 与 deepseek-official/deepseek-v4-pro 仍放行重签
+    // （不新增调用能力）；2.0.x~2.1.0 的旧回执因此可继续通过闸门。
+    if (key === "deepseek") {
+      entry.altProviders = {
+        ...entry.altProviders,
+        "deepseek-official": ["deepseek-flash", "deepseek-v4-pro"],
+      };
+    }
     table[key] = entry;
   }
   return table;

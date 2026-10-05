@@ -211,7 +211,7 @@
     },
     {
       "path": "references/派发.md",
-      "sha256": "3bb633bc8343d93fbe37761044ab59939a4f19e588cb9e42d31b0424770a849c"
+      "sha256": "616ded524b2ce924aa7a52157d2cdb9831eaac9c7755c14d80b14ebb89ac09a0"
     },
     {
       "path": "references/流程治理.md",
@@ -275,7 +275,7 @@
     },
     {
       "path": "scripts/lib/反审席位表.mjs",
-      "sha256": "51139f7c94816042b7781dad3b50ee545da4cd129a120f41693cd3a0c1bda677"
+      "sha256": "f4ace98fcf8e34640c2777820686059a532d69bfa23548f8eb1917df68b53c24"
     },
     {
       "path": "scripts/lib/反审链.mjs",
@@ -299,7 +299,7 @@
     },
     {
       "path": "scripts/preflight.mjs",
-      "sha256": "b205301d7ade45861ca49c4eac6d49ab8ba147f00b4984ce258e1f6ef1e22101"
+      "sha256": "34bdc95bad1f4e17a38c6b5abc988b077caae09345bb7c30def58da3faafdcac"
     },
     {
       "path": "scripts/render-agents",
@@ -343,7 +343,7 @@
     },
     {
       "path": "scripts/反审直连.mjs",
-      "sha256": "e58b69a824a30a2d0d6728975ae333595c5a9d0da505315acf0a59bcd1c3f56c"
+      "sha256": "0d26f4702f39ae0bc9190e88465dc99d1eec00f0fa5bf90b9dc9720a943de4a1"
     },
     {
       "path": "scripts/发布检查.js",

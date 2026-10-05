@@ -23,11 +23,15 @@ const MODEL_BUDGET_TOTAL = 5;          // 总预算：5 次调用（每模型 1 
 const REQUEST_TIMEOUT_MS = 60_000;     // 单次超时 60s
 const MAX_TOKENS = 16;                 // 最小请求
 
-const DEEPSEEK_BASE = "https://api.deepseek.com";            // 官方通道
+const DEEPSEEK_BASE = "https://api.deepseek.com";            // 官方通道（欠费期移出调用链，仅保留常量）
 const WORKBUDDY_BASE = "http://101.133.151.121:18890/v1";    // 自建通道（已知 http 明文风险，见 cost-rules.json known_risks）
+const WORKBUDDY_REMOTE_BASE = "https://wb.2btocken.xyz/v1";  // 备用 WB 网关（独立账号池，DeepSeek 席备路）
 
+// 2026-10-05 改判：DeepSeek 官方欠费（402）+ 本地网关 deepseek 账号池限流期间，
+// 本表 M1 改为「本地 WB 网关（主）→ wb.2btocken 远程网关（备路）」探测，反映实际调用链。
 const MODELS = [
-  { code: "M1", provider: "deepseek-official", model: "deepseek-flash", vendor: "DeepSeek", cost: "官方计费", base: DEEPSEEK_BASE },
+  { code: "M1", provider: "workbuddy", model: "deepseek-v4.1-flash", vendor: "DeepSeek", cost: "0（WB 网关）", base: WORKBUDDY_BASE,
+    fallback: { provider: "workbuddy-remote", model: "deepseek-v4.1-flash", base: WORKBUDDY_REMOTE_BASE } },
   { code: "M2", provider: "workbuddy", model: "glm-5.3-flash", vendor: "智谱", cost: "credit 0.01", base: WORKBUDDY_BASE },
   { code: "M3", provider: "workbuddy", model: "hy4-preview-f", vendor: "腾讯", cost: "0", base: WORKBUDDY_BASE },
   { code: "M4", provider: "workbuddy", model: "hy3", vendor: "腾讯", cost: "0", base: WORKBUDDY_BASE },
@@ -44,6 +48,7 @@ const ZC_CONFIG = process.env.CTBZ_ZC_CONFIG || join(homedir(), ".zcode", "v2", 
 const PROVIDER_BASE_HINTS = {
   "deepseek-official": ["https://api.deepseek.com"],
   workbuddy: ["http://101.133.151.121:18890/v1", "http://127.0.0.1:7864/v1"],
+  "workbuddy-remote": ["https://wb.2btocken.xyz/v1"],
 };
 
 function readZcodeProviders() {
@@ -200,12 +205,12 @@ function pad(s, n) {
   return s + " ".repeat(Math.max(0, n - displayWidth(s)));
 }
 
-// credit 估算（声明性口径，非计费权威）：M2 0.01/次、M5 0.1/次、M3/M4 0、M1 官方计费
+// credit 估算（声明性口径，非计费权威）：M2 0.01/次、M5 0.1/次、M1/M3/M4 0（WB 网关额度）
 function creditOf(code) {
   if (code === "M2") return 0.01;
   if (code === "M5") return 0.1;
-  if (code === "M3" || code === "M4") return 0;
-  return null; // M1 官方计费，无法用 credit 口径表达
+  if (code === "M1" || code === "M3" || code === "M4") return 0;
+  return null;
 }
 
 // ---------- main ----------
@@ -237,8 +242,8 @@ async function main() {
   if (!targets.length) throw new Error("--only 未匹配任何模型代号（M1-M5）");
   if (targets.length > MODEL_BUDGET_TOTAL) throw new Error(`探活预算上限 ${MODEL_BUDGET_TOTAL} 次`);
 
-  // 凭据：按 provider 各解析一次（deepseek-official / workbuddy）
-  const providers = [...new Set(targets.map((m) => m.provider))];
+  // 凭据：按 provider 各解析一次（含降级备路的 provider）
+  const providers = [...new Set(targets.flatMap((m) => [m.provider, ...(m.fallback ? [m.fallback.provider] : [])]))];
   const creds = {};
   for (const p of providers) {
     const { key, source, base } = resolveApiKey(p);
@@ -251,21 +256,41 @@ async function main() {
   for (const m of targets) {
     const key = creds[m.provider].key ?? null;
     const r = { code: m.code, provider: m.provider, model: m.model, vendor: m.vendor, cost: m.cost };
+    let row;
     if (!key) {
-      rows.push({ ...r, status: "fail", http: null, latencyMs: 0,
-                  detail: `凭据缺失（来源 ${creds[m.provider].source}）` });
-      continue;
+      row = { ...r, status: "fail", http: null, latencyMs: 0,
+              detail: `凭据缺失（来源 ${creds[m.provider].source}）` };
+    } else {
+      const endpoint = args.overrides[m.code] ?? creds[m.provider].base ?? m.base;
+      const pr = await probe(m, key, endpoint);
+      row = { ...r, endpoint, ...pr };
     }
-    const endpoint = args.overrides[m.code] ?? creds[m.provider].base ?? m.base;
-    const pr = await probe(m, key, endpoint);
-    const row = { ...r, endpoint, ...pr };
+    // 降级备路（恰好一次）：主渠道失败且声明 fallback 时尝试备选 provider
+    if (row.status !== "ok" && m.fallback) {
+      const fkey = creds[m.fallback.provider]?.key ?? null;
+      if (fkey) {
+        const fbase = creds[m.fallback.provider].base ?? m.fallback.base;
+        const fpr = await probe({ ...m, provider: m.fallback.provider, model: m.fallback.model }, fkey, fbase);
+        if (fpr.status === "ok") {
+          row = {
+            ...row, status: "ok", http: fpr.http, latencyMs: fpr.latencyMs, usage: fpr.usage,
+            detail: `${fpr.detail}（主渠道失败，已降级 ${m.provider}/${m.model} → ${m.fallback.provider}/${m.fallback.model}）`,
+            degraded: true,
+          };
+        } else {
+          row = { ...row, detail: `${row.detail}；备路 ${m.fallback.provider}/${m.fallback.model} 亦失败：${fpr.detail}`, degraded: true };
+        }
+      } else {
+        row = { ...row, detail: `${row.detail}；备路凭据缺失（${m.fallback.provider}）` };
+      }
+    }
     row.credit = creditOf(m.code);
     row.creditCumulative = row.status === "ok" ? creditOf(m.code) : 0; // 计费口径按实际发起且 2xx 的请求
     rows.push(row);
-    if (pr.limitError) {
-      const resetAt = parseCooldown(`${pr.http} ${pr.limitError.body}`);
+    if (row.limitError) {
+      const resetAt = parseCooldown(`${row.http} ${row.limitError.body}`);
       if (resetAt) {
-        ledgerUpdates.push({ key: `${m.provider}/${m.model}`, source: `[${pr.http}][${sanitizeText(pr.limitError.body).slice(0, 110)}]`, cooldown_until: resetAt });
+        ledgerUpdates.push({ key: `${m.provider}/${m.model}`, source: `[${row.http}][${sanitizeText(row.limitError.body).slice(0, 110)}]`, cooldown_until: resetAt });
       }
     }
   }

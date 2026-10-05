@@ -6,7 +6,7 @@
 //   请求一律打到活跃 provider 端点。实测 6 种写法（provider 名/id/baseUrl、model 斜杠与 @ 拼接）全失败。
 //   故四路反审改由本进程直连各厂商端点，与宿主派发通道解耦：
 //     主进程 → DeepSeek 官方渠道（宿主 env 决定，本脚本不碰）
-//     反审席 → DeepSeek 官方 + workbuddy 自建网关（本脚本按 camp 各自 baseUrl + key 直连）
+//     反审席 → workbuddy 自建网关（主）+ wb.2btocken 远程网关（备路，deepseek 席降级用）
 //
 // 取舍：直连无工具能力（reviewer 读不到文件），故计划全文内联进 prompt；
 //   代价是 risk `evidence: 文件:行号` 无法被 reviewer 独立核验，降级为「待人工核验」。
@@ -54,6 +54,7 @@ const ZC_CONFIG = process.env.CTBZ_ZC_CONFIG || join(homedir(), ".zcode", "v2", 
 const PROVIDER_BASE_HINTS = {
   "deepseek-official": ["https://api.deepseek.com"],
   workbuddy: ["http://101.133.151.121:18890/v1", "http://127.0.0.1:7864/v1"],
+  "workbuddy-remote": ["https://wb.2btocken.xyz/v1"],
 };
 
 function readZcodeProviders() {
@@ -151,6 +152,21 @@ function extractJson(text) {
   const s = t.indexOf("{"), e = t.lastIndexOf("}");
   if (s !== -1 && e > s) { try { return JSON.parse(t.slice(s, e + 1)); } catch { /* 继续 */ } }
   return null;
+}
+
+// 回执字段归一化：模型偶发把 category 值填进 conclusion（或反向错栏）——按语义一一对应修正，
+// 只修「填错栏」不改判断内容（可接受↔接受、非阻塞↔有条件接受、阻塞↔不接受）。
+// 实锤：2026-10-05 hy3 席（腾讯）把 "可接受" 填入 conclusion，整路回执被误判为不合规。
+const LEGALIZE = { "可接受": "接受", "非阻塞": "有条件接受", "阻塞": "不接受" };
+const CATEGORIZE = { "接受": "可接受", "有条件接受": "非阻塞", "不接受": "阻塞" };
+function normalizeReceiptFields(parsed) {
+  if (!parsed || !Array.isArray(parsed.verdicts)) return parsed;
+  for (const v of parsed.verdicts) {
+    if (!v || typeof v !== "object") continue;
+    if (typeof v.conclusion === "string" && !CONCLUSIONS.includes(v.conclusion) && LEGALIZE[v.conclusion]) v.conclusion = LEGALIZE[v.conclusion];
+    if (typeof v.category === "string" && !CATEGORIES.includes(v.category) && CATEGORIZE[v.category]) v.category = CATEGORIZE[v.category];
+  }
+  return parsed;
 }
 
 // 回执合规自查：与 派发闸.mjs::validate 的字段约束对齐（闸门是权威，本函数只做早失败）
@@ -463,6 +479,7 @@ async function main() {
         ? { camp: camp.key, label: camp.label, status: "fail", detail: r.detail }
         : { camp: camp.key, label: camp.label, status: "fail", http: r.http, latencyMs: r.latencyMs, detail: `${r.kind}: ${r.detail}` };
     }
+    normalizeReceiptFields(r.parsed);   // 错栏归一化（不改判断，只修字段名位）
     const receipt = {
       camp: camp.key,
       camp_label: camp.label,
@@ -482,10 +499,12 @@ async function main() {
       dispatch: {
         mode: "direct-http",
         transport: r.fallbackReason ? "json(fallback)" : a.noStream ? "json" : "stream",
-        endpoint: camp.base + "/chat/completions",
+        // 实际使用的端点（含降级后的备路 base），非主渠道 base——防回执误报渠道
+        endpoint: (used.base ?? camp.base) + "/chat/completions",
         http_status: r.http,
         latency_ms: r.latencyMs,
         model_echo: r.modelEcho,
+        ...(used.fallbackFrom ? { fallback_from: used.fallbackFrom } : {}),
         ...(r.fallbackReason ? { fallback_reason: r.fallbackReason } : {}),
       },
     };

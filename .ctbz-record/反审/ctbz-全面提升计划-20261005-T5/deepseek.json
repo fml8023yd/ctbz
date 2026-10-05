@@ -1,0 +1,76 @@
+{
+  "camp": "deepseek",
+  "camp_label": "DeepSeek",
+  "provider": "workbuddy-remote",
+  "model": "deepseek-v4.1-flash",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/取证/ctbz-全面提升计划-20261005-T5.md",
+  "plan_sha256": "ae9cc5d21bf594ea1891e732168682cca20b4651558a30c72350cd231235dc26",
+  "generated_at": "2026-10-05T16:29:18.616Z",
+  "verdict": "有条件接受：核心改动方向正确，但存在测试完整性、边界条件等阻塞项，需补原始证据、全仓旧引用扫描、DOC_KNOWN_DRIFT 验证并统一路径后重审。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工。只能理解改动意图，无法独立复核或继续实施；需补证并统一路径后才可作为可执行任务。",
+    "blockers": [
+      "缺少原始 T5 任务单/验收标准与完整范围，无法判断白名单清空是否属于 T5。",
+      "没有实际文件内容、diff 或提交号，只有自述命令与摘要，无法核验 `派发闸.mjs:27`、`tests/派发闸.test.mjs:168`、`tests/文档一致性.test.mjs:41`。",
+      "路径不一致：范围写 `references/反审协议.md` §6，A1 写 `skills/ctbz/references/反审协议.md:130`；现场核对 B 的 `--plan docs/ctbz-全面提升计划-20261005.md` 与给定计划路径 `docs/取证/ctbz-全面提升计划-20261005-T5.md` 不一致。",
+      "`DOC_KNOWN_DRIFT` 声明清空但无 grep、行号或测试证据。",
+      "A3 证伪命令 `grep -c \"kimi-k2.8-preview\"` 与白名单变量 `GATE_KNOWN_MISSING/DOC_KNOWN_DRIFT` 不对应。",
+      "A2 证伪跑的是 `tests/文档一致性.test.mjs`，而动作对象是 `tests/派发闸.test.mjs:168`，证据与动作错配。",
+      "缺少全量测试、旧引用全仓扫描、Node 版本/cwd/依赖等运行前置条件，以及回滚方案。"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "计划「范围」定义 T5 为派发闸引用勘误；「改动」第 3 行额外包含 `tests/文档一致性.test.mjs` 白名单清空；A1 引 `skills/ctbz/references/反审协议.md:130`，范围写 `references/反审协议.md §6`。实际文件无法核验。",
+      "conclusion": "有条件接受",
+      "disposition": "补充原始任务单/验收标准；明确 `tests/文档一致性.test.mjs` 白名单清空属于 T5 的哪条验收；统一 `references/反审协议.md` 与 `skills/ctbz/references/反审协议.md:130` 的引用路径。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "可接受",
+      "evidence": "计划「改动」第 1 行：`skills/ctbz/scripts/派发闸.mjs:27` SKELETON 改指 `反审直连.mjs`；A1 取舍明确否掉「新建反审.mjs 包装壳」以避免第二入口。实际文件无法核验。",
+      "conclusion": "接受",
+      "disposition": "保留该方向；补一次全仓 `反审.mjs` 旧引用扫描，确认无其他调用点。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "阻塞",
+      "evidence": "计划「现场核对」D 仅写「全绿」；A2 证伪跑 `tests/文档一致性.test.mjs` 而非其动作对象 `tests/派发闸.test.mjs:168`；A3 证伪用 `grep -c \"kimi-k2.8-preview\"`，与 `GATE_KNOWN_MISSING/DOC_KNOWN_DRIFT` 不对应；`DOC_KNOWN_DRIFT` 清空无独立证据。",
+      "conclusion": "不接受",
+      "disposition": "补原始测试输出、exit code、用例数；跑全量测试；修正 A2/A3 证伪命令；单独验证 `DOC_KNOWN_DRIFT` 清空且无未修白名单项。"
+    },
+    {
+      "view": "边界条件",
+      "category": "阻塞",
+      "evidence": "计划「现场核对」B 使用 `--plan docs/ctbz-全面提升计划-20261005.md --workspace .`，与题面给定计划路径 `docs/取证/ctbz-全面提升计划-20261005-T5.md` 不一致；未写 cwd、Node 版本、目标文件缺失或路径含空格时的行为。",
+      "conclusion": "不接受",
+      "disposition": "用实际计划路径与固定 cwd 重跑；补缺失文件、相对/绝对路径、不同 cwd 的边界用例；声明运行环境。"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "计划「改动」仅涉及字符串常量与测试白名单；未引入网络、依赖、权限或运行时循环；清空白名单恢复 fail-closed。实际文件无法核验。",
+      "conclusion": "接受",
+      "disposition": "无性能/安全阻塞；仍需全量回归确认清空白名单未误伤其他已知项。"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "计划「现场核对」与「行动账」提供命令和摘要，但未附原始输出；`↗A/B/C/D` 无锚点说明；A2/A3 证伪与动作错配，复核者需自行猜测。",
+      "conclusion": "有条件接受",
+      "disposition": "补原始输出、diff、提交号；统一锚点与命令；修正 A2/A3 证伪，使复核者可逐步复现。"
+    }
+  ],
+  "summary": "改动方向正确且架构/性能风险低，但证据链不完整，主要卡在白名单清空范围、DOC_KNOWN_DRIFT 未验证、A2/A3 证伪错配及计划路径不一致。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "http://127.0.0.1:7864/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 65623,
+    "model_echo": "deepseek-v4.1-flash"
+  }
+}

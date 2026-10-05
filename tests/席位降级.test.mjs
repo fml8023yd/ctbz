@@ -43,10 +43,10 @@ test('deepseek 席在官方凭据缺失时尝试声明的降级渠道（不触�
   assert.match(r.stdout, /deepseek/);
 });
 
-test('尝试序列由席位表封顶：官方在前、备选在后、恰好两条', () => {
+test('尝试序列由席位表封顶：本地网关在前、远程网关在后、恰好两条', () => {
   assert.deepEqual(seatAttempts('deepseek'), [
-    {provider: 'deepseek-official', model: 'deepseek-flash'},
     {provider: 'workbuddy', model: 'deepseek-v4.1-flash'},
+    {provider: 'workbuddy-remote', model: 'deepseek-v4.1-flash'},
   ]);
   // 未声明备选的席位只有一条：不得借道他人渠道。
   assert.equal(seatAttempts('tencent').length, 1);
@@ -64,7 +64,7 @@ test('双渠道都不可用时判 fail，且明示降级已尝试（失败级联
     {encoding: 'utf8', env: {...process.env, CTBZ_ZC_CONFIG: cfg}});
   assert.equal(r.status, 1);
   assert.match(r.stdout + r.stderr, /凭据缺失/);
-  assert.match(r.stdout + r.stderr, /已尝试降级到 workbuddy\/deepseek-v4.1-flash/);
+  assert.match(r.stdout + r.stderr, /已尝试降级到 workbuddy-remote\/deepseek-v4\.1-flash/);
 });
 
 test('降级回执被派发闸按备选 provider 放行；未声明的 provider 组合仍判红', () => {
@@ -95,23 +95,23 @@ test('降级回执被派发闸按备选 provider 放行；未声明的 provider 
   assert.match(r.stdout + r.stderr, /model 未落席位表/);
 });
 
-// 官方渠道可用时必须优先官方，不得直接走备选（评审要求：官方回正可核验）。
-test('官方渠道可用时优先官方，回执 provider 落官方', () => {
-  // 站点不联网：把官方与备选都指向本地必然拒绝的端口，验证「先试官方」的顺序而非结果。
+// 主渠道可用时必须优先主渠道，不得直接走备选（评审要求：主渠道回正可核验）。
+test('主渠道可用时优先主渠道，回执 provider 落主渠道', () => {
+  // 站点不联网：把主渠道与备选都指向本地必然拒绝的端口，验证「先试主渠道」的顺序而非结果。
   const dir = mkdtempSync(join(tmpdir(), 'ctbz-seat-order-'));
   const cfg = join(dir, 'config.json');
   writeFileSync(cfg, JSON.stringify({provider: {
-    'ds': {name: 'DS', options: {baseURL: 'https://api.deepseek.com', apiKey: 'fixture-ds'}},
     'wb': {name: 'WB', options: {baseURL: 'http://127.0.0.1:7864/v1', apiKey: 'fixture-wb'}},
+    'wb-remote': {name: 'WBR', options: {baseURL: 'https://wb.2btocken.xyz/v1', apiKey: 'fixture-wbr'}},
   }}));
   const attempts = seatAttempts('deepseek');
-  assert.equal(attempts[0].provider, 'deepseek-official', '官方渠道必须排在第一位');
-  assert.equal(attempts[0].model, 'deepseek-flash');
-  assert.equal(attempts[1].provider, 'workbuddy');
+  assert.equal(attempts[0].provider, 'workbuddy', '本地 WB 网关必须排在第一位');
+  assert.equal(attempts[0].model, 'deepseek-v4.1-flash');
+  assert.equal(attempts[1].provider, 'workbuddy-remote');
   // 两条尝试的 provider 都在配置中可解析（证明顺序可执行，而非纸面约定）。
   const r = spawnSync(process.execPath,
     [DIRECT, '--plan', planFixture(), '--workspace', process.cwd(), '--camps', 'deepseek', '--dry-run'],
     {encoding: 'utf8', env: {...process.env, CTBZ_ZC_CONFIG: cfg}});
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /api\.deepseek\.com/);
+  assert.match(r.stdout, /127\.0\.0\.1:7864/);
 });
