@@ -45,11 +45,9 @@ function defaultWorkspace() {
   return r.status === 0 && r.stdout.trim() ? resolve(r.stdout.trim()) : process.cwd();
 }
 
-function stateRoot() {
+function stateRoot(workspace) {
   if (process.env.CTBZ_HOME) return resolve(process.env.CTBZ_HOME);
-  const loc = readJson(join(homedir(), ".ctbz-location.json"));
-  if (typeof loc?.root === "string") return loc.root;
-  return join(homedir(), "Documents", ".ctbz");
+  return join(workspace, ".zcode", "ctbz");
 }
 
 // 世代 team.json：先认 初始化状态.json 的 teamPath，找不到再扫 generations/*/team.json 取 mtime 最新
@@ -245,7 +243,7 @@ export async function main(argv = process.argv.slice(2)) {
   if (args.help) { console.log(USAGE); return 0; }
 
   const ws = args.workspace ? resolve(args.workspace) : defaultWorkspace();
-  const root = stateRoot();
+  const root = stateRoot(ws);
   const state = readJson(join(root, "初始化状态.json"));
   const teamPath = teamFileOf(state, root);
   const gen = analyzeGeneration(teamPath ? readJson(teamPath) : null);

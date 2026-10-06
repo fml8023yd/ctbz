@@ -1,0 +1,74 @@
+{
+  "camp": "zhipu",
+  "camp_label": "智谱",
+  "provider": "workbuddy",
+  "model": "glm-5.3-flash",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/ctbz-codex-迁移计划-20261006.md",
+  "plan_sha256": "315b313b51862852361278e72d18d1ac303805a06eaafa52964d059c25573f0e",
+  "generated_at": "2026-10-06T04:07:10.119Z",
+  "verdict": null,
+  "fresh_agent_test": {
+    "conclusion": "基本可开工，但存在若干卡点：T2 中「复制共享核心」的具体范围、Codex skill 的调用方式（宿主如何传入 collaboration API）、T4 的 L3/L4 验收定义均未内联，新 Agent 需猜测或追问。",
+    "blockers": [
+      "T2「复制共享核心」未列出需复制的具体文件/目录清单，新 Agent 无法判断复制边界",
+      "Codex skill 如何被宿主调用（collaboration API 的输入输出格式、鉴权假设）未内联，contract 字段仅有名称无示例 JSON",
+      "T4 提到 L3/L4 验收但未定义其内容与命令",
+      "「最多两个 Codex 子进程」的计数与释放机制（超限行为：拒绝/排队）未定义",
+      "A4 验收仅检查 git status，未验证「提交和 tag 存在」这一成功证据（成功证据栏提到但验收命令缺失）"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "可接受",
+      "evidence": "计划「需求诊断」表：原始表述、真实问题、目标结果、非目标、成功证据五行齐备；目标结果与 T1–T3 任务一一对应",
+      "conclusion": "接受",
+      "disposition": "无需改动"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "「接口契约」表 Codex adapter 行输出字段含 maxAgents=2、agentRequest、回执字段，但未见字段类型/示例；T2 只说「复制共享核心」无清单",
+      "conclusion": "有条件接受",
+      "disposition": "补充 adapter contract 的示例 JSON（字段名、类型、必填性）与复制文件清单"
+    },
+    {
+      "view": "测试完整性",
+      "category": "非阻塞",
+      "evidence": "「验收」表 A1–A4 有命令；但成功证据栏要求「提交和 tag 存在」，A4 命令仅 `git -C ../CTBZ-Codex status --short --branch` 不校验提交/tag",
+      "conclusion": "有条件接受",
+      "disposition": "A4 增补 `git log -1` 与 `git tag` 校验；建议为「未发现 workspace 返回明确错误」（自疑 1）补对应用例"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "「自疑」第 1 条已覆盖 workspace 未发现场景并有证伪命令；但「最多两个 Codex 子进程」在第 3 个请求到达时的行为（拒绝/排队/等待）未定义",
+      "conclusion": "有条件接受",
+      "disposition": "在失败恢复协议（T3）中定义并发上限触达时的拒绝与重试语义"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "「自疑」第 2、3 条已覆盖不直连模型与不带入凭据/记录（rg 零匹配证伪）；但 T2 复制仓库时对 secrets/credentials 的通用扫描仅在 ls-files 模式列举了 credentials、db.sqlite，未含密钥类文件通配（如 *.pem、.env）",
+      "conclusion": "有条件接受",
+      "disposition": "扩展自疑 3 的 rg 模式覆盖 .env、*.pem、token 等常见敏感文件"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "T1 保留显式 `--home` 兼容读取、默认不写全局 locator，且「构建期六问-冲突」行明确旧显式 home 不被覆盖；但用户旧数据在 `~/Documents/.ctbz` 的迁移/读取策略未说明",
+      "conclusion": "有条件接受",
+      "disposition": "说明既有全局数据的读取回退或一次性迁移策略，避免老用户 session 丢失"
+    }
+  ],
+  "summary": "计划结构完整、证伪意识强，属轻量可执行级；主要缺口在 contract 示例、并发上限语义、L3/L4 定义与 A4 验收命令对齐，均可作为非阻塞条件补齐后开工。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "https://work.htibinak.com/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 23535,
+    "model_echo": "glm-5.3-flash"
+  }
+}

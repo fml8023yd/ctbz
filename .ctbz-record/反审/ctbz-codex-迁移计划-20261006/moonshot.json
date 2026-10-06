@@ -1,0 +1,75 @@
+{
+  "camp": "moonshot",
+  "camp_label": "月之暗面",
+  "provider": "workbuddy",
+  "model": "kimi-k2.7",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/ctbz-codex-迁移计划-20261006.md",
+  "plan_sha256": "315b313b51862852361278e72d18d1ac303805a06eaafa52964d059c25573f0e",
+  "generated_at": "2026-10-06T04:07:41.552Z",
+  "verdict": "存在阻塞性缺口（测试文件与接口 schema 未内联、外部证据不可核验），L1 前需补全目录结构、测试清单、契约示例与可核验证据后方可接受开工。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工",
+    "blockers": [
+      "新仓库目录结构与共享核心同步机制未给出，无法确定复制源与目标",
+      "接口契约缺少具体 JSON schema、示例输出与错误返回，无法编写 Codex adapter",
+      "验收命令引用的 tests/体检.test.mjs、tests/execution-chain.test.mjs、tests/codex-adapter.test.mjs 未在计划中内联用例、断言与 fixture",
+      "plan_sha256 标注为“待执行 L1”，且 §现场核对 全部引用外部取证文件，新鲜 Agent 无法核验",
+      "模型路由表与“最多两个 Agent 的失败恢复协议”仅在 T3 提及，无具体内容",
+      "Git remote URL、分支名、tag 命名规则与推送策略未明确"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "§现场核对 四条断言均引用外部 docs/取证/ctbz-codex-迁移计划-20261006-取证.md 行号，本 prompt 未内联，无法核验；§需求诊断“目标结果”要求新仓库有本地提交、远端配置与 tag，但 §方案与任务 T3/T4 仅写“增加版本与 Git 元数据”/“分别验证”，未明确 tag 动作；计划头部 plan_sha256: 待执行 L1 与 prompt 给出的 sha256 不一致",
+      "conclusion": "有条件接受",
+      "disposition": "要求将外部取证内容内联或附摘要，并在 T3/T4 中明确 tag 创建命令、remote 配置与 plan_sha256 更新责任人"
+    },
+    {
+      "view": "架构合理性",
+      "category": "非阻塞",
+      "evidence": "§方案与任务 T2 提出“复制共享核心，新增 skills/ctbz-codex Harness 适配层、Codex skill、JSON contract 生成器与测试”，但未说明新仓库目录结构、核心共享方式（subtree/submodule/直接复制）、适配器与 ZCode/Codex 子进程边界的调用时序；§接口契约仅列输入输出，无字段类型、错误 schema 与状态转换",
+      "conclusion": "有条件接受",
+      "disposition": "要求补充新仓库目录树、核心同步机制、子进程生命周期时序图/状态机与 adapter 内部分层后再开工"
+    },
+    {
+      "view": "测试完整性",
+      "category": "阻塞",
+      "evidence": "§验收 A1-A4 列出测试命令，但所需文件 tests/体检.test.mjs、tests/execution-chain.test.mjs、tests/codex-adapter.test.mjs 仅在 §行动账/§自疑 作为证伪命令出现，计划未内联测试用例、断言、mock/fixture 与测试数据准备步骤；§接口契约无预期输出示例",
+      "conclusion": "不接受",
+      "disposition": "阻塞开工，需补全测试文件清单、每个测试的输入/断言、mock 宿主 collaboration API 方案与失败场景用例"
+    },
+    {
+      "view": "边界条件",
+      "category": "非阻塞",
+      "evidence": "§自疑 #1 覆盖 workspace 未找到场景，但未覆盖 .zcode/ctbz 目录不存在或不可写、Git workspace 嵌套/多仓库、路径注入、--home 指向旧全局目录等边界；§接口契约未定义错误码与回退行为",
+      "conclusion": "有条件接受",
+      "disposition": "要求补充路径不存在/权限失败/嵌套 workspace/旧 home 兼容的边界用例、错误码与回退策略"
+    },
+    {
+      "view": "性能安全",
+      "category": "可接受",
+      "evidence": "§接口契约 Codex adapter 输出 maxAgents=2；§需求诊断“非目标”明确不改 provider 凭据、宿主数据库或 ZCode 应用；§自疑 #2 明确禁止 fetch/apiKey/credentials/spawn_teammate 模式",
+      "conclusion": "接受",
+      "disposition": "保持，执行阶段按 §自疑 #2 执行代码扫描并将结果内联到取证中"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "§方案与任务 T1 保留 --home 显式兼容，但 §需求诊断“真实问题”指出当前默认写入全局 home；计划未说明切换默认后现有 ~/.ctbz-location.json 用户如何迁移、历史 session 是否静默丢失、文档如何提示",
+      "conclusion": "有条件接受",
+      "disposition": "要求在 T1 文档中增加迁移提示、旧 home 兼容读取的明确行为、用户通知文案与回退命令"
+    }
+  ],
+  "summary": "目标清晰，但当前计划粒度不足，无法让新鲜 Agent 直接开工，需在测试、架构与契约细节上细化。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "https://work.htibinak.com/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 54969,
+    "model_echo": "kimi-k2.7"
+  }
+}

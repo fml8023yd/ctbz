@@ -1,0 +1,76 @@
+{
+  "camp": "deepseek",
+  "camp_label": "DeepSeek",
+  "provider": "workbuddy",
+  "model": "deepseek-v4.1-flash",
+  "round": "1",
+  "plan": "/Users/master/CODEX/草台班子/源码/docs/ctbz-codex-迁移计划-20261006.md",
+  "plan_sha256": "315b313b51862852361278e72d18d1ac303805a06eaafa52964d059c25573f0e",
+  "generated_at": "2026-10-06T04:07:14.689Z",
+  "verdict": "不接受：方向可辨，但架构复制边界、适配器契约 schema、2-agent 失败恢复与验收闭环缺失，Fresh Agent 无法直接开工。",
+  "fresh_agent_test": {
+    "conclusion": "不能直接开工。计划给出了目标与粗任务，但关键可执行细节和测试闭环不足。",
+    "blockers": [
+      "T2 只写“在新仓库复制共享核心”，未给源仓库/新仓库路径、复制文件清单、排除项、同步/版本策略，无法判断复制边界。",
+      "Codex adapter 的接口表只有 phase/role/prompt/writeSet/parentModel 与 model/maxAgents/agentRequest/回执字段，未给 JSON schema、示例、回执字段全集和错误字段。",
+      "模型路由仅见“计划 Astra，其余 gpt-6.1-sol”，未定义 phase/role 到具体 model 的映射规则。",
+      "T3 要求“最多两个 Agent 的失败恢复协议”，但未给状态机、触发条件、重试/降级/终止、回执和幂等要求。",
+      "验收 A4 只检查 git status，未检查提交、tag、remote 配置与 push 失败路径，无法闭环“提交和 tag 存在”“远端配置”。",
+      "旧全局状态 ~/.ctbz-location.json 与 ~/Documents/.ctbz 的迁移、兼容、回滚策略未定义。",
+      "计划关键事实依赖外部取证文件与源码行号，本 prompt 无文件读取工具，无法核验；计划未内联这些事实。"
+    ]
+  },
+  "verdicts": [
+    {
+      "view": "需求一致性",
+      "category": "非阻塞",
+      "evidence": "《需求诊断》成功证据要求“提交和 tag 存在”；《验收》A4 仅 `git -C ../CTBZ-Codex status --short --branch`；T3 要求模型路由但未给映射表。",
+      "conclusion": "有条件接受",
+      "disposition": "补充模型路由表，并把 A4 扩展为检查 status、log、tag、remote 与 push 失败记录，确保成功证据逐项有命令。"
+    },
+    {
+      "view": "架构合理性",
+      "category": "阻塞",
+      "evidence": "T2 写“在新仓库复制共享核心”；《接口契约》仅列输入/输出名，未定义共享核心与 Codex adapter 的模块边界、版本同步和契约归属。",
+      "conclusion": "不接受",
+      "disposition": "先产出复制清单、排除清单、核心版本同步策略、adapter 与宿主 collaboration 的边界图及 contract schema，再开工。"
+    },
+    {
+      "view": "测试完整性",
+      "category": "阻塞",
+      "evidence": "《验收》A1-A4 只有命令名；A3 只写 `node --test tests/codex-adapter.test.mjs`，未列 maxAgents=2、模型路由、回执、失败恢复、负例等测试用例。",
+      "conclusion": "不接受",
+      "disposition": "为每个接口契约和成功证据补正例/负例测试，并纳入验收表；A3 需明确断言字段与错误路径。"
+    },
+    {
+      "view": "边界条件",
+      "category": "阻塞",
+      "evidence": "《自疑》仅覆盖 workspace 不存在、适配器直连模型、复制带入用户状态；T3 只提“失败恢复协议”，未展开。",
+      "conclusion": "不接受",
+      "disposition": "补边界矩阵：workspace 缺失/非 Git、--home 与 --workspace 冲突、权限失败、并发初始化、2-agent 达上限、子进程超时/失败、远端不可达与 tag 冲突、路径规范化。"
+    },
+    {
+      "view": "性能安全",
+      "category": "非阻塞",
+      "evidence": "《自疑》2 检查 fetch/apiKey/credentials/spawn_teammate，3 检查复制凭证/状态；但未提 writeSet 强制、路径穿越、secret 扫描、子进程超时/背压。",
+      "conclusion": "有条件接受",
+      "disposition": "增加安全清单（路径 canonicalize、writeSet 校验、secret 扫描、权限最小化）与性能清单（超时、并发上限、重试上限、push 退避）。"
+    },
+    {
+      "view": "用户体验",
+      "category": "非阻塞",
+      "evidence": "T3 要求“统一入口文档、模型路由和最多两个 Agent 的失败恢复协议”，但无安装/调用示例、错误码、旧状态迁移与回滚说明。",
+      "conclusion": "有条件接受",
+      "disposition": "补 quickstart、常见错误码、旧全局状态迁移到项目 `.zcode/ctbz` 的步骤、双仓库操作与回滚手册。"
+    }
+  ],
+  "summary": "计划方向与目标基本可辨，但复制边界、契约 schema、失败恢复、边界矩阵与验收闭环不足，当前不宜直接开工。",
+  "dispatch": {
+    "mode": "direct-http",
+    "transport": "stream",
+    "endpoint": "https://work.htibinak.com/v1/chat/completions",
+    "http_status": 200,
+    "latency_ms": 28117,
+    "model_echo": "deepseek-v4.1-flash"
+  }
+}

@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {storageRoot,storageLocation,documentsDir,ensureStorage} from './lib/存储位置.mjs';
+import {discoverWorkspace} from './lib/paths.mjs';
 import {initialize,selectProfile} from './lib/初始化.mjs';
 import {read,safe,atomic,defaultRules,rulesFile,route} from './lib/本机配置.mjs';
 import {fingerprint} from './lib/team-config.mjs';
@@ -14,10 +15,12 @@ const scripts=path.dirname(fileURLToPath(import.meta.url)),root=path.resolve(scr
 function run(name,args){const r=spawnSync(process.execPath,[path.join(scripts,name),...args],{encoding:'utf8'});if(r.status!==0)throw Error(`${name}: ${r.stderr||r.stdout}`);return JSON.parse(r.stdout);}
 try{
   const [cmd,...argv]=process.argv.slice(2),a={};
-  const allowed=['--home','--storage','--agents','--config','--catalog','--selection','--allow-all-candidates','--session','--loaded','--role','--parent-model','--excluded','--now'];
+  const allowed=['--home','--storage','--workspace','--agents','--config','--catalog','--selection','--allow-all-candidates','--session','--loaded','--role','--parent-model','--excluded','--now'];
   for(let i=0;i<argv.length;i+=2){if(!allowed.includes(argv[i])||!argv[i+1]||Object.hasOwn(a,argv[i]))throw Error('参数无效');a[argv[i]]=argv[i+1];}
   for(const flag of ['--config','--catalog','--selection','--loaded','--excluded'])if(a[flag])safe(a[flag],false,flag);
-  const home=a['--home']?safe(a['--home'],true,'--home'):storageRoot(a['--storage'],homedir());
+  let workspace=null;
+  try { workspace=safe(a['--workspace']??discoverWorkspace(),true,'--workspace'); } catch (e) { if (cmd !== 'status' && !a['--home'] && !a['--storage']) throw e; }
+  const home=a['--home']?safe(a['--home'],true,'--home'):storageRoot(a['--storage'],homedir(),workspace);
   const agents=path.resolve(safe(a['--agents']??path.join(homedir(),'.zcode/agents'),true,'--agents'));
   if(!home && cmd!=='status') throw Error('请先选择状态目录：documents、绝对自定义目录或later');
   const statePath=home&&path.join(home,'初始化状态.json'),rulesPath=home&&path.join(home,'调用规则.json'),marker=home&&path.join(home,'已初始化.txt');

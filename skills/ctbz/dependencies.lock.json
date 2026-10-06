@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "45cac9d1a8286d5c0abdee64304da38042bfba79b3b6ca512d6712f071ac60ef"
+      "sha256": "2eac9f841f00fec6c7dd0d52e45bd45daf092cc93fe173e115d33df541f99e05"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -203,7 +203,7 @@
     },
     {
       "path": "references/初始化.md",
-      "sha256": "1235b62b51e55ef0c8eb847ce2ca2d7b63ca704490dd21cfe147dbdd016bd297"
+      "sha256": "b2123f7862b7557a46cb731ce9b4ffc553b7aed4aac2e479d2c777d7077fb874"
     },
     {
       "path": "references/反审协议.md",
@@ -235,7 +235,7 @@
     },
     {
       "path": "scripts/initialize",
-      "sha256": "eaf89f23d43bb0818e17433caf9a4573bbdca82f3088620fb6fdde24dacfa007"
+      "sha256": "3a94f871822136efa34d35dd696615a1d7dcb7a2038bb888a8ccf3934e9a37b5"
     },
     {
       "path": "scripts/lib/dashboard-artifacts.mjs",
@@ -283,7 +283,7 @@
     },
     {
       "path": "scripts/lib/存储位置.mjs",
-      "sha256": "139cb9aa86e2175de36f3cf076abb1d2e4e84fadf4cc269e88244d38b3c4f2fe"
+      "sha256": "33d30ebecf778e654e76a4c227f852594b298cd3258066e1f6df5927b49006ce"
     },
     {
       "path": "scripts/lib/本机配置.mjs",
@@ -335,7 +335,7 @@
     },
     {
       "path": "scripts/体检.mjs",
-      "sha256": "e0b1ca0773bd29c804544f1396a211d00c8489233f252f208e42d03f7be49daf"
+      "sha256": "7d29198529d0073d330015e412e8f586c063739c84baf60db57a1bd179e9a9d7"
     },
     {
       "path": "scripts/内审.mjs",
