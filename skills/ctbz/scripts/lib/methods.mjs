@@ -23,39 +23,39 @@ export function bundleFiles(root = installRoot) {
   return files.sort();
 }
 
-function localFile(relative) {
+function localFile(relative, root = installRoot) {
   if (typeof relative !== 'string' || path.isAbsolute(relative) || relative === 'dependencies.lock.json' || relative.includes('\\') || relative.split('/').some(x => !x || x === '.' || x === '..')) throw Error('内置依赖路径无效');
-  return path.join(installRoot, relative);
+  return path.join(root, relative);
 }
 
-export function verifyBundle() {
+export function verifyBundle(root = installRoot) {
   try {
-    const lockPath = path.join(installRoot, 'dependencies.lock.json');
+    const lockPath = path.join(root, 'dependencies.lock.json');
     if (!fs.lstatSync(lockPath).isFile() || fs.lstatSync(lockPath).isSymbolicLink()) throw Error('依赖锁必须是普通文件');
     const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
     if (lock.schemaVersion !== 1 || !Array.isArray(lock.files)) throw Error('依赖锁格式无效');
     const listed = new Set();
     for (const item of lock.files) {
-      const file = localFile(item.path);
+      const file = localFile(item.path, root);
       if (listed.has(item.path) || !/^[a-f0-9]{64}$/.test(item.sha256)) throw Error('依赖锁重复或摘要无效');
       listed.add(item.path);
       if (fs.lstatSync(file).isSymbolicLink() || digest(fs.readFileSync(file)) !== item.sha256) throw Error(`依赖文件已变化: ${item.path}`);
     }
-    const actual = bundleFiles();
+    const actual = bundleFiles(root);
     if (JSON.stringify(actual) !== JSON.stringify([...listed].sort())) throw Error('依赖文件集合与锁不一致');
     if (JSON.stringify(actual.filter(file => path.basename(file) === 'SKILL.md')) !== JSON.stringify(['SKILL.md'])) throw Error('安装根只能有一个 SKILL.md 入口');
-    const index = JSON.parse(fs.readFileSync(path.join(installRoot, 'methods/index.json'), 'utf8'));
+    const index = JSON.parse(fs.readFileSync(path.join(root, 'methods/index.json'), 'utf8'));
     if (index.schemaVersion !== 1 || !Array.isArray(index.methods) || JSON.stringify(index.methods.map(m => m.id).sort()) !== JSON.stringify(expected)) throw Error('需要完整且唯一的 14 项 Superpowers 方法和 2 项辅助方法');
     for (const method of index.methods) {
       if (!Array.isArray(method.resources) || !Array.isArray(method.roles) || !method.roles.length) throw Error(`方法索引无效: ${method.id}`);
       for (const relative of [method.entry, ...method.resources, 'methods/contract.md']) {
         if (typeof relative !== 'string' || !relative.startsWith('methods/')) throw Error('运行方法资源必须位于 methods 目录');
-        localFile(relative);
+        localFile(relative, root);
         if (!listed.has(relative)) throw Error(`方法资源未锁定: ${relative}`);
       }
     }
-    return {installRoot, fingerprint: digest(JSON.stringify(lock)), methods: index.methods};
-  } catch (error) { throw Error(`CTBZ 内置依赖检查失败，请修复安装包后重新 prepare/activate: ${error.message}`); }
+    return {installRoot: root, fingerprint: digest(JSON.stringify(lock)), methods: index.methods};
+  } catch (error) { throw Error(`CTBZ 内置依赖检查失败，请修复源码并重装: ${error.message}`); }
 }
 
 export function requireBundleBinding(bundle, current = verifyBundle()) {

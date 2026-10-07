@@ -1,86 +1,13 @@
 #!/usr/bin/env node
-// 部署 —— 草台班子 v1.8.2（开发工作区 → 运行安装目录，一条命令）
-// 用法: node 部署.js [--check-only]
-// 流程: git 目录(本脚本上级=源码) 的 skills/ctbz → rsync 到 ~/.agents/skills/ctbz
-//       → 自动跑 发布检查.js（lock 重算 + verifyBundle + initialize 冒烟）
-// 原则: 开发工作区是唯一源；安装目录只被部署写入，不再手改。
-
-import { execSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { readdirSync, statSync, readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
-import { homedir } from "node:os";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { reviewChainProblems } from "./lib/反审链.mjs";
-
-const ROOT = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))); // 仓库根（scripts/ctbz 上四级）
-const SRC = join(ROOT, "skills", "ctbz");
-const DST = join(homedir(), ".agents", "skills", "ctbz");
-const CHECK_ONLY = process.argv.includes("--check-only");
-const baselinePath = join(homedir(), "Documents", ".ctbz", "部署基线.json");
-
-function listFiles(dir, out = []) {
-  if (!existsSync(dir)) return out;
-  for (const ent of readdirSync(dir, { withFileTypes: true })) {
-    if (ent.name === ".DS_Store" || ent.name === "__pycache__" || ent.name === ".backups") continue;
-    const p = join(dir, ent.name);
-    if (ent.isDirectory()) listFiles(p, out); else if (ent.isFile()) out.push(p);
-  }
-  return out;
-}
-const hashFile = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
-
-function rsync() {
-  // --delete 保证镜像一致（删掉安装目录里的多余文件，防血统残留）
-  execSync(`rsync -a --delete --exclude '__pycache__' --exclude '.backups' "${SRC}/" "${DST}/"`, { stdio: "inherit" });
-  // dashboard-example 历史残留清理（1.8.1 已归档出引擎树）
-  try { execSync(`rm -rf "${join(DST, "scripts/dashboard-example")}"`); } catch {}
-}
-
+import {homedir} from 'node:os';
+import {deploy, repositoryRoot} from './lib/release.mjs';
 try {
-  if (CHECK_ONLY) {
-    console.log("== --check-only：仅发布检查，不同步 ==");
-  } else {
-    // 部署前确认源码目录干净（无未提交改动时才同步——防止部署半成品）
-    const dirty = execSync(`git -C "${ROOT}" status --short`, { encoding: "utf8" }).trim();
-    if (dirty) {
-      console.error(`✗ 开发工作区有未提交改动，先 commit 再部署：\n${dirty}`);
-      process.exit(1);
-    }
-    console.log("== 反向检测（上次部署基线 vs 安装目录）==");
-    // 判定"安装侧被手改"的正解：与上次部署清单比对，而非与仓库 diff（differ 不分方向会拦死正常部署）
-    if (existsSync(baselinePath)) {
-      const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
-      const cur = {}; for (const f of listFiles(DST)) cur[f.slice(DST.length + 1)] = hashFile(f);
-      const drift = Object.keys(cur).filter(k => baseline[k] !== cur[k]);
-      if (drift.length) {
-        console.error(`✗ 安装目录相对上次部署被手改（${drift.length} 处，rsync --delete 会抹掉）：\n${drift.slice(0, 5).join("\n")}\n→ 先把安装侧改动写回仓库再部署。`);
-        process.exit(1);
-      }
-    }
-    console.log("（无基线或一致，放行）");
-    // 反审链覆盖检查（2.1.3）：改了 skills/ctbz/scripts 下的脚本却没有对应反审回执，
-    // 说明「先改后审」。这条不是风格要求——同类违规已发生两次（docs/内审/2026-09-30-*.md），
-    // 且第一次登记的机制修改项本就挂在部署步，故在此强制。
-    const chain = reviewChainProblems(ROOT);
-    if (chain.problems.length) {
-      console.error(`✗ 反审链缺失（改动脚本但无对应回执）：\n${chain.problems.map((p) => "  " + p).join("\n")}\n${chain.fix}`);
-      process.exit(1);
-    }
-    if (chain.checked) console.log(`（反审链覆盖：${chain.files.length} 个脚本改动，回执齐）`);
-    console.log("== rsync 同步（源→安装目录，--delete 镜像）==");
-    rsync();
+  const args = process.argv.slice(2);
+  let home = process.env.CTBZ_INSTALL_HOME || homedir(), checkOnly = false;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--home-dir' && args[i + 1]) home = args[++i];
+    else if (args[i] === '--check-only') checkOnly = true;
+    else throw Error('usage: 部署.js [--home-dir <absolute-home>] [--check-only]');
   }
-  console.log("== 发布检查（lock 重算 + verifyBundle + initialize 冒烟）==");
-  execSync(`node "${join(dirname(fileURLToPath(import.meta.url)), "发布检查.js")}" "${DST}"`, { stdio: "inherit" });
-  // 写部署基线（供下次反向检测）
-  try {
-    mkdirSync(dirname(baselinePath), { recursive: true });
-    const base = {}; for (const f of listFiles(DST)) base[f.slice(DST.length + 1)] = hashFile(f);
-    writeFileSync(baselinePath, JSON.stringify(base, null, 2));
-  } catch {}
-  console.log("✓ 部署完成。");
-} catch (e) {
-  console.error(`✗ 部署失败: ${e.message}`);
-  process.exit(1);
-}
+  console.log(JSON.stringify(deploy(repositoryRoot, home, {checkOnly}), null, 2));
+} catch (error) { console.error(error.message); process.exitCode = 1; }

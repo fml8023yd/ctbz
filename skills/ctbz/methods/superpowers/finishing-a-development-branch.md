@@ -12,8 +12,10 @@
 
 ## 清理条件
 
-CTBZ 管理 worktree 仅由父会话按 [worktree 契约](../../references/worktrees.md) 调用 `node "<skill>/scripts/worktree" cleanup --manifest "<manifest>" --task-id <task>`，使用 manifest 中已持久化 ownership。只有已完成、已集成、验证通过、clean 且用户保留策略允许时请求清理；CLI 拒绝就保留并报告原因，不直接强删。
+CTBZ 管理 worktree 仅由父会话按 [worktree 契约](../../references/worktrees.md) 调用 `node "<zcode-adapter>/scripts/worktree" cleanup --manifest "<manifest>" --task-id <task>`，使用 manifest 中已持久化 ownership。只有已完成、已集成、验证通过、clean 且用户保留策略允许时请求清理；CLI 拒绝就保留并报告原因，不直接强删。
 
 宿主或外来工作区由其所有者管理，不按目录名推断归属。所有 `.ctbz-record` 过程材料长期保留，即使分支已集成；用户明确要求丢弃时也先辨明实际范围与现有授权，不能顺带删除旁支或历史证据。
 
 验收：交付位置与版本明确，集成后的证据可读，未验证宿主/外部行为准确标注；恢复会话能读到完成状态和原因，不重做已完成工作。
+
+0.0.1：上述 team-state/worktree CLI 仅属可选 ZCode adapter。`<zcode-adapter>` 为 `~/.zcode/skills/ctbz-zcode`；Codex 用其真实原生 worktree 工具或授权 Git 命令，父会话状态直接经共享 dashboard 记录，不要求 ZCode 初始化。

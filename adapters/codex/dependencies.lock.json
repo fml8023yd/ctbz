@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "path": "SKILL.md",
+      "sha256": "214bbce49d01c52ea1d40c6804e6639694a43a6fee9138622669f486b6b9070b"
+    },
+    {
+      "path": "adapter.json",
+      "sha256": "cc3bc6ee924fef107e6c36cb093f697397ba19e25847202a348664b2bbadff4a"
+    },
+    {
+      "path": "scripts/native.mjs",
+      "sha256": "2d27a6ff6ca565cfbcebdca336f35debcd30ed3a943d43167ffaaef08c7b3831"
+    }
+  ]
+}

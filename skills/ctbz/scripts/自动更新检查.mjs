@@ -1,15 +1,33 @@
 #!/usr/bin/env node
-/** 每日调度器入口：安全检查 GitHub 最新提交，干净时更新并部署；有本地改动则停止。 */
-import {execFileSync} from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
-import {fileURLToPath} from 'node:url';
-const root=path.resolve(fileURLToPath(new URL('../../..', import.meta.url)));
-const run=(c,a)=>execFileSync(c,a,{cwd:root,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+import {homedir} from 'node:os';
+import {execFileSync} from 'node:child_process';
+import {repositoryRoot, deploy, verifyRepository} from './lib/release.mjs';
+const git = args => execFileSync('git', args, {cwd: repositoryRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}).trim();
 try {
- if(run('git',['status','--porcelain'])) throw Error('本地有未提交改动，停止自动更新');
- const local=run('git',['rev-parse','HEAD']), remote=run('git',['ls-remote','origin','refs/heads/main']).split(/\s+/)[0];
- if(local===remote){ console.log(JSON.stringify({updated:false,local,remote})); process.exit(0); }
- run('git',['pull','--ff-only','origin','main']);
- run(process.execPath,['skills/ctbz/scripts/部署.js']);
- console.log(JSON.stringify({updated:true,localBefore:local,remote}));
-} catch(e){ console.error(e.message); process.exitCode=1; }
+  let apply = false, home = process.env.CTBZ_INSTALL_HOME || homedir();
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--apply') apply = true;
+    else if (args[i] === '--home-dir' && args[i + 1]) home = args[++i];
+    else throw Error('usage: 自动更新检查.mjs [--apply] [--home-dir <absolute-home>]');
+  }
+  if (!fs.existsSync(path.join(repositoryRoot, '.git'))) throw Error('run updater from the source checkout');
+  if (git(['status', '--porcelain'])) throw Error('source has local changes; update stopped');
+  const remote = git(['remote', 'get-url', 'origin']);
+  if (!['https://github.com/fml8023yd/ctbz.git', 'git@github.com:fml8023yd/ctbz.git'].includes(remote)) throw Error('origin must be canonical and credential-free');
+  const local = git(['rev-parse', 'HEAD']), latest = git(['ls-remote', 'origin', 'refs/heads/main']).split(/\s+/)[0];
+  if (!/^[a-f0-9]{40}$/.test(latest)) throw Error('remote main not resolved');
+  if (!apply || local === latest) { console.log(JSON.stringify({updated: false, available: local !== latest, local, latest})); }
+  else {
+    git(['fetch', 'origin', 'main']);
+    git(['merge', '--ff-only', 'FETCH_HEAD']);
+    try { verifyRepository(); const installed = deploy(repositoryRoot, home); console.log(JSON.stringify({updated: true, localBefore: local, current: git(['rev-parse', 'HEAD']), installed})); }
+    catch (error) {
+      // Restore only the clean fast-forward made above; installer has already rolled back its own transaction.
+      if (!git(['status', '--porcelain'])) git(['reset', '--hard', local]);
+      throw error;
+    }
+  }
+} catch (error) { console.error(error.message); process.exitCode = 1; }

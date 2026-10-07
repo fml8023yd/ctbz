@@ -1,2 +1,5 @@
 ctbz-pack-*.tar.gz
 .zcode/
+.codex/
+ctbz-pack-*.tar.gz.sha256
+.ctbz-record/ctbz/

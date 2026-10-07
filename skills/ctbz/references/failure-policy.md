@@ -1,101 +1,16 @@
-# 失败分类与有限恢复状态机
+# 原生失败策略 0.0.1
 
-先根据可观察错误分类，再决定 retry、恢复、handoff 或 fallback。错误文本不足以判断时标记 `unknown` 并停止自动降级，不用猜测消耗模型调用。
+| 触发 | 行为 | 记录 |
+|---|---|---|
+| 未知宿主 | 主进程执行已有授权任务 | unknown-harness |
+| 缺私有 adapter 或真实工具 | 主进程执行 | adapter-unavailable / missing-native-tools |
+| 启动失败 | 主进程执行 | native-start-failure |
+| 途中失败 | 确认旧执行停止，核查检查点后接管 | native-mid-task-failure + agentId + checkpoint |
+| 无法确认旧 Agent 停止 | 先停止旧执行，避免重复写 | awaiting-stop |
+| 权限拒绝 | 停止被拒动作，保留现场 | permission-denied |
+| 达到在途上限 2 | 排队，真实检查点再派 | concurrency-limit |
+| 主进程验收不通过 | 保留缺口，预算内回修 | parent-failed / evidence gap |
 
-Agent 默认后台运行（`run_in_background: true`），不被打断。断流时用 `SendMessage` 在原 agent 恢复，不创建新 agent——新 agent 只用于 fallback 到不同 profile。
+降级在当前 session 提示一次；每个受影响任务保留原因、回执及接管证据。主进程自审标 parent-self-review，不冒充独立 Agent 或异源模型。项目完成仍取决于用户原定验收。
 
-## 失败分类
-
-| 分类 | 典型信号 | 对 route 健康度的影响 | 动作 |
-|---|---|---|---|
-| `transient` | 408、429、502、503、504、overloaded、upstream error、stream reset、EOF、临时 timeout | 计入当前 profile 的 transient 预算 | 有限重试；同 profile 恢复；再 fallback |
-| `context` | context length、token limit、output limit | 不计 provider 断流 | 压缩落盘事实，创建新 Agent 并 handoff |
-| `auth/config` | 401、403、unknown model、unsupported reasoning、"Model provider is not configured"、`provider_not_found` | 当前 profile 在本 run 熔断 | 不盲重试；只走已验证 fallback 或 BLOCKED_CONFIG |
-| `tool/permission` | 工具缺失、权限拒绝、沙箱拒绝、命令不可用 | 不计模型健康度 | 修复契约/环境或停止，不切模型 |
-| `task/code` | 测试失败、实现错误、Reviewer 缺陷 | 不计模型健康度 | 正常开发反馈；同工作树修正，不触发渠道 fallback |
-| `cancelled` | 用户取消、父任务终止 | 不计模型健康度 | 进入 CANCELLED，不自动恢复 |
-
-父主会话本身断流后，skill 无法继续执行。不要宣称能自动自救；恢复父会话属于外部 supervisor 或 ZCode 核心能力。
-
-## 默认有限预算
-
-除非 setup 中用户明确选择更小的非负整数，默认预算为：
-
-```text
-requestRetriesPerProfile: 1
-resumeSameAgentPerProfile: 1
-attemptsPerProfile: 2
-circuitThreshold: 3
-maxFallbackProfiles: route 中剩余 profile 数量
-```
-
-每个计数都写入 manifest。route 只能向前移动、不得成环；任何有限 retry 或 fallback 用尽后停止为 `FAILED_EXHAUSTED`。不能重置计数来伪造新 run，也不能用降低 reasoning 无限追加档位。
-
-## 状态机
-
-```text
-PENDING
-  -> RUNNING(profile, agentId)
-      -> SUCCESS
-      -> TRANSIENT_WAIT
-          -> RETRY_SAME_PROFILE
-          -> RESUME_SAME_AGENT
-          -> HANDOFF_REQUIRED
-      -> HANDOFF_REQUIRED
-          -> RUNNING(new Agent, same profile or next profile)
-      -> BLOCKED_CONFIG
-      -> BLOCKED_TOOL
-      -> FAILED_EXHAUSTED
-      -> CANCELLED
-```
-
-每次迁移保存时间、错误摘要、failure class、profile、`agentId`、attempt 和剩余预算。只有明确成功结果才进入 `SUCCESS`。
-
-## transient 恢复顺序
-
-1. 在当前 profile 的预算内重试一次请求。
-2. Agent 线程仍可恢复时，通过 `SendMessage` 对同 profile、同 `agentId` 恢复一次。断流恢复优先用 `SendMessage`，不创建新 agent。
-3. 恢复失败或达到 circuit threshold 时，生成 handoff。
-4. 选择 route 中下一个已加载 profile，创建新 Agent；切换模型绝不复用旧 Agent session。
-5. route 耗尽后进入 `FAILED_EXHAUSTED`，报告已用 attempts 和最后错误。
-
-同一 profile 在一个 run 内连续达到 `circuitThreshold` 个 transient terminal failure 后熔断。优先换到用户批准且已验证的健康 provider/model；降低 reasoning 只按显式 route 顺序发生，不能被描述为 provider 恢复手段。
-
-## 重新选路
-
-本版以 `initialize select` 和本机调用规则为准；旧版“降档即冗余”和成本选型器不属于当前入口。原线程恢复失败后，将失败 profile 名称写入 JSON 数组文件，通过 `--excluded <绝对文件路径>` 重新选择已初始化、已加载的候选。
-
-每次恢复与替换保留原因、attempt 和实际 Agent ID；不能因为另一任务仍在运行就把失败任务标为完成。并行副本只有在当前任务明确需要独立判断时才建立，各自有任务契约与写入边界，不因模型名称自动增加副本。
-
-## 其他分类
-
-- `context`：将目标、已完成工作、文件状态和验证结果压缩为 handoff；新 Agent 可使用同 profile，但必须是新 `agentId`。
-- `auth/config`：立即熔断当前 profile。若没有 doctor 已验证的 fallback，进入 `BLOCKED_CONFIG`。
-- `tool/permission`：不得切 profile 规避权限。向用户报告缺少的工具或明确权限。
-- `task/code`：保留同一 worktree，向原 Implementer 发送具体测试或 review 反馈；达到任务修正预算后失败，但不污染 route health。
-- `cancelled`：停止尚未派发的依赖任务，保留 dirty 或未集成 worktree，不自动清理。
-
-## 恢复前检查
-
-任何已有副作用的 retry、resume 或 handoff 前，父主会话先检查 manifest、worktree status、完整 diff 与最近验证。重复写入可能破坏状态时，停止并要求人工决策。SendMessage 只能同档恢复；新 profile 必须新 Agent + handoff。
-
-## 分级兜底链（L0–L5，2.1.4 起）
-
-派发失败的固定前进路线，逐级单向、不成环；每级在自身预算内恰好一次（继承反审席位表「恰好一次降级」先例）：
-
-| 级 | 动作 | 触发条件 | 预算 |
-|---|---|---|---|
-| L0 | SendMessage 恢复同 agent | 断流/中断，线程仍可恢复 | 1 次 |
-| L1 | 同 profile 重试 | transient（408/429/5xx/EOF/超时） | 1 次 |
-| L2 | 同渠道换模型档（按紫禁城路由表顺序） | profile 级失败 | 每档 1 次 |
-| L3 | 同模型换渠道（仅路由表已声明的备选渠道） | 渠道级故障（欠费/401/网关不可达） | 每备选 1 次 |
-| L4 | 换 provider（仅声明后开；`crossProvider:false` 为默认） | 整个渠道不可用 | 每备选 1 次 |
-| L5 | 熔断 + 已试清单 | 以上耗尽或熔断阈值（3）触发 | — |
-
-规则：
-
-1. **先重试后记账**：L0/L1 预算用尽才把失败写入健康账本（防网关重启等瞬时抖动被判成 30 分钟冷却——2026-10-05 反审首跑 4 路全断事故实证此风险）。任一成功即 `noteSuccess`（连续成功 3 次清零退避）。
-2. **L5 行为**：停止该任务，输出「已试清单」（逐级：级→provider/model→错误摘要），等待下一轮或用户指令；不自动续跑、不重置计数伪造新 run。
-3. **降级即明示**：L2–L4 任何降级在回执行内与汇报中都标注「降级使用 X（原因）」，回执字段沿用 `fallbackFrom` / `fallback_reason` 先例。不静默降级。
-4. **不降级的情形**：`tool/permission`、`task/code` 分类不切模型（见上文分类表）；反审席独立性约束优先于可用性——审查席宁停在原阵营，不跨阵营顶替。
-5. **弱模型顶替口径**：开发类允许顶替必须明示；关键审查席（reviewer）宁停不降。
+ZCode 可选初始化/select/doctor 失败只停对应原生 profile 路径；未初始化、未激活、不合法、未加载均由主进程继续授权工作，不强迫用户新开会话。凭据缺失不索取或探活作为开工前提；API executor 默认不存在。

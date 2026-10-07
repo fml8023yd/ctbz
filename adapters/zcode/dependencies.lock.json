@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "path": "SKILL.md",
+      "sha256": "9a9323bab99a08f4bbc34bcd4fb70f705b1e1323a47e08cd559a5c681272b3d5"
+    },
+    {
+      "path": "adapter.json",
+      "sha256": "e5ad8f030eb8156070c4099a7e4c600db253d1f1cd37726a7632bd05eecfa711"
+    },
+    {
+      "path": "assets/agent-profile.md.tmpl",
+      "sha256": "78b4b460ef4a0be667ed3fad03c352840d2d067034ed3a897155d51357b349b1"
+    },
+    {
+      "path": "assets/team-config.schema.json",
+      "sha256": "696258c9eb380cd7a895e6a21283d65763e8db8278235d974dfb54c5bfa2deb6"
+    },
+    {
+      "path": "references/configuration.md",
+      "sha256": "7c93d485d10a969ffa87afb41682f0238cd3ca7dbee5727c431c00e5d0ca707d"
+    },
+    {
+      "path": "references/初始化.md",
+      "sha256": "43aa8131a89d94434eb99a5102834b93a4f9f2a2456bf8be5d4acfea17180a65"
+    },
+    {
+      "path": "scripts/core.mjs",
+      "sha256": "e6e7bfb07a47f1068d70dc40141e02a60a0e77cdb9f866bacae3ddef1b673cb7"
+    },
+    {
+      "path": "scripts/discover-config",
+      "sha256": "7ac2aa5e198bd0ed10ddda5b74a2ce98958af3680aa7af242a5ed0b8543f866d"
+    },
+    {
+      "path": "scripts/doctor",
+      "sha256": "9baed2dbba00691d252f808ba1c9659f40f0c7d70de10ff164ebcd6b7ab2f897"
+    },
+    {
+      "path": "scripts/initialize",
+      "sha256": "afd2d6c42d7e1e24e13771e84cc23b3ef335591ebccf1169f1ea663eb617f8c5"
+    },
+    {
+      "path": "scripts/lib/model-ref.mjs",
+      "sha256": "c1556f5124c6940c2c447eefe0c8166cac084d284e32ccd37e76a3e0c60f278c"
+    },
+    {
+      "path": "scripts/lib/paths.mjs",
+      "sha256": "ae754d374d4deeede752c2631eaf3b071e047be02bb61ae1e1c97c516b057a17"
+    },
+    {
+      "path": "scripts/lib/team-config.mjs",
+      "sha256": "2a97d2670e5b6fbe6ccd957e440e9c9638d46c1a040ac895f5fc5153a384cfec"
+    },
+    {
+      "path": "scripts/lib/健康账本.mjs",
+      "sha256": "0c992730cc6011a36af8b619243453beee4a6bd15a889344fa473f2c555521af"
+    },
+    {
+      "path": "scripts/lib/初始化.mjs",
+      "sha256": "a43b4e1acbd5944a7f9ce4a1337dfdd8dab0ab2468b6a7e848409a34bc5fa761"
+    },
+    {
+      "path": "scripts/lib/存储位置.mjs",
+      "sha256": "33d30ebecf778e654e76a4c227f852594b298cd3258066e1f6df5927b49006ce"
+    },
+    {
+      "path": "scripts/lib/本机配置.mjs",
+      "sha256": "ab0af0ffacbe2442105a2b88a086905570fd2fc8f1be1038fc1ab10d404d5177"
+    },
+    {
+      "path": "scripts/native.mjs",
+      "sha256": "816e74daa8db8613c1a8c8c2bc9401a0f2032ddd55c084eb466035f7b00fb47f"
+    },
+    {
+      "path": "scripts/pick-profile",
+      "sha256": "3890d51940a42ee7056adae56a9730dca7bb88311dbac2440123ffab46d1d53d"
+    },
+    {
+      "path": "scripts/render-agents",
+      "sha256": "19f50a76fa96b0f49c0e07f731f06f0f2574e28e2cc9cc348af1c6fa9407d990"
+    },
+    {
+      "path": "scripts/status",
+      "sha256": "159b9d84d4390911d025ffded5dd797008c2b824d41145e38820cdd0dfe65317"
+    },
+    {
+      "path": "scripts/team-state",
+      "sha256": "f154899b527d0d7fb04220a4059e462b0312605406a307370599894ccb31f2d5"
+    },
+    {
+      "path": "scripts/validate-team",
+      "sha256": "58e3c5f37cb136493b0c109f880f60d50906f1f8ee175850b612f3eb7023e4a4"
+    },
+    {
+      "path": "scripts/worktree",
+      "sha256": "b6d1764dfb07f9e6d0798fa95379fc809a0e0ba5d2a0acab2d60339ad289069f"
+    }
+  ]
+}

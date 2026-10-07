@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(homedir(), "Documents", ".ctbz");
 const FILE = join(ROOT, "setting.yaml");
 
-const VERSION = (readFileSync(join(dirname(dirname(fileURLToPath(import.meta.url))), "SKILL.md"), "utf8").match(/^version:\s*(\S+)/m) || [])[1] || "unknown";
+const VERSION = (readFileSync(join(dirname(dirname(fileURLToPath(import.meta.url))), "SKILL.md"), "utf8").match(/^\s*version:\s*(\S+)/m) || [])[1] || "unknown";
 
 export const DEFAULTS = {
   版本: VERSION,

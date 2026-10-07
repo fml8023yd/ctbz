@@ -17,8 +17,8 @@
 团队任务：
 
 ```sh
-node <skill>/scripts/team-state init-run --state-dir <实际状态目录> --team ctbz --session <实际会话ID> --run-id <新runID> --workspace <项目绝对路径> --scope-id model-study --goal <已确认目标>
-node <skill>/scripts/team-state checkpoint --state-dir <实际状态目录> --team ctbz --session <实际会话ID> --run-id <runID> --file <检查点JSON绝对路径>
+node <zcode-adapter>/scripts/team-state init-run --state-dir <实际状态目录> --team ctbz --session <实际会话ID> --run-id <新runID> --workspace <项目绝对路径> --scope-id model-study --goal <已确认目标>
+node <zcode-adapter>/scripts/team-state checkpoint --state-dir <实际状态目录> --team ctbz --session <实际会话ID> --run-id <runID> --file <检查点JSON绝对路径>
 ```
 
 省略 --scope-id 使用默认任务。init-run 登记负责人和 epoch；每个 scope 同一时刻一个负责人。模型配置仍需每个 session 实际加载并分别 activate，相同配置下多个已激活会话互不失效。配置 generation 变化后重新验证，不把旧激活复制到新配置。
@@ -52,7 +52,7 @@ control.request 建立 pending 请求，包含 scopeId 和 action；每个范围
 绑定 run 的节点执行状态、结果、证据不接受 node.upsert 覆盖。网页取消、重开、修订生成请求，主进程核对实际执行后处理：取消用正常 update-task cancelled，不能只改网页；重开或修订用：
 
 ```sh
-node <skill>/scripts/team-state revise-task --state-dir <实际状态目录> --team ctbz --session <实际会话ID> --run-id <runID> --request-id <实际请求ID> --reason <核对依据>
+node <zcode-adapter>/scripts/team-state revise-task --state-dir <实际状态目录> --team ctbz --session <实际会话ID> --run-id <runID> --request-id <实际请求ID> --reason <核对依据>
 ```
 
 此命令只接受对应 run 中的 reopen/correct 请求；仍 running 的任务先到达实际检查点。修订保留旧任务的完整证据，不能改变角色或模型身份；重开保留前次尝试、清除旧 agentId 并变为 pending，不自动创建 Agent。成功后 checkpoint 完成原请求回执。拒绝或尚不能执行的请求回执 failed。重复同一修订只补投影，不增加第二份修改。
@@ -83,3 +83,5 @@ node <skill>/scripts/dashboard artifact-add --workspace <项目绝对路径> --f
 ```
 
 登记复制到 .ctbz-record/artifacts，以唯一 ID 保存不可覆盖版本和 SHA-256；同 ID 不覆盖，新版本用新 ID。CSV 原文件可按 file 登记下载，结构化比较表使用 JSON 格式，不猜 CSV 的数据类型。网页通过受限接口读取登记内容，JSON/CSV 下载与页面使用同一数据；CSV 对可能执行公式的文本转义。不要登记凭据或模型配置。服务只提供受管成果，不接受网页提交任意本机路径。远程访问沿用认证、只读服务及 HTTPS/FRP 约定。
+
+0.0.1：上述 team-state/worktree CLI 仅属可选 ZCode adapter。`<zcode-adapter>` 为 `~/.zcode/skills/ctbz-zcode`；Codex 用其真实原生 worktree 工具或授权 Git 命令，父会话状态直接经共享 dashboard 记录，不要求 ZCode 初始化。

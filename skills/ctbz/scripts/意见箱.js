@@ -11,7 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SKILL_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
-const VERSION = (readFileSync(join(SKILL_DIR, "SKILL.md"), "utf8").match(/^version:\s*(\S+)/m) || [])[1] || "unknown";
+const VERSION = (readFileSync(join(SKILL_DIR, "SKILL.md"), "utf8").match(/^\s*version:\s*(\S+)/m) || [])[1] || "unknown";
 
 const msg = (process.argv[2] || "").trim();
 if (!msg) { console.error("✗ 用法: 意见箱.js \"<意见原文>\""); process.exit(1); }

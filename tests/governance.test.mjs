@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 
 const root = fileURLToPath(new URL('../skills/ctbz/', import.meta.url));
-const scripts = path.join(root, 'scripts');
+const scripts = fileURLToPath(new URL('../adapters/zcode/scripts/', import.meta.url));
 
 // 同 execution-chain.test.mjs 的隔离夹具：真实 CLI、虚构 provider（凭据声明齐备，
 // base_url 指向不可达回环，不发起任何网络调用）。
@@ -28,16 +28,16 @@ function fixture() {
 }
 
 function run(script, args) {
-  const result = spawnSync(process.execPath, [path.join(scripts, script), ...args], {encoding: 'utf8'});
+  const result = spawnSync(process.execPath, [path.join(script === 'dashboard' ? path.join(root, 'scripts') : scripts, script), ...args], {encoding: 'utf8'});
   return {status: result.status, stdout: result.stdout, stderr: result.stderr};
 }
 
 function cli(args) { return run('initialize', args); }
-function stateArgs(home, agents) { return ['--home', home, '--agents', agents]; }
+function stateArgs(home, agents) { return ['--workspace', path.resolve(home, '../..'), '--home', home, '--agents', agents]; }
 
 test('prepare carries activated sessions across generations with unchanged profile names', () => {
   const {temp, config, selection} = fixture();
-  const home = path.join(temp, 'state'), agents = path.join(temp, 'agents');
+  const home = path.join(temp, '.zcode', 'ctbz'), agents = path.join(temp, 'agents');
   const loaded = path.join(temp, 'loaded.json');
   const base = stateArgs(home, agents);
   assert.equal(cli(['prepare', ...base, '--config', config, '--selection', selection, '--session', 'gen1-session']).status, 0);
@@ -63,7 +63,7 @@ test('prepare carries activated sessions across generations with unchanged profi
 
 test('adopt-run crosses generations, freezes the old manifest and records provenance', () => {
   const {temp, config, selection} = fixture();
-  const home = path.join(temp, 'state'), agents = path.join(temp, 'agents');
+  const home = path.join(temp, '.zcode', 'ctbz'), agents = path.join(temp, 'agents');
   const loaded = path.join(temp, 'loaded.json');
   const workspace = path.join(temp, 'ws');
   fs.mkdirSync(workspace, {recursive: true});
@@ -102,7 +102,7 @@ test('adopt-run crosses generations, freezes the old manifest and records proven
 
 test('prepare refuses unselected full-candidate catalogs and select error is self-healing', () => {
   const {temp} = fixture();
-  const home = path.join(temp, 'state'), agents = path.join(temp, 'agents');
+  const home = path.join(temp, '.zcode', 'ctbz'), agents = path.join(temp, 'agents');
   const base = stateArgs(home, agents);
   const bigConfig = path.join(temp, 'big-config.json');
   const models = {};
@@ -116,7 +116,7 @@ test('prepare refuses unselected full-candidate catalogs and select error is sel
   assert.equal(forced.status, 0, forced.stderr);
   assert.equal(JSON.parse(forced.stdout).profiles, 15 * JSON.parse(fs.readFileSync(path.join(root, '角色清单.json'))).roles.length);
   const small = fixture();
-  const smallHome = path.join(small.temp, 'state'), smallAgents = path.join(small.temp, 'agents');
+  const smallHome = path.join(small.temp, '.zcode', 'ctbz'), smallAgents = path.join(small.temp, 'agents');
   assert.equal(cli(['prepare', ...stateArgs(smallHome, smallAgents), '--config', small.config, '--session', 's']).status, 0);
   const smallLoaded = path.join(small.temp, 'loaded.json');
   fs.writeFileSync(smallLoaded, JSON.stringify(fs.readdirSync(smallAgents).filter(f => f.endsWith('.md')).map(f => f.replace(/\.md$/, ''))));
@@ -129,7 +129,7 @@ test('prepare refuses unselected full-candidate catalogs and select error is sel
 
 test('activate accepts role-covered partial loads (session-orphan self-heal)', () => {
   const {temp, config, selection} = fixture();
-  const home = path.join(temp, 'state'), agents = path.join(temp, 'agents');
+  const home = path.join(temp, '.zcode', 'ctbz'), agents = path.join(temp, 'agents');
   const base = stateArgs(home, agents);
   assert.equal(cli(['prepare', ...base, '--config', config, '--selection', selection, '--session', 'g1']).status, 0);
   const state = JSON.parse(fs.readFileSync(path.join(home, '初始化状态.json'), 'utf8'));

@@ -21,14 +21,14 @@ Agent 线程隔离不提供文件隔离。只读 Agent 可共享主工作区；�
 调用 CLI 时仅使用对应子命令 allowlist，`--task-id` 和 `--base-ref` 是标识/引用，其余路径参数必须显式绝对：
 
 ```text
-<absolute-skill-dir>/scripts/worktree create \
+<absolute-zcode-adapter-dir>/scripts/worktree create \
   --repo <absolute-git-root> \
   --root <absolute-worktree-root> \
   --task-id <task-id> \
   --base-ref <git-ref-or-oid> \
   --manifest <absolute-run.json>
 
-<absolute-skill-dir>/scripts/worktree bind \
+<absolute-zcode-adapter-dir>/scripts/worktree bind \
   --manifest <absolute-run.json> \
   --task-id <task-id> \
   --path <absolute-worktree>
@@ -80,7 +80,7 @@ status == expected initial state
 清理只调用：
 
 ```text
-<absolute-skill-dir>/scripts/worktree cleanup \
+<absolute-zcode-adapter-dir>/scripts/worktree cleanup \
   --manifest <absolute-run.json> \
   --task-id <task-id>
 ```
@@ -96,3 +96,5 @@ CLI 从显式绝对 manifest 读取已持久化的 ownership 和 worktree 路径
 - 用户的保留策略允许删除。
 
 未集成、dirty、测试失败、cancelled、冲突或状态未知的 worktree 一律保留。清理只操作 manifest 绑定的显式绝对路径，不使用通配符或目录扫描批量删除。
+
+0.0.1：上述 team-state/worktree CLI 仅属可选 ZCode adapter。`<zcode-adapter>` 为 `~/.zcode/skills/ctbz-zcode`；Codex 用其真实原生 worktree 工具或授权 Git 命令，父会话状态直接经共享 dashboard 记录，不要求 ZCode 初始化。

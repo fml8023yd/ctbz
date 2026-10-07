@@ -5,8 +5,8 @@ import path from 'node:path';
 import os from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {initialize, selectProfile} from '../skills/ctbz/scripts/lib/初始化.mjs';
-import {route, defaultRules} from '../skills/ctbz/scripts/lib/本机配置.mjs';
+import {initialize, selectProfile} from '../adapters/zcode/scripts/lib/初始化.mjs';
+import {route, defaultRules} from '../adapters/zcode/scripts/lib/本机配置.mjs';
 
 const root = fileURLToPath(new URL('../skills/ctbz/', import.meta.url));
 const registry = JSON.parse(fs.readFileSync(path.join(root, '角色清单.json')));
@@ -49,11 +49,11 @@ test('registry and bundle drift fail closed', () => {
 
 test('isolated CLI prepare blocks unactivated dispatch and invalid activation config', () => {
   const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-chain-')));
-  const home = path.join(temp, 'state'), agents = path.join(temp, 'agents');
+  const home = path.join(temp, '.zcode', 'ctbz'), agents = path.join(temp, 'agents');
   const cat = path.join(temp, 'catalog.json'), load = path.join(temp, 'loaded.json');
   fs.writeFileSync(cat, JSON.stringify(catalog));
   fs.writeFileSync(load, JSON.stringify(loaded));
-  const cli = (cmd, args=[]) => spawnSync(process.execPath, [path.join(root,'scripts/initialize'), cmd, '--home', home, '--agents', agents, ...args], {encoding:'utf8'});
+  const cli = (cmd, args=[]) => spawnSync(process.execPath, [fileURLToPath(new URL('../adapters/zcode/scripts/initialize', import.meta.url)), cmd, '--workspace', temp, '--home', home, '--agents', agents, ...args], {encoding:'utf8'});
   const prepared = cli('prepare', ['--catalog',cat,'--session','fixture-session']);
   assert.equal(prepared.status, 0, prepared.stderr);
   assert.equal(JSON.parse(prepared.stdout).phase, 'awaiting-new-session');
@@ -75,11 +75,11 @@ test('isolated CLI prepare blocks unactivated dispatch and invalid activation co
 // 旧写法把 registryHash 覆盖成 methods.fingerprint，随后每次 select 都撞「角色版本漂移」。
 test('activation fingerprint repair preserves the role-registry hash', () => {
   const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-repair-')));
-  const home = path.join(temp, 'state'), agents = path.join(temp, 'agents');
+  const home = path.join(temp, '.zcode', 'ctbz'), agents = path.join(temp, 'agents');
   const cat = path.join(temp, 'catalog.json'), load = path.join(temp, 'loaded.json');
   fs.writeFileSync(cat, JSON.stringify(catalog));
   fs.writeFileSync(load, JSON.stringify(loaded));
-  const cli = (cmd, args=[]) => spawnSync(process.execPath, [path.join(root,'scripts/initialize'), cmd, '--home', home, '--agents', agents, ...args], {encoding:'utf8'});
+  const cli = (cmd, args=[]) => spawnSync(process.execPath, [fileURLToPath(new URL('../adapters/zcode/scripts/initialize', import.meta.url)), cmd, '--workspace', temp, '--home', home, '--agents', agents, ...args], {encoding:'utf8'});
   const prepared = cli('prepare', ['--catalog',cat,'--session','repair-session']);
   assert.equal(prepared.status, 0, prepared.stderr);
 
