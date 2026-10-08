@@ -1,7 +1,7 @@
 ---
 name: ctbz-zcode
 metadata:
-  version: 0.0.1
+  version: 0.0.2
 description: CTBZ 在 ZCode 的原生子 Agent 适配、可选 profile 配置和体检；使用唯一全局 ctbz 核心。
 ---
 

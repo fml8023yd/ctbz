@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {verifyBundle, roleMethods, installRoot} from './methods.mjs';
 import {verifyPackage} from './release.mjs';
 
-export const VERSION = '0.0.1';
+export const VERSION = '0.0.2';
 export const HARNESS = Object.freeze({codex: '.codex', zcode: '.zcode'});
 const readOnly = new Set(['planner', 'reviewer', 'explorer', 'researcher', 'reporter']);
 const phases = new Set(['plan', 'discuss', 'implement', 'debug', 'test', 'review', 'research', 'report']);

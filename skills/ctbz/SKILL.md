@@ -1,7 +1,7 @@
 ---
 name: ctbz
 metadata:
-  version: 0.0.1
+  version: 0.0.2
 description: 草台班子：需求诊断、计划、原生多 Agent 协作、验收、项目看板与知识管理。用户提到 CTB、ctbz、草台班子或要求其项目记录与工作流时使用。
 ---
 
@@ -57,3 +57,18 @@ Session 位于项目的 Harness 内目录：Codex `.codex/ctbz`，ZCode `.zcode/
 `scripts/发布检查.js --write-lock` 是显式源端锁定；普通校验只读，发现修改、新增或删除即失败。`scripts/发版.sh` 默认只生成本地校验包；push/Release 只在已有对应授权且显式 --publish 时进行，不自动 commit、强制 tag、修改含 token 的 remote 或上传阿里云。当前用户只要求本地时停在本地结果。
 
 Git、部署、外部发布、旧版清理沿用用户实际授权；不由技能自行扩大。旧版先归档到发现目录之外、验证备份与新版可用再清理；不删除共享知识、用户偏好、项目历史或未知目录。能力升级不能当作已激活，真实宿主集成未验证时明确记录。
+
+## 共享工作台连接（0.0.2）
+
+父会话通过 `node scripts/workbench.mjs` 访问工作台。未配置时不连接任何默认服务；未连接沿用本地 dashboard。配置完成并选择共享 project/node 后，工作台是共享任务状态唯一权威；本地 dashboard、manifest 和 `.ctbz-record` 只保存执行证据与投影，不能据本地 completed 宣称共享 accepted。
+
+1. `doctor` 必须通过 apiVersion=1、claims/idempotency/project-scopes 能力和 Bearer 认证 state 校验；读取 state、node、events 后决定工作。
+2. 真实 `claim` 成功返回 workClaim.id 与冻结 context 后才可执行共享节点；401/403/409 或网络不确定时停止领取相关执行，查状态与原操作记录，不换 token/key 绕过。
+3. 父会话分派或亲自执行，真实关键进展提交 checkpoint，带实际 claimId；租约到期用 renew，不能冒充已续期。
+4. 已确认领取后断网可在原授权/写集合继续本地工作，保留检查点并明确未同步；重新连接先查询状态，再使用原操作 key 重试。
+5. 提交 submit 后是 submitted 待验收；另一个真实身份 review-claim 再 review。主进程自审如实记录，不能伪造独立身份或直接宣称 accepted；管理员人工验收是不同协议。
+6. 证据字符串必须说明位置/版本/可访问性；本机绝对路径不会变成远端可访问附件，跨机验收前提供实际可读引用。
+
+配置文件默认 `~/.ctbz/workbench.json`，JSON `{ "url":"http://127.0.0.1:18922", "token":"…" }`，0600；`config <受保护JSON文件|->` 仅新建，已有配置由用户私下更新。`CTBZ_WORKBENCH_CONFIG` 可指定文件；`CTBZ_WORKBENCH_URL/TOKEN` 覆盖字段。`show/doctor` 脱敏。写请求发送前将 key、请求和服务/身份哈希保存到配置旁 operations（或 `CTBZ_WORKBENCH_OPERATIONS`，可指向项目 Harness）；`retry <key>` 保留原请求，不存 token，成功标完成，完成记录再次 retry 会拒绝并要求查 node/state，历史回执不能作为当前领取。超过七天未确认操作拒绝重放，先查询状态人工对账。无后台执行器。
+
+知识库 `CTBZ_KNOWLEDGE_DIRS` 支持一个绝对路径或 JSON 绝对路径数组，有序去重；首目录为主库，全部显式目录须存在且可读。search 只读所有库，保留来源路径；未设置沿用 `~/Documents/.ctbz/知识库`，不移动旧库。自动总结用 `知识库.js add experience -`（stdin），只追加主库 `自学习知识/自记库-YYYY-MM.md`；主库不可写即失败，不转写次库。confirmed/approve 仍需用户明确确认，自动总结只为 experience。

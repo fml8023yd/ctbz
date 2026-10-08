@@ -85,3 +85,5 @@ node <skill>/scripts/dashboard artifact-add --workspace <项目绝对路径> --f
 登记复制到 .ctbz-record/artifacts，以唯一 ID 保存不可覆盖版本和 SHA-256；同 ID 不覆盖，新版本用新 ID。CSV 原文件可按 file 登记下载，结构化比较表使用 JSON 格式，不猜 CSV 的数据类型。网页通过受限接口读取登记内容，JSON/CSV 下载与页面使用同一数据；CSV 对可能执行公式的文本转义。不要登记凭据或模型配置。服务只提供受管成果，不接受网页提交任意本机路径。远程访问沿用认证、只读服务及 HTTPS/FRP 约定。
 
 0.0.1：上述 team-state/worktree CLI 仅属可选 ZCode adapter。`<zcode-adapter>` 为 `~/.zcode/skills/ctbz-zcode`；Codex 用其真实原生 worktree 工具或授权 Git 命令，父会话状态直接经共享 dashboard 记录，不要求 ZCode 初始化。
+
+共享连接时以工作台共享 node 状态为权威，本地 dashboard/manifest 是执行记录与投影；未连接保持本地模式。执行协议见 [核心](../SKILL.md)。

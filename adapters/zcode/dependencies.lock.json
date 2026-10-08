@@ -3,11 +3,11 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "9a9323bab99a08f4bbc34bcd4fb70f705b1e1323a47e08cd559a5c681272b3d5"
+      "sha256": "ee301b7989fd79a055cc4b40154e8055f2adbc761a791387d669308def6ff93c"
     },
     {
       "path": "adapter.json",
-      "sha256": "e5ad8f030eb8156070c4099a7e4c600db253d1f1cd37726a7632bd05eecfa711"
+      "sha256": "fae08721771c0ac9adc46d9a51588ada5dbc21f36ea206b5ef5b8dfbd592e2b1"
     },
     {
       "path": "assets/agent-profile.md.tmpl",

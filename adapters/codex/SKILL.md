@@ -1,7 +1,7 @@
 ---
 name: ctbz-codex
 metadata:
-  version: 0.0.1
+  version: 0.0.2
 description: CTBZ 在 Codex 的原生子 Agent 适配；与唯一全局 ctbz 核心配合使用。
 ---
 

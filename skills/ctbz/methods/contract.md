@@ -70,3 +70,5 @@ implementer、debugger、tester 仅在指定 worktree 和 write-set 内改动、
 ## 背景摄取（1.9.1）
 
 新需求起草计划前，主会话必须读当前工作目录 .ctbz-record/记录.md（存在时），摄取相关历史决定、坑、产物路径作为背景；读了没有记入 run 事件（record.read）。
+
+共享连接时以工作台共享 node 状态为权威，本地 dashboard/manifest 是执行记录与投影；未连接保持本地模式。执行协议见 [核心](../SKILL.md)。

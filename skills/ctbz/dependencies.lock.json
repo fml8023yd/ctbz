@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "66039344097be57216b7b324a662af9aa06e2da5a2d06653a5e9daa915e904ed"
+      "sha256": "cf3792def13bf7ccab4a38cf9a3f9a90a51e8555c04c0ef572fc45dd54e680d0"
     },
     {
       "path": "assets/stratified-results.json",
@@ -51,7 +51,7 @@
     },
     {
       "path": "methods/contract.md",
-      "sha256": "cb414487c127ff9eaa35dfcf37a70695304294759e37c751a585b358b3b8d109"
+      "sha256": "f1f09e41fb0a0a5fb483f9db7d5b5b0978525313004b47784a50277b62d466d3"
     },
     {
       "path": "methods/i-have-adhd.md",
@@ -59,7 +59,7 @@
     },
     {
       "path": "methods/index.json",
-      "sha256": "d6a4f195b2d3347328e8f909b0fd5a892a4311fac482c231c8b6168fdcdde1f4"
+      "sha256": "bf26b031cd44c8a7ca591f436a92d35d51432e282cc620e0bea705b33980be36"
     },
     {
       "path": "methods/matt/recommended.md",
@@ -159,7 +159,7 @@
     },
     {
       "path": "references/dashboard-workflow.md",
-      "sha256": "fd257a46b70aa5614ab96727d23e51fff4628d1168d5d0003a30cb22c12f20f7"
+      "sha256": "42046e0bdd2a509fd3db32e2ac9b53c089740b90629340458afcc9ddfa79e480"
     },
     {
       "path": "references/failure-policy.md",
@@ -203,7 +203,7 @@
     },
     {
       "path": "references/项目看板.md",
-      "sha256": "f98217d38568940b9952638acb5939a99862654059bb7ea65acad19b7199d676"
+      "sha256": "e9fb96dd3699031299e9ab7d6faeec86f1bc695112461ae33d6ddd7d4730683b"
     },
     {
       "path": "scripts/dashboard",
@@ -223,11 +223,11 @@
     },
     {
       "path": "scripts/lib/native-runtime.mjs",
-      "sha256": "dc45366a08d46f858356d25e52ae7222d4a50e9683cf0f77f2c24bab75d64680"
+      "sha256": "a66344df68bd793b7e78b48b34d7a6107cf2ffad5ce28516d23d5d1a8d63f21f"
     },
     {
       "path": "scripts/lib/release.mjs",
-      "sha256": "bee7d91de88f5c2d2a6032264f311a0504f386484ca35d92c7a7dc67bb6a0ce1"
+      "sha256": "eaac592525d2f67f0b09115a380be821a6eead444e60d6e99d2a0e28e29861ef"
     },
     {
       "path": "scripts/lib/state.mjs",
@@ -254,6 +254,10 @@
       "sha256": "7ac832da42e1c1f14a5422ede63ede6a015d62bf9cbb41aea3642d6d51ee1f43"
     },
     {
+      "path": "scripts/workbench.mjs",
+      "sha256": "7255434c863c4b42e8db9db0a4af5294b38e37482fc5130e231fbac83f43d262"
+    },
+    {
       "path": "scripts/内审.mjs",
       "sha256": "dceb6ac16d263de8c4273d317d430d29522a975264801da97b5b1657c16aa471"
     },
@@ -271,7 +275,7 @@
     },
     {
       "path": "scripts/知识库.js",
-      "sha256": "17e7980717539462238d21881d2852facb32ecf0d0c7e601c6de31c84f52a25d"
+      "sha256": "f33054ebeafe13536fb1791c0386d4b435baf282d1e77b7e99420b1fdff7f33f"
     },
     {
       "path": "scripts/自动更新检查.mjs",
@@ -334,8 +338,16 @@
       "sha256": "12e26da2b39354a8bcc2b65db97afd95e6dd7941bb6655558c53e160ff4001ea"
     },
     {
+      "path": "vendor/workbench/client.mjs",
+      "sha256": "d2eb7100302c91089f0ac67b19985673cfc321d674a089584bc06c81789c77cd"
+    },
+    {
+      "path": "vendor/workbench/source.json",
+      "sha256": "1268e1ec2e0e02127349713a7a2694758599d7db50dd06a0d97b37fd3f70afc8"
+    },
+    {
       "path": "角色清单.json",
-      "sha256": "16033032bb8b1253a4710bcf8e668ed6c7d7af7ac6ed918fc447c43b3b2bcb1e"
+      "sha256": "0c398adb0e7339e0c8bce2b7897dc9008177bacda2c74c4fe31100f913caacee"
     }
   ]
 }

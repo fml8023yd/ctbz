@@ -4,7 +4,7 @@ import {randomUUID, createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {bundleFiles, verifyBundle} from './methods.mjs';
 
-export const VERSION = '0.0.1';
+export const VERSION = '0.0.2';
 export const repositoryRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 export const packages = repo => [
   {id: 'core', source: path.join(repo, 'skills/ctbz'), target: '.agents/skills/ctbz'},
@@ -44,11 +44,14 @@ export function verifyPackage(root, id) {
   const drift = names.filter(file => actual[file] !== expected[file]);
   if (drift.length) throw Error(`${id} source lock mismatch: ${drift.join(', ')}`);
   const skill = fs.readFileSync(path.join(root, 'SKILL.md'), 'utf8');
-  if (!/^  version: 0\.0\.1$/m.test(skill)) throw Error(`${id} version mismatch`);
+  if (!/^  version: 0\.0\.2$/m.test(skill)) throw Error(`${id} version mismatch`);
   if (id === 'core') {
     if (JSON.parse(fs.readFileSync(path.join(root, '角色清单.json'), 'utf8')).version !== VERSION) throw Error('role registry version mismatch');
     if (JSON.parse(fs.readFileSync(path.join(root, 'methods/index.json'), 'utf8')).version !== VERSION) throw Error('method registry version mismatch');
     verifyBundle(root);
+    const client = fs.readFileSync(path.join(root, 'vendor/workbench/client.mjs'));
+    const source = JSON.parse(fs.readFileSync(path.join(root, 'vendor/workbench/source.json'), 'utf8'));
+    if (source.version !== VERSION || source.sha256 !== digest(client)) throw Error('workbench client source hash mismatch');
   } else {
     const metadata = JSON.parse(fs.readFileSync(path.join(root, 'adapter.json'), 'utf8'));
     if (metadata.harness !== id || metadata.version !== VERSION) throw Error('adapter identity mismatch');
