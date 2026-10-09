@@ -339,11 +339,11 @@
     },
     {
       "path": "vendor/workbench/client.mjs",
-      "sha256": "d2eb7100302c91089f0ac67b19985673cfc321d674a089584bc06c81789c77cd"
+      "sha256": "cc8153de50f827d823e917bab7f73243c5dc9dde882bc7021640ea8a5f8aed04"
     },
     {
       "path": "vendor/workbench/source.json",
-      "sha256": "1268e1ec2e0e02127349713a7a2694758599d7db50dd06a0d97b37fd3f70afc8"
+      "sha256": "10218b47a97128f62fa92f10dd9c55203439519009c4c470a5c5669dfaaac38d"
     },
     {
       "path": "角色清单.json",

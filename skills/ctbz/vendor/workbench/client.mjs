@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import {resolve,dirname,join} from 'node:path';
+import {request as httpsRequest} from 'node:https';
+import {resolve,dirname,join,isAbsolute} from 'node:path';
 import {homedir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {randomUUID,createHash} from 'node:crypto';
@@ -14,25 +15,44 @@ export function validateURL(base){
  if(u.protocol!=='https:'&&!(u.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(u.hostname)))throw Error('远程工作台必须使用 HTTPS');
  return u.origin;
 }
+function readCA(caFile){
+ if(caFile===undefined)return;
+ try{if(typeof caFile!=='string'||!isAbsolute(caFile)||!fs.statSync(caFile).isFile())throw Error();return fs.readFileSync(caFile);}catch{throw Error('CA 文件必须为可读的绝对文件路径');}
+}
+async function privateCARequest(url,{method,headers,body,timeout,ca}){
+ return new Promise((resolve,reject)=>{
+  let timer;const done=(fn,value)=>{clearTimeout(timer);fn(value);};const req=httpsRequest(url,{method,headers,ca,rejectUnauthorized:true},res=>{
+   if(res.statusCode>=300&&res.statusCode<400){res.destroy();done(reject,Error());return;}
+   let size=0;const chunks=[];res.on('data',chunk=>{size+=chunk.length;if(size>1024*1024){res.destroy(Error());return;}chunks.push(chunk);});
+   res.on('error',e=>done(reject,e));res.on('end',()=>done(resolve,{status:res.statusCode,ok:res.statusCode>=200&&res.statusCode<300,text:Buffer.concat(chunks).toString('utf8')}));
+  });
+  timer=setTimeout(()=>req.destroy(Error()),timeout);req.on('error',e=>done(reject,e));req.end(body);
+ });
+}
 function privateFile(path){const s=fs.lstatSync(path);if(!s.isFile()||s.isSymbolicLink()||(s.mode&0o077))throw Error('配置/操作记录必须是私有 0600 普通文件');}
 export function connection(){
  let c={};const p=configPath();if(fs.existsSync(p)){privateFile(p);c=parseJSON(fs.readFileSync(p,'utf8'));}
  const base=validateURL(process.env.CTBZ_WORKBENCH_URL??c.url),token=process.env.CTBZ_WORKBENCH_TOKEN??c.token;
  if(typeof token!=='string'||!token||/[\r\n]/.test(token))throw Error('工作台 token 未配置或无效');
- return {base,token};
+ const caFile=process.env.CTBZ_WORKBENCH_CA_FILE??c.caFile;readCA(caFile);
+ return {base,token,...(caFile!==undefined?{caFile}:{})};
 }
 export function saveConfig(c,path=configPath()){
- validateURL(c.url);if(typeof c.token!=='string'||!c.token)throw Error('缺少 token');
+ validateURL(c.url);readCA(c.caFile);if(typeof c.token!=='string'||!c.token)throw Error('缺少 token');
  fs.mkdirSync(dirname(path),{recursive:true,mode:0o700});
- const fd=fs.openSync(path,'wx',0o600);try{fs.writeFileSync(fd,JSON.stringify(c)+'\n');}finally{fs.closeSync(fd);}
+ const fd=fs.openSync(path,'wx',0o600);try{fs.writeFileSync(fd,JSON.stringify({url:c.url,token:c.token,...(c.caFile!==undefined?{caFile:c.caFile}:{})})+'\n');}finally{fs.closeSync(fd);}
  return {configured:true,url:validateURL(c.url),token:'[redacted]'};
 }
 export async function request(path,options={}){
  const {method='GET',body,key,timeout=30000}=options;
  const c=options.base&&options.token?options:connection(),base=validateURL(c.base);
  if(!path.startsWith('/')||path.startsWith('//'))throw Error('无效 API 路径');
- let response;try{response=await fetch(base+'/api'+path,{method,redirect:'error',headers:{Authorization:'Bearer '+c.token,...(body!==undefined?{'Content-Type':'application/json'}:{}),...(key?{'Idempotency-Key':key}:{})},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(timeout)});}catch{throw Error('网络失败/超时/重定向拒绝；保留原操作记录后核实重试');}
- let value;try{value=await response.json();}catch{throw Error('工作台响应不是 JSON');}
+ const ca=readCA(c.caFile),headers={Authorization:'Bearer '+c.token,...(body!==undefined?{'Content-Type':'application/json'}:{}),...(key?{'Idempotency-Key':key}:{})},payload=body===undefined?undefined:JSON.stringify(body);
+ let response,text;try{
+  if(ca){if(!base.startsWith('https:'))throw Error();response=await privateCARequest(base+'/api'+path,{method,headers,body:payload,timeout,ca});text=response.text;}
+  else{response=await fetch(base+'/api'+path,{method,redirect:'error',headers,body:payload,signal:AbortSignal.timeout(timeout)});let size=0;const chunks=[];for await(const chunk of response.body){size+=chunk.length;if(size>1024*1024)throw Error();chunks.push(chunk);}text=Buffer.concat(chunks).toString('utf8');}
+ }catch{throw Error('网络/TLS失败、超时、响应过大或重定向拒绝；保留原操作记录后核实重试');}
+ let value;try{value=JSON.parse(text);}catch{throw Error('工作台响应不是 JSON');}
  if(!response.ok){const e=Error('工作台请求失败 HTTP '+response.status);e.status=response.status;throw e;}return value;
 }
 export async function doctor(options={}){

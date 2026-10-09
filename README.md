@@ -47,3 +47,5 @@ Codex plan/discuss 使用 gpt-6-astra，其余 gpt-6.1-sol；在途上限 2、�
 知识库 `CTBZ_KNOWLEDGE_DIRS` 支持一个绝对路径或 JSON 绝对路径数组，有序去重；首目录为主库，全部显式目录须存在且可读。search 只读所有库，保留来源路径；未设置沿用 `~/Documents/.ctbz/知识库`，不移动旧库。自动总结用 `知识库.js add experience -`（stdin），只追加主库 `自学习知识/自记库-YYYY-MM.md`；主库不可写即失败，不转写次库。confirmed/approve 仍需用户明确确认，自动总结只为 experience。
 
 客户端源位于独立 ctbz-workbench/client.mjs，核心 vendor 为发布快照；source.json 记录 SHA256，跨仓测试检查同步，修改后须同步并重锁。
+
+私有 CA 连接可在私有配置添加 `caFile` 绝对路径，或设置 `CTBZ_WORKBENCH_CA_FILE`（环境变量优先）。例如 URL `https://101.133.151.121:18000`；CA 文件须可读。CLI 仅给当前连接使用该 CA，仍校验证书信任、IP/主机名与有效期，拒绝重定向、响应超过 1 MiB 和超时；未配置沿用系统信任。配置/操作日志不保存证书或私钥。此项不修改系统 CA 或全局 TLS 设置，也不让浏览器自动信任；每台设备使用浏览器访问私有 CA 站点时，需自行安装并信任该 CA。
