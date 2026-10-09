@@ -30,6 +30,13 @@ async function privateCARequest(url,{method,headers,body,timeout,ca}){
  });
 }
 function privateFile(path){const s=fs.lstatSync(path);if(!s.isFile()||s.isSymbolicLink()||(s.mode&0o077))throw Error('配置/操作记录必须是私有 0600 普通文件');}
+export function executorID(explicit=process.env.CTBZ_WORKBENCH_EXECUTOR_ID){
+ if(explicit!==undefined){if(typeof explicit!=='string'||! /^[A-Za-z0-9_.:-]{1,128}$/.test(explicit))throw Error('执行身份格式无效');return explicit;}
+ const file=join(dirname(configPath()),'executor-id');
+ fs.mkdirSync(dirname(file),{recursive:true,mode:0o700});
+ try{const fd=fs.openSync(file,'wx',0o600);try{fs.writeFileSync(fd,randomUUID()+'\n');}finally{fs.closeSync(fd);}}catch(e){if(e.code!=='EEXIST')throw Error('无法保存设备执行身份');}
+ privateFile(file);const id=fs.readFileSync(file,'utf8').trim();if(!/^[A-Za-z0-9_.:-]{1,128}$/.test(id))throw Error('设备执行身份文件无效');return id;
+}
 export function connection(){
  let c={};const p=configPath();if(fs.existsSync(p)){privateFile(p);c=parseJSON(fs.readFileSync(p,'utf8'));}
  const base=validateURL(process.env.CTBZ_WORKBENCH_URL??c.url),token=process.env.CTBZ_WORKBENCH_TOKEN??c.token;
@@ -47,7 +54,7 @@ export async function request(path,options={}){
  const {method='GET',body,key,timeout=30000}=options;
  const c=options.base&&options.token?options:connection(),base=validateURL(c.base);
  if(!path.startsWith('/')||path.startsWith('//'))throw Error('无效 API 路径');
- const ca=readCA(c.caFile),headers={Authorization:'Bearer '+c.token,...(body!==undefined?{'Content-Type':'application/json'}:{}),...(key?{'Idempotency-Key':key}:{})},payload=body===undefined?undefined:JSON.stringify(body);
+ const ca=readCA(c.caFile),headers={Authorization:'Bearer '+c.token,'CTBZ-Executor-ID':executorID(c.executorId),...(body!==undefined?{'Content-Type':'application/json'}:{}),...(key?{'Idempotency-Key':key}:{})},payload=body===undefined?undefined:JSON.stringify(body);
  let response,text;try{
   if(ca){if(!base.startsWith('https:'))throw Error();response=await privateCARequest(base+'/api'+path,{method,headers,body:payload,timeout,ca});text=response.text;}
   else{response=await fetch(base+'/api'+path,{method,redirect:'error',headers,body:payload,signal:AbortSignal.timeout(timeout)});let size=0;const chunks=[];for await(const chunk of response.body){size+=chunk.length;if(size>1024*1024)throw Error();chunks.push(chunk);}text=Buffer.concat(chunks).toString('utf8');}
@@ -65,10 +72,11 @@ export async function durableRequest(path,{method='POST',body={},key=randomUUID(
  const c=options.base&&options.token?options:connection(),base=validateURL(c.base);
  fs.mkdirSync(directory,{recursive:true,mode:0o700});
  const file=join(directory,hash(key)+'.json');
- const signature=hash(JSON.stringify({base,identity:hash(c.token),path,method,body}));
+ const executorId=executorID(c.executorId);c.executorId=executorId;
+ const signature=hash(JSON.stringify({base,identity:hash(c.token),executorId,path,method,body}));
  let record;
  if(fs.existsSync(file)){privateFile(file);record=parseJSON(fs.readFileSync(file,'utf8'));if(record.signature!==signature)throw Error('操作键与服务/身份/请求不匹配');if(record.complete)throw Error('操作已完成；历史回执不是当前状态，请查 node/state 核对后继续');if(Date.now()-record.created>=7*86400000)throw Error('幂等已超过七天；先查 node/state，禁止自动重放');}
- else{record={key,signature,base,identity:hash(c.token),path,method,body,created:Date.now(),complete:false};const fd=fs.openSync(file,'wx',0o600);try{fs.writeFileSync(fd,JSON.stringify(record));fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
+ else{record={key,signature,base,identity:hash(c.token),executorId,path,method,body,created:Date.now(),complete:false};const fd=fs.openSync(file,'wx',0o600);try{fs.writeFileSync(fd,JSON.stringify(record));fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
  await doctor(c);
  const result=await request(path,{...c,method,body,key,timeout:options.timeout});
  record.complete=true;record.result=result;
@@ -81,7 +89,7 @@ export async function cli(args=process.argv.slice(2)){
  const read=p=>parseJSON(fs.readFileSync(p==='-'?0:p,'utf8'));
  let result;
  if(command==='config')result=saveConfig(read(id));
- else if(command==='show'){const c=connection();result={url:c.base,token:'[redacted]',config:configPath()};}
+ else if(command==='show'){const c=connection();result={url:c.base,token:'[redacted]',executorId:executorID(c.executorId),config:configPath()};}
  else if(command==='doctor')result=await doctor();
  else if(command==='retry'){const directory=process.env.CTBZ_WORKBENCH_OPERATIONS||join(dirname(configPath()),'operations'),file=join(directory,hash(id)+'.json');privateFile(file);const r=read(file);result=await durableRequest(r.path,{method:r.method,body:r.body,key:id,directory});}
  else if(command==='state')result=await request('/state'+(id?'?projectId='+encodeURIComponent(id):''));

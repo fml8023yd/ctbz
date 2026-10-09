@@ -49,3 +49,5 @@ Codex plan/discuss 使用 gpt-6-astra，其余 gpt-6.1-sol；在途上限 2、�
 客户端源位于独立 ctbz-workbench/client.mjs，核心 vendor 为发布快照；source.json 记录 SHA256，跨仓测试检查同步，修改后须同步并重锁。
 
 私有 CA 连接可在私有配置添加 `caFile` 绝对路径，或设置 `CTBZ_WORKBENCH_CA_FILE`（环境变量优先）。例如 URL `https://101.133.151.121:18000`；CA 文件须可读。CLI 仅给当前连接使用该 CA，仍校验证书信任、IP/主机名与有效期，拒绝重定向、响应超过 1 MiB 和超时；未配置沿用系统信任。配置/操作日志不保存证书或私钥。此项不修改系统 CA 或全局 TLS 设置，也不让浏览器自动信任；每台设备使用浏览器访问私有 CA 站点时，需自行安装并信任该 CA。
+
+个人 Token 同时用于网页登录和 API，可读写全部项目；令牌来源仍是数据目录 `admin-token`，不重新生成或迁移旧数据。API 用 `CTBZ-Executor-ID` 请求头区分执行/检查身份；客户端默认在私有配置旁 `executor-id` 保存 0600 设备执行 ID，显式 `CTBZ_WORKBENCH_EXECUTOR_ID` 可传入实际子 Agent 或执行会话 ID。默认设备 ID 不证明独立检查；相同执行 ID 禁止自审，独立子 Agent 应使用真实、不同的执行 ID，不得随意换 ID 冒充独立评审。此身份是共享个人 Token 下的协作协议，不是密码学隔离。领取所有权和客户端/服务端幂等均绑定执行身份；同一操作重试保持原身份，不更换 ID 绕过冲突。旧 Agent 令牌仍按原项目范围和原 Agent 身份工作，不受设备 ID 扩权。无执行 ID 的个人 Token 可用于网页人工管理，但不能领取执行任务；网页 Cookie 人工验收按管理员 revision 协议，明确标作人工验收；Bearer API 的执行/检查操作必须提供执行 ID，不可省略身份走人工验收旁路。网页会话 Cookie 名按协议和端口隔离，旧 HTTPS Secure Cookie 不阻挡 HTTP:18000 登录。

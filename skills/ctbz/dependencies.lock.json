@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "cf3792def13bf7ccab4a38cf9a3f9a90a51e8555c04c0ef572fc45dd54e680d0"
+      "sha256": "36671cd3c5d4834b2e067c179d5dfe5f2d976a9fdc570b80c04cb1831093d460"
     },
     {
       "path": "assets/stratified-results.json",
@@ -339,11 +339,11 @@
     },
     {
       "path": "vendor/workbench/client.mjs",
-      "sha256": "9657527152b29ee839479bd6abbd3ff767a4719cb37154c4b2f4a7f740b7ae5b"
+      "sha256": "21f94c49638e27875ebfa28a4deb7d20e7e52c8a41c985f75fff071a80a3a7b3"
     },
     {
       "path": "vendor/workbench/source.json",
-      "sha256": "3af51e0404f999dc8ec52e6e9dc10650350396af11a9531b516a7f67e518dd2f"
+      "sha256": "381b142daea393fe6019b37a09c5e4da65f91e8d2d80fae9389f121015ea7156"
     },
     {
       "path": "角色清单.json",
