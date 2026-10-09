@@ -12,7 +12,7 @@ export function validateURL(base){
  if(!base)throw Error('工作台未配置');
  const u=new URL(base);
  if(u.username||u.password||u.search||u.hash||u.pathname!=='/')throw Error('地址必须为无凭据、参数和路径的 origin');
- if(u.protocol!=='https:'&&!(u.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(u.hostname)))throw Error('远程工作台必须使用 HTTPS');
+ if(!['http:','https:'].includes(u.protocol))throw Error('工作台必须使用 HTTP 或 HTTPS');
  return u.origin;
 }
 function readCA(caFile){
