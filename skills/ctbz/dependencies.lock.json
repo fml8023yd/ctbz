@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "36671cd3c5d4834b2e067c179d5dfe5f2d976a9fdc570b80c04cb1831093d460"
+      "sha256": "931b42187a9bb76019cf9958ad80f6f032914895e35712c4e2af8a9352311964"
     },
     {
       "path": "assets/stratified-results.json",
@@ -51,7 +51,7 @@
     },
     {
       "path": "methods/contract.md",
-      "sha256": "f1f09e41fb0a0a5fb483f9db7d5b5b0978525313004b47784a50277b62d466d3"
+      "sha256": "da5260fa0d8d136aa5768ab3bd2d627fc4b5abab82d45d2c972c24058e62040b"
     },
     {
       "path": "methods/i-have-adhd.md",
@@ -162,6 +162,10 @@
       "sha256": "42046e0bdd2a509fd3db32e2ac9b53c089740b90629340458afcc9ddfa79e480"
     },
     {
+      "path": "references/delivery-contract.md",
+      "sha256": "f14da1f4ec9f2ce4fada21a415a42011e08130942cccf0946867986b4cd2b8f7"
+    },
+    {
       "path": "references/failure-policy.md",
       "sha256": "3e2e37d5b05ca1f42d50f44942b89a23a9426a18042d25eb2b5bad9858b771ed"
     },
@@ -175,7 +179,7 @@
     },
     {
       "path": "references/unified-workflow.md",
-      "sha256": "96c90eb7b2cb43df41f2e8f8d5e9f761a73f677d6aa3c56618cf6140e795c7da"
+      "sha256": "f03e1569674ec10b6c180fe3f79fe19406a6834b962d51065189e4d503a485e6"
     },
     {
       "path": "references/upstream-updates.md",
