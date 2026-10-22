@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {verifyBundle, roleMethods, installRoot} from './methods.mjs';
 import {verifyPackage} from './release.mjs';
 
-export const VERSION = '0.0.2';
+export const VERSION = '0.1.0';
 export const HARNESS = Object.freeze({codex: '.codex', zcode: '.zcode'});
 const readOnly = new Set(['planner', 'reviewer', 'explorer', 'researcher', 'reporter']);
 const phases = new Set(['plan', 'discuss', 'implement', 'debug', 'test', 'review', 'research', 'report']);
@@ -43,12 +43,14 @@ export function taskMessage(task) {
   return `CTBZ standalone task\n${JSON.stringify(task, null, 2)}\nRead sharedContract and selected methods first. Do not spawn agents. Write only within writeSet; read-only roles return evidence or drafts. Return actual result, evidence, checkpoint, and permission failures. Do not alter project state or claim independent review if executing in the parent.`;
 }
 
-export function nativeSelection(task, evidence, activeAgents = 0) {
+export function nativeSelection(task, evidence) {
   const route = selectHarness(evidence);
   if (route.mode === 'parent') return route;
-  if (!Number.isInteger(activeAgents) || activeAgents < 0) throw Error('activeAgents must be the actual nonnegative count');
-  if (activeAgents >= 2) return {mode: 'queued', reason: 'concurrency-limit', harness: route.harness};
-  return {...route, role: task.role, phase: task.phase, ...(route.harness === 'codex' ? {model: ['plan', 'discuss'].includes(task.phase) ? 'gpt-6-astra' : 'gpt-6.1-sol'} : {}), taskName: `ctbz_${task.taskId}`, maxConcurrent: 2};
+  return {...route, role: task.role, phase: task.phase, ...(route.harness === 'codex' ? {model: ['plan', 'discuss'].includes(task.phase) ? 'gpt-6-astra' : 'gpt-6.1-sol'} : {}), taskName: `ctbz_${task.taskId}`};
+}
+
+function queued(task, reason) {
+  return {mode: 'queued', status: 'queued', reason, taskId: task.taskId};
 }
 
 export async function discoverAdapter(evidence, home = homedir()) {
@@ -68,9 +70,9 @@ export async function discoverAdapter(evidence, home = homedir()) {
 }
 
 // The harness owns native tool calls; this module only invokes the supplied port.
-export function createRuntime({evidence, port, executeParent, notify = async event => { console.error(event.message); }, record, sessionId, core = installRoot, fallbackReason}) {
+export function createRuntime({evidence, port, executeParent, parentExecutionAuthorized = false, notify = async event => { console.error(event.message); }, record, sessionId, core = installRoot, fallbackReason}) {
   if (typeof sessionId !== 'string' || !sessionId.trim()) throw Error('actual sessionId is required');
-  let notified = false, reserved = 0, startGate = Promise.resolve(), parentGate = Promise.resolve();
+  let notified = false, parentGate = Promise.resolve();
   const tasks = new Set();
   const inFlight = new Map();
   const locations = new Map();
@@ -97,11 +99,11 @@ export function createRuntime({evidence, port, executeParent, notify = async eve
       catch (error) { if (error.code === 'EEXIST') firstNotice = false; else throw error; }
     }
     if (firstNotice) {
-      await notify({reason, message: 'CTBZ 原生子 Agent 不可用，主进程继续已授权任务；评审降级为主进程自审。'});
+      await notify({reason, message: 'CTBZ 原生子 Agent 不可用，主进程未接管执行；请重派、报告阻塞或明确授权亲力。'});
     }
     notified = true;
     await emit({taskId: task.taskId, status: 'parent-required', actor: 'parent-only', reason, ...detail, review: 'parent-self-review'});
-    if (typeof executeParent !== 'function') return {mode: 'parent', status: 'parent-required', task, reason, ...detail, review: 'parent-self-review'};
+    if (parentExecutionAuthorized !== true || typeof executeParent !== 'function') return {mode: 'parent', status: 'parent-required', task, reason, ...detail, review: 'parent-self-review'};
     const previous = parentGate;
     let releaseParent;
     parentGate = new Promise(resolve => { releaseParent = resolve; });
@@ -122,27 +124,17 @@ export function createRuntime({evidence, port, executeParent, notify = async eve
     locations.set(task.taskId, task);
     const route = selectHarness(evidence);
     if (route.mode === 'parent') { tasks.add(task.taskId); return fallback(task, route.reason); }
-    if (!port || typeof port.start !== 'function' || typeof port.wait !== 'function' || typeof port.activeCount !== 'function') { tasks.add(task.taskId); return fallback(task, fallbackReason || 'missing-native-tools'); }
-    if ([...inFlight.values()].some(other => other.writeSet.some(a => task.writeSet.some(b => a === b || a.startsWith(b + path.sep) || b.startsWith(a + path.sep))))) return {mode: 'queued', status: 'queued', reason: 'write-conflict'};
-    // Reserve before awaiting host counts, preventing concurrent calls racing the limit.
-    if (reserved >= 2) return {mode: 'queued', status: 'queued', reason: 'concurrency-limit'};
-    reserved++;
+    // start is mandatory; wait may be omitted when the host returns the terminal receipt synchronously.
+    if (!port || typeof port.start !== 'function' || (port.wait !== undefined && typeof port.wait !== 'function')) { tasks.add(task.taskId); return fallback(task, fallbackReason || 'missing-native-tools'); }
+    if ([...inFlight.values()].some(other => other.writeSet.some(a => task.writeSet.some(b => a === b || a.startsWith(b + path.sep) || b.startsWith(a + path.sep))))) return queued(task, 'write-conflict');
     inFlight.set(task.taskId, task);
-    let handle, awaitingStop = false;
+    let handle;
     try {
-      const previous = startGate;
-      let releaseGate;
-      startGate = new Promise(resolve => { releaseGate = resolve; });
-      await previous;
-      try {
-        const activeAgents = await port.activeCount();
-        const selection = nativeSelection(task, evidence, activeAgents);
-        if (selection.mode === 'queued') return {...selection, status: 'queued'};
-        tasks.add(task.taskId);
-        await emit({taskId: task.taskId, status: 'starting', harness: evidence.harness, role: task.role, model: selection.model});
-        handle = await port.start(selection, taskMessage(task));
-        if (!handle || typeof handle.agentId !== 'string' || !handle.agentId.trim()) throw Error('native start omitted actual agent identity');
-      } finally { releaseGate(); }
+      const selection = nativeSelection(task, evidence);
+      tasks.add(task.taskId);
+      await emit({taskId: task.taskId, status: 'starting', harness: evidence.harness, role: task.role, model: selection.model});
+      handle = await port.start(selection, taskMessage(task));
+      if (!handle || typeof handle.agentId !== 'string' || !handle.agentId.trim()) throw Error('native start omitted actual agent identity');
       await emit({taskId: task.taskId, status: 'running', harness: evidence.harness, agentId: handle.agentId});
       const receipt = await port.wait(handle);
       if (receipt?.agentId !== handle.agentId) throw Error('native receipt identity mismatch');
@@ -165,14 +157,16 @@ export function createRuntime({evidence, port, executeParent, notify = async eve
       if (handle?.agentId && error.receipt?.status !== 'failed') {
         const stopped = typeof port.stop === 'function' && await Promise.resolve().then(() => port.stop(handle)).catch(() => false);
         if (!stopped) {
-          awaitingStop = true;
+          // Keep the writeSet claim so a concurrent sibling cannot collide with the unconfirmed child,
+          // but release the taskId claim so the parent may retry this task without a false duplicate.
+          inFlight.set(task.taskId, {...task, writeSet: []});
           await emit({taskId: task.taskId, status: 'awaiting-stop', agentId: handle.agentId, reason: 'cannot-confirm-child-stopped'});
           return {mode: 'native', status: 'awaiting-stop', agentId: handle.agentId, reason: 'cannot-confirm-child-stopped'};
         }
       }
       tasks.add(task.taskId);
       return fallback(task, handle ? 'native-mid-task-failure' : 'native-start-failure', {agentId: handle?.agentId || null, checkpoint: error.receipt?.checkpoint || null, evidence: error.receipt?.evidence || []});
-    } finally { reserved--; if (!awaitingStop) inFlight.delete(task.taskId); }
+    } finally { inFlight.delete(task.taskId); }
   }
   return {run};
 }
@@ -181,7 +175,7 @@ export async function openRuntime(options) {
   const adapter = await discoverAdapter(options.evidence, options.home);
   if (adapter.mode === 'native') {
     try { return createRuntime({...options, port: adapter.createPort(options.nativeTools, options.evidence)}); }
-    catch (error) { if (permissionDenied(error)) throw error; }
+    catch (error) { if (permissionDenied(error)) throw error; return createRuntime({...options, port: null, fallbackReason: `port-contract-mismatch: ${error.message}`}); }
   }
   return createRuntime({...options, port: null, fallbackReason: adapter.reason || 'missing-native-tools'});
 }

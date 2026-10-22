@@ -118,4 +118,4 @@ attestation 是父调度器提供的可审计声明，记录显式 agents 目录
 
 doctor 默认只读，检查 provider/model/reasoning 候选、provider 凭据状态、route、profile 文件、只读权限和 fingerprint。输出 `OK`、`DRIFT`、`BLOCKED`。`doctor --activate` 在匹配 setup state 且全部校验通过后写入 activation。
 
-0.0.1：本文件仅描述可选 ZCode profile 路径；失败由主进程继续授权任务。`<zcode-adapter>` 指本私有安装目录，共享方法与角色从唯一全局核心读取。
+0.0.1：本文件仅描述可选 ZCode profile 路径；失败由父会话重派或报告阻塞。`<zcode-adapter>` 指本私有安装目录，共享方法与角色从唯一全局核心读取。

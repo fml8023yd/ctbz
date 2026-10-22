@@ -2,11 +2,11 @@
 
 先读 [共享契约](../contract.md)。仅 parent 派发；子 Agent 不派生 Agent。
 
-来源：Superpowers 6.3.0 `skills/dispatching-parallel-agents/SKILL.md`。适配：使用 CTBZ 角色、初始化选择、并发预算、任务身份和 worktree 所有权。
+来源：Superpowers 6.3.0 `skills/dispatching-parallel-agents/SKILL.md`。适配：使用 CTBZ 角色、初始化选择、任务身份和 worktree 所有权；并行度由宿主调度器决定，父会话不设并发预算。
 
 1. 按问题的根因、输入输出及共享状态分组。两个以上模块能独立验收、依赖已满足且不会争用同一文件或外部资源时才并行。相关失败先由一个任务查共同根因；仅线程隔离不等于文件隔离。
 2. 为每个任务保存 [任务契约](../templates/task-brief.md)，给出精确范围、证据、接口、写集合、验收和报告去向。只传必需背景与文件路径，避免把整个父会话历史作为要求；需要的全局约束不得遗漏。
-3. 父会话核对控制请求、真实在途数量、团队总并发/写并发、预算及调用规则，逐任务通过当前私有 adapter 核查实际原生能力。写任务先按 [worktree 方法](using-git-worktrees.md) 各自隔离；无合法 profile 或用户禁子 Agent 时按 [主会话执行](executing-plans.md) 继续可做工作。
+3. 父会话核对控制请求、写集合冲突、预算及调用规则，逐任务通过当前私有 adapter 核查实际原生能力。并行度由宿主调度器决定，父会话不预设并发数；宿主拒绝或满载时记录 harness-rejected。写任务先按 [worktree 方法](using-git-worktrees.md) 各自隔离；无合法 profile 或用户禁子 Agent 时按 [主会话执行](executing-plans.md) 继续可做工作。
 4. 在独立就绪条件成立时派发，记录宿主真实回执与 agentId。父会话保持协调与记录，接收结果并处理关键问题；不伪造定时心跳或自动恢复承诺。
 5. 逐项核对实际 diff 与 write-set、验证证据和 [独立评审](requesting-code-review.md)，按依赖集成，再验证组合行为。发现共享契约冲突时暂停依赖任务并修订材料，不能因 diff 无冲突就认定集成正确。
 

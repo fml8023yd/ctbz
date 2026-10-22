@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "931b42187a9bb76019cf9958ad80f6f032914895e35712c4e2af8a9352311964"
+      "sha256": "ba7f3597e60b4bd208d3e83cf63c77642ee72505ebb2ec4962b71fe77dda8460"
     },
     {
       "path": "assets/stratified-results.json",
@@ -51,7 +51,7 @@
     },
     {
       "path": "methods/contract.md",
-      "sha256": "da5260fa0d8d136aa5768ab3bd2d627fc4b5abab82d45d2c972c24058e62040b"
+      "sha256": "335d9bccbf8c232eaecbc1647ab4fadd2583b2407e014f54d66bd784f70f170a"
     },
     {
       "path": "methods/i-have-adhd.md",
@@ -59,7 +59,7 @@
     },
     {
       "path": "methods/index.json",
-      "sha256": "bf26b031cd44c8a7ca591f436a92d35d51432e282cc620e0bea705b33980be36"
+      "sha256": "e0b42e9697c280c70f93e0202ceee714cc3a3e846e3f5be8923f803bf7e2c3b8"
     },
     {
       "path": "methods/matt/recommended.md",
@@ -91,7 +91,7 @@
     },
     {
       "path": "methods/superpowers/dispatching-parallel-agents.md",
-      "sha256": "d6036b93bf08c76cff03f5be058d94a0e8153f752ad37049bdb972928e0667bf"
+      "sha256": "91d40cc0b8a6397baf6541dd0651f43dc7d267ecd8c3a0661696910de65d3880"
     },
     {
       "path": "methods/superpowers/executing-plans.md",
@@ -163,11 +163,11 @@
     },
     {
       "path": "references/delivery-contract.md",
-      "sha256": "f14da1f4ec9f2ce4fada21a415a42011e08130942cccf0946867986b4cd2b8f7"
+      "sha256": "649a9aca6f942a886320f73e42cba6cd722173af990ca54f8a50a67dce75c5a1"
     },
     {
       "path": "references/failure-policy.md",
-      "sha256": "3e2e37d5b05ca1f42d50f44942b89a23a9426a18042d25eb2b5bad9858b771ed"
+      "sha256": "9769e16f5cb66cc59b903ae6d863236309b2d2a6b13de719b9d22c2e734b3746"
     },
     {
       "path": "references/methods.md",
@@ -175,15 +175,15 @@
     },
     {
       "path": "references/recommended-workflow.md",
-      "sha256": "d64665a4c00142703cae399d813ca11a612cb5fc20f3702085624198acbbab15"
+      "sha256": "ea811a6b6b6d93126ebc0c16e8a7956f61b68937b6d5c3cf95f826636dda0e74"
     },
     {
       "path": "references/unified-workflow.md",
-      "sha256": "f03e1569674ec10b6c180fe3f79fe19406a6834b962d51065189e4d503a485e6"
+      "sha256": "765582ced2eaf2445ea058af5312f52633bffbbfb1a13fa09d9b7e1fb242b66d"
     },
     {
       "path": "references/upstream-updates.md",
-      "sha256": "f52d8c2305385fb6339769f8fd6abb5a976c49b23127b33ce4d9c3859a321c2f"
+      "sha256": "4772f25f5be653570c8df8b96e95f7120a8779b152a1cd9d0aebc2444fb5b247"
     },
     {
       "path": "references/worktrees.md",
@@ -199,11 +199,19 @@
     },
     {
       "path": "references/派发.md",
-      "sha256": "48e4c3162f689dc29685828f61fb9c5fb9e8e68562ca927961533a6354aa56ae"
+      "sha256": "ce2f56605d46d74cf9c6d831b2109ff464fd6eb3f605d0e169bd28fccaf05265"
     },
     {
       "path": "references/流程治理.md",
       "sha256": "faa105e13683cbd15cc92853451846127703a0ca4f58d067ef9ad43ad153075f"
+    },
+    {
+      "path": "references/班主基线.md",
+      "sha256": "07fec8f29636a3a37cbaef49c07456b6edf113d20ef2af007f72c4f335072f65"
+    },
+    {
+      "path": "references/自动模式.md",
+      "sha256": "2e50b3f2e48015191cc798aafc0b1469a5127ed841bdcb68556d7a5c9c2f9126"
     },
     {
       "path": "references/项目看板.md",
@@ -227,11 +235,11 @@
     },
     {
       "path": "scripts/lib/native-runtime.mjs",
-      "sha256": "a66344df68bd793b7e78b48b34d7a6107cf2ffad5ce28516d23d5d1a8d63f21f"
+      "sha256": "9c5e0366d843ee7db3c38551870d2f9b0daa06ab82746cc15ffb21addfef7e4a"
     },
     {
       "path": "scripts/lib/release.mjs",
-      "sha256": "eaac592525d2f67f0b09115a380be821a6eead444e60d6e99d2a0e28e29861ef"
+      "sha256": "fc42741208492bf9f19092d6acbd8eb86a4eee9e1b9f03c4c6141131fc67cbd2"
     },
     {
       "path": "scripts/lib/state.mjs",
@@ -243,7 +251,7 @@
     },
     {
       "path": "scripts/release.mjs",
-      "sha256": "560d5dad26e2d7631a284985e55bea7e0a3f2654c8f9b9330b9cb0da9a8b91ba"
+      "sha256": "bb0e562afb3dd39a74896363d03bfab6b6669c20d30f8d6a44ab9c2115335f5b"
     },
     {
       "path": "scripts/review-package",
@@ -347,11 +355,11 @@
     },
     {
       "path": "vendor/workbench/source.json",
-      "sha256": "381b142daea393fe6019b37a09c5e4da65f91e8d2d80fae9389f121015ea7156"
+      "sha256": "f4d1ee3cd09336f5cfe4588d85e33e7cf2bb0071ec17eabeb04ff74666fcb760"
     },
     {
       "path": "角色清单.json",
-      "sha256": "0c398adb0e7339e0c8bce2b7897dc9008177bacda2c74c4fe31100f913caacee"
+      "sha256": "dc4614bf042ee29d503617905acc757d790b966c25fe4d57c7ea74d19b1e63c4"
     }
   ]
 }

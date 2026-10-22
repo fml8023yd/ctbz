@@ -38,7 +38,7 @@ try {
       catch (error) { if (error.status) git(['tag', tag]); else throw error; }
       git(['push', 'origin', 'HEAD:main', tag]);
       const notes = path.join(temp, 'notes.md');
-      fs.writeFileSync(notes, `CTBZ ${VERSION}: one shared core, private Codex/ZCode native adapters, explicit parent fallback.\n`);
+      fs.writeFileSync(notes, `CTBZ ${VERSION}: boss baseline (parent zero-output), auto/plan modes, 6+1+6+1 planning, multi-lane verification.\n`);
       execFileSync('gh', ['release', 'create', tag, output, '--repo', 'fml8023yd/ctbz', '--title', `CTBZ ${VERSION}`, '--notes-file', notes], {cwd: repositoryRoot, stdio: 'inherit'});
     }
     console.log(JSON.stringify({ok: true, version: VERSION, archive: output, published: publish}));

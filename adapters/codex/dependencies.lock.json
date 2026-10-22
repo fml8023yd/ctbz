@@ -3,15 +3,15 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "a3b0a05318b16a094a9b1862fa23dcda337356d851f15b6b0278c0f6cf311616"
+      "sha256": "3f4d29b54631b76e9dc92d68f2a3abe9d1b76e236998cf35dd17ca193c7a13b0"
     },
     {
       "path": "adapter.json",
-      "sha256": "38c94d9dddee82e0fc0cf4674a5464e22c66f28610668896d52e23f0c0b1ecc8"
+      "sha256": "72ae5278219558e9653958f288d5cd24ec002a93f4f108f68a514738eab5e964"
     },
     {
       "path": "scripts/native.mjs",
-      "sha256": "2d27a6ff6ca565cfbcebdca336f35debcd30ed3a943d43167ffaaef08c7b3831"
+      "sha256": "0fc4594527e5d561a8bec7f91ead76c72ef1ca16f0c39bca43c519e6cc8117a6"
     }
   ]
 }

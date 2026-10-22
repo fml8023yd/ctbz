@@ -12,17 +12,34 @@ import {deploy} from '../skills/ctbz/scripts/lib/release.mjs';
 const repo = fileURLToPath(new URL('../', import.meta.url));
 const workspace = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-native-')));
 const codex = {harness: 'codex', source: 'current-harness-tool-list', tools: ['collaboration.spawn_agent', 'collaboration.wait_agent', 'collaboration.interrupt_agent']};
+const zcode = {harness: 'zcode', source: 'current-harness-tool-list', tools: ['host.start', 'host.wait', 'host.stop']};
 const brief = (taskId = 'module_one') => ({taskId, role: 'implementer', phase: 'implement', workspace, objective: 'Write the authorized deliverable', context: 'The user selected unified CTBZ. Preserve the existing interface and data.', authorization: 'User authorized the named test workspace writeSet.', inputs: [], writeSet: [path.join(workspace, taskId + '.txt')], acceptance: ['File contains verified result'], stopConditions: ['Permission denial or user pause'], budget: {maxRepairRounds: 3}, methods: ['verification-before-completion']});
 const parent = async task => { fs.writeFileSync(task.writeSet[0], 'verified'); return {evidence: task.writeSet}; };
 
-test('selection uses actual host evidence, enforces model and real in-flight limit without task-list loophole', () => {
+test('selection uses actual host evidence and harness model routing without a core concurrency gate', () => {
   assert.equal(selectHarness({harness: 'codex', tools: codex.tools}).mode, 'parent');
   assert.equal(selectHarness({...codex, harness: 'unknown'}).mode, 'parent');
-  assert.equal(nativeSelection({...brief(), phase: 'plan'}, codex, 0).model, 'gpt-6-astra');
-  assert.equal(nativeSelection(brief(), codex, 0).model, 'gpt-6.1-sol');
-  assert.equal(nativeSelection(brief(), {...codex, tasks: []}, 2).mode, 'queued');
+  assert.equal(nativeSelection({...brief(), phase: 'plan'}, codex).model, 'gpt-6-astra');
+  assert.equal(nativeSelection(brief(), codex).model, 'gpt-6.1-sol');
+  assert.equal(nativeSelection(brief(), codex).mode, 'native');
+  assert.equal(nativeSelection(brief(), zcode).mode, 'native');
   assert.equal(sessionRoot(workspace, 'codex'), path.join(workspace, '.codex/ctbz'));
   assert.equal(sessionRoot(workspace, 'zcode'), path.join(workspace, '.zcode/ctbz'));
+});
+
+test('concurrent calls dispatch in parallel because the harness scheduler owns parallelism', async () => {
+  let active = 1, highest = 1, release;
+  const held = new Promise(resolve => { release = resolve; });
+  const port = {start: async selection => { active++; highest = Math.max(highest, active); return {agentId: selection.taskName}; }, wait: async handle => { await held; active--; return {...handle, status: 'completed', evidence: ['real-output']}; }};
+  const runtime = createRuntime({evidence: codex, port, sessionId: 'parallel-session'});
+  const first = runtime.run(brief('parallel_one'));
+  const second = runtime.run(brief('parallel_two'));
+  const third = runtime.run(brief('parallel_three'));
+  release();
+  assert.equal((await first).status, 'completed');
+  assert.equal((await second).status, 'completed');
+  assert.equal((await third).status, 'completed');
+  assert.equal(highest, 4);
 });
 
 test('standalone contract rejects relative writes and writable read-only roles', () => {
@@ -37,7 +54,7 @@ test('standalone contract rejects relative writes and writable read-only roles',
 test('unknown host, missing tools and start failure execute the authorized parent path with one notice per session', async () => {
   for (const options of [{evidence: {...codex, harness: 'unknown'}}, {evidence: codex}, {evidence: codex, port: {activeCount: async () => 0, start: async () => { throw Error('host offline'); }, wait: async () => {}}}]) {
     const notices = [], records = [];
-    const runtime = createRuntime({...options, sessionId: 'real-fixture-session', executeParent: parent, notify: async event => notices.push(event), record: async event => records.push(event)});
+    const runtime = createRuntime({...options, sessionId: 'real-fixture-session', executeParent: parent, parentExecutionAuthorized: true, notify: async event => notices.push(event), record: async event => records.push(event)});
     for (const id of ['fallback_one', 'fallback_two']) {
       const result = await runtime.run(brief(id));
       assert.equal(result.mode, 'parent');
@@ -48,6 +65,23 @@ test('unknown host, missing tools and start failure execute the authorized paren
     assert.equal(notices.length, 1);
     assert.equal(records.filter(event => event.status === 'parent-completed').length, 2);
     assert.ok(records.every(event => event.sessionId === 'real-fixture-session'));
+  }
+});
+
+test('without parentExecutionAuthorized the parent executor is never called and the result is parent-required', async () => {
+  for (const options of [{evidence: {...codex, harness: 'unknown'}}, {evidence: codex}, {evidence: codex, port: {activeCount: async () => 0, start: async () => { throw Error('host offline'); }, wait: async () => {}}}]) {
+    const notices = [], records = [];
+    let called = false;
+    const runtime = createRuntime({...options, sessionId: 'unauthorized-session', executeParent: async () => { called = true; return parent(brief('unauthorized_one')); }, notify: async event => notices.push(event), record: async event => records.push(event)});
+    const result = await runtime.run(brief('unauthorized_one'));
+    assert.equal(result.mode, 'parent');
+    assert.equal(result.status, 'parent-required');
+    assert.equal(result.review, 'parent-self-review');
+    assert.equal(called, false);
+    assert.ok(fs.existsSync(brief('unauthorized_one').writeSet[0]) === false);
+    assert.equal(notices.length, 1);
+    assert.equal(records.filter(event => event.status === 'parent-required').length, 1);
+    assert.equal(records.filter(event => event.status === 'parent-completed').length, 0);
   }
 });
 
@@ -83,8 +117,11 @@ test('mid-task failure confirms old execution stopped, transfers checkpoint, and
   const unresolved = await unresolvedRuntime.run(brief('lost'));
   assert.equal(unresolved.status, 'awaiting-stop');
   assert.equal(parentCalled, false);
+  // An unconfirmed child releases its writeSet claim, so an overlapping sibling is not
+  // permanently blocked; the taskId itself stays registered against duplicate dispatch.
   const overlapping = await unresolvedRuntime.run({...brief('lost_next'), writeSet: brief('lost').writeSet});
-  assert.equal(overlapping.reason, 'write-conflict');
+  assert.equal(overlapping.status, 'awaiting-stop');
+  await assert.rejects(unresolvedRuntime.run(brief('lost')), /duplicate taskId in session/);
   const checkpoint = {files: [brief('resume').writeSet[0]], next: 'verify existing file'};
   const failed = {...port, wait: async () => ({agentId: 'real-agent', status: 'failed', checkpoint, evidence: ['/actual/partial-output']})};
   await createRuntime({evidence: codex, port: failed, sessionId: 'resume-session', executeParent: async (task, detail) => { assert.deepEqual(detail.checkpoint, checkpoint); return parent(task); }}).run(brief('resume'));
@@ -102,29 +139,28 @@ test('same task cannot be dispatched twice while the first native start is pendi
   assert.equal(starts, 1);
 });
 
-test('concurrent calls reserve capacity and include agents outside the current task list', async () => {
-  let active = 1, highest = 1, release;
-  const held = new Promise(resolve => { release = resolve; });
-  const port = {activeCount: async () => active, start: async selection => { active++; highest = Math.max(highest, active); return {agentId: selection.taskName}; }, wait: async handle => { await held; active--; return {...handle, status: 'completed', evidence: ['real-output']}; }};
-  const runtime = createRuntime({evidence: codex, port, sessionId: 'parallel-session'});
-  const first = runtime.run(brief('parallel_one'));
-  const second = runtime.run(brief('parallel_two'));
-  assert.equal((await second).mode, 'queued');
-  release();
-  assert.equal((await first).status, 'completed');
-  assert.equal(highest, 2);
-});
-
 test('installed unified entry discovers each private adapter and completes through harness-injected ports', async () => {
   const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-installed-')));
   deploy(repo, home);
   const tools = {activeCount: async () => 0, spawnAgent: async () => ({agentId: 'installed-codex-agent'}), waitAgentResult: async agentId => ({agentId, status: 'completed', evidence: ['installed actual result']}), interruptAgent: async () => true};
   const runtime = await openRuntime({evidence: codex, home, nativeTools: tools, sessionId: 'installed-session', core: path.join(home, '.agents/skills/ctbz')});
   assert.equal((await runtime.run(brief('installed'))).agentId, 'installed-codex-agent');
-  const zcode = {harness: 'zcode', source: 'current-harness-tool-list', tools: ['host.start', 'host.wait', 'host.stop']};
-  const ztools = {toolNames: {start: 'host.start', wait: 'host.wait', stop: 'host.stop'}, activeCount: async () => 0, start: async () => ({agentId: 'installed-zcode-agent'}), wait: async handle => ({...handle, status: 'completed', evidence: ['native zcode output']}), stop: async () => true};
+  const ztools = {toolNames: {start: 'host.start', wait: 'host.wait', stop: 'host.stop'}, start: async () => ({agentId: 'installed-zcode-agent'}), wait: async handle => ({...handle, status: 'completed', evidence: ['native zcode output']}), stop: async () => true};
   assert.equal((await (await openRuntime({evidence: zcode, home, nativeTools: ztools, sessionId: 'zcode-session'})).run(brief('zcode'))).agentId, 'installed-zcode-agent');
   assert.throws(() => zcodePort({...ztools, toolNames: {start: 'invented'}}, zcode), /unavailable/);
   const missing = await openRuntime({evidence: codex, home: path.join(home, 'empty'), sessionId: 'empty-session', executeParent: parent});
   assert.equal((await missing.run(brief('missing_adapter'))).mode, 'parent');
+});
+
+test('synchronous zcode hosts may omit wait while start and stop stay mandatory', async () => {
+  const syncTools = {toolNames: {start: 'host.start', stop: 'host.stop'}, start: async () => ({agentId: 'sync-zcode-agent', status: 'completed', evidence: ['synchronous actual output']}), stop: async () => true};
+  const port = zcodePort(syncTools, zcode);
+  assert.equal(typeof port.wait, 'function');
+  assert.deepEqual(await port.wait({agentId: 'sync-zcode-agent'}), {agentId: 'sync-zcode-agent'});
+  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-sync-')));
+  deploy(repo, home);
+  const runtime = await openRuntime({evidence: zcode, home, nativeTools: syncTools, sessionId: 'sync-session', core: path.join(home, '.agents/skills/ctbz')});
+  assert.equal((await runtime.run(brief('sync_zcode'))).agentId, 'sync-zcode-agent');
+  assert.throws(() => zcodePort({...syncTools, start: undefined}, zcode), /missing start/);
+  assert.throws(() => zcodePort({...syncTools, stop: undefined}, zcode), /missing stop/);
 });

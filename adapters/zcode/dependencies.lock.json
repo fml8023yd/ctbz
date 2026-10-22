@@ -3,11 +3,11 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "ee301b7989fd79a055cc4b40154e8055f2adbc761a791387d669308def6ff93c"
+      "sha256": "89a595933027159d904051ba5e1329f0cbbeb9bbb717c8f930bcc7347e1dac33"
     },
     {
       "path": "adapter.json",
-      "sha256": "fae08721771c0ac9adc46d9a51588ada5dbc21f36ea206b5ef5b8dfbd592e2b1"
+      "sha256": "1eb09f78b4d2830a83f516136df7f6d5152540f1943a454028be928a22b16610"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -19,11 +19,11 @@
     },
     {
       "path": "references/configuration.md",
-      "sha256": "7c93d485d10a969ffa87afb41682f0238cd3ca7dbee5727c431c00e5d0ca707d"
+      "sha256": "4ed8af27d4a3d3804f6a9fe69be5abe630f1b7ad14c1ed09937927d7778dfbf8"
     },
     {
       "path": "references/初始化.md",
-      "sha256": "43aa8131a89d94434eb99a5102834b93a4f9f2a2456bf8be5d4acfea17180a65"
+      "sha256": "4217f4c03e3474141806a1c8dce5c927aabc5c5a72609413b51da276feb89b08"
     },
     {
       "path": "scripts/core.mjs",
@@ -71,7 +71,7 @@
     },
     {
       "path": "scripts/native.mjs",
-      "sha256": "816e74daa8db8613c1a8c8c2bc9401a0f2032ddd55c084eb466035f7b00fb47f"
+      "sha256": "821cbcca0eaf9d23612d365a168aab8c59799dceddedbb0e8b09fa56032782c0"
     },
     {
       "path": "scripts/pick-profile",

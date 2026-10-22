@@ -24,7 +24,7 @@ test('shared knowledge remains experience until actual user confirmation and con
 test('fallback notice and factual event log survive reopening the same session without invented agent identities', async () => {
   const workspace = temporary('journal'), notices = [];
   const brief = taskId => ({taskId, role: 'implementer', phase: 'implement', workspace, objective: 'Produce test evidence', context: 'Same real session reopened after an unavailable host.', authorization: 'User authorized this temporary workspace.', inputs: [], writeSet: [path.join(workspace, taskId + '.txt')], acceptance: ['File is verified'], stopConditions: ['Permission denied'], budget: {maxRepairRounds: 1}, methods: []});
-  const options = {evidence: {harness: 'unknown'}, sessionId: 'persistent-real-session', notify: async event => notices.push(event), executeParent: async task => { fs.writeFileSync(task.writeSet[0], 'verified'); return {evidence: task.writeSet}; }};
+  const options = {evidence: {harness: 'unknown'}, sessionId: 'persistent-real-session', parentExecutionAuthorized: true, notify: async event => notices.push(event), executeParent: async task => { fs.writeFileSync(task.writeSet[0], 'verified'); return {evidence: task.writeSet}; }};
   await createRuntime(options).run(brief('first'));
   await createRuntime(options).run(brief('second'));
   assert.equal(notices.length, 1);

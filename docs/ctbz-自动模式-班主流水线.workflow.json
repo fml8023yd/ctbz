@@ -1,0 +1,391 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "CTBZ 自动模式 · 班主流水线",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "plan-pipeline",
+        "label": "计划流水线",
+        "focus": [
+          "question",
+          "intake",
+          "recon",
+          "plan_6",
+          "merge_attack",
+          "adjudicate"
+        ],
+        "note": "P0 接单 → P0.5 侦察事实表 → 6 路计划 → 合并 → 6 路攻击 → 裁决"
+      },
+      {
+        "id": "execute-verify",
+        "label": "执行与验收",
+        "focus": [
+          "adjudicate",
+          "execute",
+          "gate",
+          "verify",
+          "final_check",
+          "handoff"
+        ],
+        "note": "执行 + 集成 → 集成门 → 6 路全量验收 → 班主终检 → 交付"
+      },
+      {
+        "id": "plan-exit",
+        "label": "计划模式出口",
+        "focus": [
+          "adjudicate",
+          "handoff"
+        ],
+        "note": "计划模式在裁决后停：交最终计划 + 决策日志 + 执行契约"
+      },
+      {
+        "id": "decision-report",
+        "label": "决策与汇报",
+        "focus": [
+          "execute",
+          "decision",
+          "final_check",
+          "handoff"
+        ],
+        "note": "推送 → 等待 → 默认继续；决策账随交付汇报"
+      },
+      {
+        "id": "rework-loop",
+        "label": "回退路径",
+        "focus": [
+          "verify",
+          "execute",
+          "adjudicate"
+        ],
+        "note": "验收不过先回修；设计缺陷回裁决重规划；最多 3 轮"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "boss",
+      "label": "老板"
+    },
+    {
+      "id": "lead",
+      "label": "班主"
+    },
+    {
+      "id": "verify",
+      "label": "验收"
+    },
+    {
+      "id": "team",
+      "label": "计划 / 执行"
+    }
+  ],
+  "phases": [
+    {
+      "id": "intake_phase",
+      "label": "接单 + 侦察",
+      "fromCol": 0,
+      "toCol": 0
+    },
+    {
+      "id": "plan_phase",
+      "label": "计划 + 合并 + 攻击",
+      "fromCol": 1,
+      "toCol": 2,
+      "variant": "emphasis"
+    },
+    {
+      "id": "verdict_phase",
+      "label": "裁决 + 执行",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "security"
+    },
+    {
+      "id": "delivery_phase",
+      "label": "验收 / 交付",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "semanticChecks": {
+    "allowedRoots": [
+      "question"
+    ],
+    "allowedTerminals": [
+      "handoff"
+    ],
+    "requiredEdges": [
+      {
+        "from": "intake",
+        "to": "recon"
+      },
+      {
+        "from": "recon",
+        "to": "plan_6"
+      },
+      {
+        "from": "plan_6",
+        "to": "merge_attack"
+      },
+      {
+        "from": "merge_attack",
+        "to": "adjudicate"
+      },
+      {
+        "from": "adjudicate",
+        "to": "execute"
+      },
+      {
+        "from": "execute",
+        "to": "gate"
+      },
+      {
+        "from": "gate",
+        "to": "verify"
+      },
+      {
+        "from": "verify",
+        "to": "final_check"
+      },
+      {
+        "from": "final_check",
+        "to": "handoff"
+      }
+    ],
+    "requiredPaths": [
+      {
+        "from": "question",
+        "to": "handoff"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "question",
+      "lane": "boss",
+      "col": 0,
+      "type": "external",
+      "width": 130,
+      "label": "用户提问",
+      "sublabel": "授权 / 目标"
+    },
+    {
+      "id": "intake",
+      "lane": "lead",
+      "col": 0,
+      "type": "backend",
+      "width": 145,
+      "label": "P0 接单 + 诊断",
+      "sublabel": "只读 · 定验收"
+    },
+    {
+      "id": "recon",
+      "lane": "team",
+      "col": 0,
+      "type": "backend",
+      "width": 155,
+      "label": "P0.5 侦察事实表",
+      "sublabel": "1–2 explorer · 只读",
+      "tag": "同一份事实表"
+    },
+    {
+      "id": "plan_6",
+      "lane": "team",
+      "col": 1,
+      "type": "backend",
+      "width": 155,
+      "label": "P1 6 × 独立计划",
+      "sublabel": "不同角色 / 模型"
+    },
+    {
+      "id": "merge_attack",
+      "lane": "team",
+      "col": 2,
+      "type": "security",
+      "width": 170,
+      "label": "P2 合并 → P3 攻击",
+      "sublabel": "合并稿 + 分歧 → 6 路攻击"
+    },
+    {
+      "id": "adjudicate",
+      "lane": "team",
+      "col": 3,
+      "type": "security",
+      "width": 155,
+      "label": "P4 裁决 Agent",
+      "sublabel": "采纳 / 驳回 + 理由",
+      "tag": "① 意图→计划"
+    },
+    {
+      "id": "execute",
+      "lane": "team",
+      "col": 4,
+      "type": "backend",
+      "width": 155,
+      "label": "E1–E2 执行 + 集成",
+      "sublabel": "按写集拆 · 集成 owner 唯一"
+    },
+    {
+      "id": "decision",
+      "lane": "lead",
+      "col": 4,
+      "type": "external",
+      "width": 145,
+      "label": "30 分钟决策升级",
+      "sublabel": "推送 → 等待 → 默认 → 决策账",
+      "tag": "阻塞 + 影响大"
+    },
+    {
+      "id": "gate",
+      "lane": "team",
+      "col": 5,
+      "type": "security",
+      "width": 140,
+      "label": "E2.5 集成门",
+      "sublabel": "build + smoke 过才开验收",
+      "tag": "不过打回"
+    },
+    {
+      "id": "verify",
+      "lane": "verify",
+      "col": 5,
+      "type": "database",
+      "width": 140,
+      "label": "E3 6 路全量验收",
+      "sublabel": "每个 Agent 看整份产物",
+      "tag": "② 计划→产物"
+    },
+    {
+      "id": "final_check",
+      "lane": "lead",
+      "col": 5,
+      "type": "backend",
+      "width": 145,
+      "label": "E4 班主终检",
+      "sublabel": "抽样核对 · 走用户实际路径",
+      "tag": "③ 产物→实际使用"
+    },
+    {
+      "id": "handoff",
+      "lane": "boss",
+      "col": 5,
+      "type": "external",
+      "width": 145,
+      "label": "交付 / 计划出口",
+      "sublabel": "计划模式停 · 自动模式交付",
+      "tag": "倒叙汇报"
+    }
+  ],
+  "edges": [
+    {
+      "from": "question",
+      "to": "intake",
+      "variant": "emphasis",
+      "route": "straight",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "intake",
+      "to": "recon",
+      "variant": "emphasis"
+    },
+    {
+      "from": "recon",
+      "to": "plan_6"
+    },
+    {
+      "from": "plan_6",
+      "to": "merge_attack"
+    },
+    {
+      "from": "merge_attack",
+      "to": "adjudicate"
+    },
+    {
+      "from": "adjudicate",
+      "to": "execute",
+      "label": "执行契约",
+      "variant": "emphasis",
+      "route": "straight",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "execute",
+      "to": "decision",
+      "label": "升级",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "from": "decision",
+      "to": "handoff",
+      "label": "决策账（汇报时）",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "from": "execute",
+      "to": "gate",
+      "variant": "emphasis",
+      "route": "straight",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "gate",
+      "to": "verify",
+      "label": "通过才开 6 路",
+      "variant": "emphasis",
+      "route": "straight",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "from": "verify",
+      "to": "final_check",
+      "label": "通过",
+      "variant": "emphasis",
+      "route": "straight",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "from": "final_check",
+      "to": "handoff",
+      "label": "交付 + 推送",
+      "variant": "emphasis",
+      "route": "straight",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "from": "adjudicate",
+      "to": "handoff",
+      "label": "计划模式（停）",
+      "variant": "dashed",
+      "role": "branch",
+      "labelDy": 12
+    },
+    {
+      "from": "decision",
+      "to": "execute",
+      "label": "默认继续",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "from": "verify",
+      "to": "execute",
+      "variant": "security",
+      "role": "error",
+      "label": "不通过 → 回修"
+    }
+  ],
+  "cards": []
+}
