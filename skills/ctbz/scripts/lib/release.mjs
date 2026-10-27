@@ -10,6 +10,7 @@ export const packages = repo => [
   {id: 'core', source: path.join(repo, 'skills/ctbz'), target: '.agents/skills/ctbz'},
   {id: 'codex', source: path.join(repo, 'adapters/codex'), target: '.codex/skills/ctbz-codex'},
   {id: 'zcode', source: path.join(repo, 'adapters/zcode'), target: '.zcode/skills/ctbz-zcode'},
+  {id: 'claude-code', source: path.join(repo, 'adapters/claude-code'), target: '.claude/skills/ctbz-claude-code'},
 ];
 const digest = value => createHash('sha256').update(value).digest('hex');
 const localNames = new Set(['.ctbz-record', '.git', '.backups', '__pycache__', '.DS_Store', 'credentials.json', 'config.json', '调用规则.json', '初始化状态.json', 'setting.yaml', '模型健康.json', '.env']);
@@ -98,7 +99,8 @@ export function deploy(repo, home, {checkOnly = false, failAt} = {}) {
       for (const pkg of sources) {
         const target = path.join(home, pkg.target);
         const actual = fs.existsSync(target) ? installedSnapshot(target) : {};
-        if (JSON.stringify(actual) !== JSON.stringify(baseline.packages[pkg.id])) throw Error(`installed ${pkg.id} drift; preserve changes before replacing`);
+        // 旧版 baseline 不含新增包；无记录不等于漂移，有记录才比较。
+        if (Object.hasOwn(baseline.packages, pkg.id) && JSON.stringify(actual) !== JSON.stringify(baseline.packages[pkg.id])) throw Error(`installed ${pkg.id} drift; preserve changes before replacing`);
       }
     }
     for (const pkg of sources) {

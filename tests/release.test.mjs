@@ -33,7 +33,8 @@ test('source locks detect changed, added and deleted files; checks never rewrite
 test('isolated install uses one core and private adapters; failed replacement restores all old installations', () => {
   const home = temporary('install');
   const first = deploy(repo, home);
-  assert.equal(first.installed.length, 3);
+  assert.equal(first.installed.length, 4);
+  assert.ok(first.installed.some(p => p.endsWith('.claude/skills/ctbz-claude-code')));
   for (const pkg of packages(repo)) {
     const destination = path.join(home, pkg.target);
     verifyPackage(destination, pkg.id);
@@ -83,9 +84,10 @@ test('CLI check-only preserves files and local release archive contains only iso
   assert.ok(contents.includes('skills/ctbz/SKILL.md'));
   assert.ok(contents.includes('adapters/codex/SKILL.md'));
   assert.ok(contents.includes('adapters/zcode/SKILL.md'));
+  assert.ok(contents.includes('adapters/claude-code/SKILL.md'));
   assert.equal(contents.some(file => /\.ctbz-record|credentials\.json|\/config\.json|setting\.yaml/.test(file)), false);
   const extract = temporary('extracted');
   execFileSync('tar', ['-xzf', archive, '-C', extract]);
-  assert.equal(verifyRepository(extract).length, 3);
+  assert.equal(verifyRepository(extract).length, 4);
   assert.equal(deploy(extract, temporary('new-machine')).ok, true);
 });

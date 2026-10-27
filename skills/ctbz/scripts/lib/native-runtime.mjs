@@ -7,7 +7,7 @@ import {verifyBundle, roleMethods, installRoot} from './methods.mjs';
 import {verifyPackage} from './release.mjs';
 
 export const VERSION = '0.1.0';
-export const HARNESS = Object.freeze({codex: '.codex', zcode: '.zcode'});
+export const HARNESS = Object.freeze({codex: '.codex', zcode: '.zcode', 'claude-code': '.claude'});
 const readOnly = new Set(['planner', 'reviewer', 'explorer', 'researcher', 'reporter']);
 const phases = new Set(['plan', 'discuss', 'implement', 'debug', 'test', 'review', 'research', 'report']);
 const permissionDenied = error => ['EACCES', 'EPERM', 'PERMISSION_DENIED', 'permission-denied'].includes(error?.code || error?.category) || /permission denied|approval (?:denied|rejected)|not authorized/i.test(error?.message || '');

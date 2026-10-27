@@ -16,9 +16,9 @@ description: 草台班子：需求诊断、计划、原生多 Agent 协作、验
 
 ## 唯一核心与宿主
 
-本安装 `~/.agents/skills/ctbz` 是唯一核心；方法、角色、看板、知识共用一份。`~/.codex/skills/ctbz-codex` 和 `~/.zcode/skills/ctbz-zcode` 只放宿主适配器。先以当前真实工具列表确认宿主和能力，再读相应私有 adapter；不能根据模型名、目录存在或历史摘要猜宿主。
+本安装 `~/.agents/skills/ctbz` 是唯一核心；方法、角色、看板、知识共用一份。`~/.codex/skills/ctbz-codex`、`~/.zcode/skills/ctbz-zcode` 和 `~/.claude/skills/ctbz-claude-code` 只放宿主适配器。先以当前真实工具列表确认宿主和能力，再读相应私有 adapter；不能根据模型名、目录存在或历史摘要猜宿主。
 
-白名单仅 codex、zcode。未知宿主、缺 adapter/工具、启动失败、途中失败时提示一次，记录原因；主进程继续已授权任务中的拆、派、验、问，不接管产出。用户明确说“你自己做 / 亲历 / 别派了”时，记录 `mode=亲力`，才可亲自执行。权限拒绝停止被拒动作；不切工具、模型或宿主绕过。子 Agent 途中失联先确认停止，核查其检查点及已有写入后重派新 Agent；无法确认停止时保留现场，避免重复执行。
+白名单仅 codex、zcode、claude-code。未知宿主、缺 adapter/工具、启动失败、途中失败时提示一次，记录原因；主进程继续已授权任务中的拆、派、验、问，不接管产出。用户明确说“你自己做 / 亲历 / 别派了”时，记录 `mode=亲力`，才可亲自执行。权限拒绝停止被拒动作；不切工具、模型或宿主绕过。子 Agent 途中失联先确认停止，核查其检查点及已有写入后重派新 Agent；无法确认停止时保留现场，避免重复执行。
 
 共享代码入口 [native-runtime](scripts/lib/native-runtime.mjs) 的 `openRuntime` 由父 Harness 或用户配置 wrapper 注入原生工具端口；Node 不创造工具，不默认调用模型 API。未配置 wrapper 时父会话按 [派发契约](references/派发.md) 直接调用本次真实原生工具，接收真实身份与证据。无 Agent 可用时报阻塞并请求亲力授权，用户明确授权后才亲自执行。程序测试端口不证明真实宿主集成。
 
