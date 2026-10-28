@@ -21,6 +21,7 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
 const USAGE = `ctbz 内审 CLI
@@ -82,6 +83,34 @@ const DELIVER3_LABELS = ["答案对齐", "半途扫描", "跑偏检查"];
 const DELIVER3_EMPTY = new Set(["无", "n/a", "none"]);
 // 段缺失时的补充提示（仅对 2.1.4 起必填的新段生效，其余段保持原文案）。
 const SECTION_HINTS = { 交付前三问: "（2.1.4 起必填）" };
+
+// ── 2.2.x 假设与边界闸门（派发闸/G 编号体系延伸）──
+// A：需求诊断后必附【假设与边界】；每条假设须带可证伪条件；无假设须显式「无假设（依据：…）」且依据非空。
+const ASSUMPTION_SEC_RE = /^(#{0,6}\s*【?假设与边界】?\s*[:：]?\s*)$/m;
+const NO_ASSUMPTION_RE = /无假设\s*[（(]\s*依据\s*[:：]\s*(.*?)\s*[)）]/;
+const FALSIFIABLE_RE = /证伪|推翻|什么结果|不成立|反例|失败情境|何种情况|不成立条件|false|falsif/;
+// 假设条目识别：显式「假设：」/「假设N：」前缀行，或段内其他 `- ` 行（排除 边界/舞台/无假设 行）。
+// 每条假设须另含可证伪条件关键词（FALSIFIABLE_RE），否则判「缺可证伪条件」（B-1 修复：不把边界/舞台误判成假设）。
+const ASSUMPTION_ITEM_RE = /^[\s>*+\-•]*假设\s*\d*\s*[:：].+/;
+const BOUNDARY_STAGE_RE = /^[\s>*+\-•]*[-•*+]?\s*(?:边界|舞台)\s*[:：]/;
+const NO_ASSUMPTION_LINE_RE = /^\s*[-•*+]?\s*无假设\s*[（(]/;
+function isAssumptionItem(line) {
+  const trimmed = line.trim();
+  if (ASSUMPTION_ITEM_RE.test(trimmed)) return true;
+  if (BOUNDARY_STAGE_RE.test(trimmed)) return false;
+  if (NO_ASSUMPTION_LINE_RE.test(trimmed)) return false;
+  return /^[-•*+>]/.test(trimmed);
+}
+// B：结论段绝对断言词 + 同段缺证据指针，判「警告级」（非阻断，误报优先）。
+const CONCLUSION_SEC_RE = /^(#{1,6}\s*.*(?:结论|判定|说明|因此|综上)\s*:?\s*$)/m;
+const CONCLUSION_LINE_RE = /结论|判定|因此|说明|综上/;
+const ABSOLUTE_RE = /证明|确认无误|必然|一定|绝对|毫无疑问|必定|确信/;
+const ASSERT_WARN_RE = /\[measured\]|\[derived\]|\[assumed\]|实测|实测输出|据\s*.+\s*文件|据\s*.+\s*命令/;
+const EVIDENCE_PTR_RE = /[^\s:：]+\.(mjs|js|md|json|ts|sh|yaml|yml):\d+|\bexit\s*[0-2]\b|\bpass\s*\d+|\d+\s*fail|`[^`]+`|https?:\/\/|\b\d+(\.\d+)?\s*(秒|分钟|ms|次|行|个|项|%|MB|KB|字节)\b|\b\d+\/\d+\b/;
+// C：流程资产复用——回执声明新建脚本路径，但该路径已在 ~/.ctbz/流程/index.json 的 scripts 字段中存在。
+// 命中：新建/新建了/新增脚本 之后跟一个脚本文件路径（绝对或相对均可，以脚本扩展名结尾，到空白/标点为止）。
+const NEW_SCRIPT_RE = /(?:新建|新增|新写)[了]?\s*(?:脚本|了)?\s*[:：]?\s*["']?(\S+\.(?:mjs|js|ts|py|sh|tsx))["']?/;
+const PROCESS_INDEX = join(homedir(), ".ctbz", "流程", "index.json");
 
 function usage(msg) {
   console.error("[内审.mjs] " + msg);
@@ -233,6 +262,11 @@ function parseFuming(text) {
   const heads = {};
   let cur = null;
   text.split(/\r?\n/).forEach((line, i) => {
+    // 2.2.x：复命清单尾部可附【假设与边界】段，不并入任何 G 段（尤其不被「行动账增量」吞掉）。
+    if (ASSUMPTION_SEC_RE.test(line)) {
+      cur = null;
+      return;
+    }
     const m = SECTION_RE.exec(line);
     if (m) {
       cur = m[1];
@@ -400,6 +434,93 @@ function judgeFuming(text) {
   return errors;
 }
 
+// ── 2.2.x 假设与边界闸门：A / B / C 三条 ──
+
+// A：缺【假设与边界】段 → 判红；有假设条但某条无「证伪/推翻」类可证伪条件 → 判红；豁免「无假设（依据：X）」且依据非空 → 放行，空依据 → 判红。
+function judgeAssumption(text, errors) {
+  if (!ASSUMPTION_SEC_RE.test(text)) {
+    errors.push("A: 缺【假设与边界】段（需求诊断后必附：假设清单＋三档边界＋四项舞台；无可变决策须写「无假设（依据：…）」）");
+    return;
+  }
+  const noMatch = text.match(NO_ASSUMPTION_RE);
+  // 提取【假设与边界】段正文：段标题行之后至下一段标题或文件末尾。
+  const secStart = text.split(/\r?\n/).findIndex((l) => ASSUMPTION_SEC_RE.test(l));
+  const lines = text.split(/\r?\n/).slice(secStart + 1);
+  let end = lines.findIndex((l) => /^(#{1,6}\s+|[{【])/.test(l) && !ASSUMPTION_SEC_RE.test(l));
+  const body = end < 0 ? lines : lines.slice(0, end);
+  const items = body.filter((l) => isAssumptionItem(l));
+  // 「无假设（依据：…）」豁免写法：依据非空放行，但仍须校验同段其余假设条目（C-5）。
+  if (noMatch) {
+    if (!noMatch[1].trim()) errors.push("A: 豁免写法「无假设（依据：…）」缺依据，空依据仍判红");
+    if (items.length) {
+      items.forEach((l, i) => {
+        if (!FALSIFIABLE_RE.test(l)) errors.push("A: 假设第 " + (i + 1) + " 条缺可证伪条件（须含 证伪/推翻/什么结果不成立/反例 等）");
+      });
+    }
+    return;
+  }
+  if (!items.length) {
+    errors.push("A: 【假设与边界】段未列出任何假设条目，且未用「无假设（依据：…）」豁免");
+    return;
+  }
+  items.forEach((l, i) => {
+    if (!FALSIFIABLE_RE.test(l)) errors.push("A: 假设第 " + (i + 1) + " 条缺可证伪条件（须含 证伪/推翻/什么结果不成立/反例 等）");
+  });
+}
+
+// B：结论段（含「结论/判定/因此/说明/综上」标记行）出现绝对断言词但同段无证据指针 → 警告级（不打断 exit，先漏判不误杀）。
+function judgeConclusionWarn(text, errors) {
+  const lines = text.split(/\r?\n/);
+  let inConclusion = false;
+  for (const l of lines) {
+    if (CONCLUSION_SEC_RE.test(l)) { inConclusion = true; continue; }
+    if (inConclusion && /^(#{1,6}\s+)/.test(l)) { inConclusion = false; } // 下一段标题收尾
+    if (!inConclusion) continue;
+    if (ABSOLUTE_RE.test(l) && !ASSERT_WARN_RE.test(l) && !EVIDENCE_PTR_RE.test(l)) {
+      errors.push(
+        "B⚠: 结论段出现未标注的推测断言（" +
+          l.trim().slice(0, 40) +
+          "…）——建议加 [measured]/实测/据 X 文件 或证据指针（路径:行号 / exit / 数字+来源）；此为警告，不阻断"
+      );
+      inConclusion = false; // 一段只报一次
+    }
+  }
+}
+
+// 读取 ~/.ctbz/流程/index.json 的 scripts 全量集合；文件不存在/损坏 → 返回 null（不阻断内审）。
+function loadProcessScripts() {
+  if (!existsSync(PROCESS_INDEX)) return null;
+  try {
+    const data = JSON.parse(readFileSync(PROCESS_INDEX, "utf8"));
+    if (!Array.isArray(data.entries)) return null;
+    const set = new Set();
+    for (const e of data.entries) {
+      if (e && Array.isArray(e.scripts)) for (const s of e.scripts) if (typeof s === "string" && s.trim()) set.add(s.trim());
+    }
+    return set;
+  } catch {
+    return null;
+  }
+}
+
+// C：回执声明新建脚本路径，但该路径已存在于流程索引 → 判红（应先复用既有脚本）。
+// index.json 缺失/损坏 → 降级为只提示不拦截：stdout 显式写「未校验」，不再静默跳过。
+// 双通道输出：stdout（复命正文，含 --json 场景）+ stderr（[提示]）同步落地，
+// 调用方只读一路也不漏标；--json 单行契约不受影响（stdout 走 console.log 一行，warnings 进 JSON）。
+function judgeProcessReuse(text, errors, warnings = [], json = false) {
+  const known = loadProcessScripts();
+  if (!known) {
+    warnings.push("C: 流程资产复用未校验（index.json 缺失）");
+    console.log("[提示] 流程资产复用未校验（~/.ctbz/流程/index.json 缺失或损坏），本轮 C 闸只提示不拦截");
+    if (!json) console.error("[提示] 流程资产复用未校验（~/.ctbz/流程/index.json 缺失或损坏），本轮 C 闸只提示不拦截");
+    return;
+  }
+  const m = text.match(NEW_SCRIPT_RE);
+  if (!m) return;
+  const path = m[1] || m[2];
+  if (known.has(path)) errors.push("C: 回执声明新建脚本 " + path + "，但 ~/.ctbz/流程/index.json 已登记该路径，应先复用既有脚本而非新建");
+}
+
 // 派发闸 audit 以 spawnSync 调 check，cwd 不受控：按被检文件向上找 pending.json，再退回默认 ws。
 // 命中候选后仍须校验 entry.file（resolve 后）与被检文件全等：子目录里的同名文件不得改写父目录 pending 条目。
 // 不符只跳过该条目并警告，继续向上；最终找不到即按未登记处理（只警告，不判不合格）。
@@ -525,13 +646,22 @@ function cmdFuming(a) {
   }
 
   const errors = judgeFuming(text);
+  // 2.2.x 假设与边界闸门：A / C 为阻断级错误；B 与 C 降级提示为警告级（不打断 exit，先漏判不误杀）。
+  const warnings = [];
+  judgeAssumption(text, errors);
+  judgeConclusionWarn(text, warnings);
+  judgeProcessReuse(text, errors, warnings, a.json);
   const ok = errors.length === 0;
   if (a.json) {
-    console.log(ok ? JSON.stringify({ ok: true, mode: "复命" }) : JSON.stringify({ ok: false, errors }));
-  } else if (ok) {
+    const payload = ok ? { ok: true, mode: "复命" } : { ok: false, errors, warnings };
+    if (ok && warnings.length) payload.warnings = warnings;
+    console.log(JSON.stringify(payload));
+  } else if (ok && !warnings.length) {
     console.log("✓ 复命闸通过");
   } else {
-    for (const e of errors) console.log("✗ " + e);
+    if (!ok) for (const e of errors) console.log("✗ " + e);
+    for (const w of warnings) console.log(w);
+    if (ok) console.log("✓ 复命闸通过（含 " + warnings.length + " 条警告，不阻断）");
   }
   return ok ? 0 : 1;
 }

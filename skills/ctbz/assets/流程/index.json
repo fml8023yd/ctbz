@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "description": "CTBZ 流程资产索引骨架。entries 由用户在本机自行登记；发布模板只含空骨架，不含任何用户条目或本机路径。",
+  "updatedAt": null,
+  "entries": []
+}

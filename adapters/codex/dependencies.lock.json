@@ -3,11 +3,11 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "3f4d29b54631b76e9dc92d68f2a3abe9d1b76e236998cf35dd17ca193c7a13b0"
+      "sha256": "0c094c4dc5f42cad1caa4d72c4fbf943a4fadf262941db7610c5de5c1b210117"
     },
     {
       "path": "adapter.json",
-      "sha256": "72ae5278219558e9653958f288d5cd24ec002a93f4f108f68a514738eab5e964"
+      "sha256": "babad9a9fe2690517851f58c851cfacbd2ef2e745677c9a86098492205606148"
     },
     {
       "path": "scripts/native.mjs",

@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID, createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {bundleFiles, verifyBundle} from './methods.mjs';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 export const repositoryRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 export const packages = repo => [
   {id: 'core', source: path.join(repo, 'skills/ctbz'), target: '.agents/skills/ctbz'},
@@ -78,6 +79,40 @@ function installedSnapshot(root) {
   return snapshot;
 }
 
+// 流程资产：把核心包 assets/流程 模板安装到 <home>/.ctbz/流程/
+// 仅当目标不存在或为空时安装；目标已有任何文件（含用户条目）则整体不动。
+// 模板只含空骨架与脚本，不含用户 entries、本机绝对路径与凭据。
+function installProcessAssets(repo, home) {
+  const source = path.join(repo, 'skills/ctbz/assets/流程');
+  const target = path.join(home, '.ctbz', '流程');
+  assertNoSymlink(target);
+  if (fs.existsSync(target)) {
+    const existing = fs.readdirSync(target);
+    if (existing.length) return {installed: false, reason: 'target-not-empty', target, entries: existing};
+  } else {
+    fs.mkdirSync(path.dirname(target), {recursive: true});
+  }
+  const staging = path.join(home, '.ctbz-install', `process-assets-${randomUUID()}`);
+  fs.mkdirSync(path.dirname(staging), {recursive: true});
+  fs.cpSync(source, staging, {recursive: true});
+  fs.renameSync(staging, target);
+  return {installed: true, target, entries: fs.readdirSync(target)};
+}
+
+// 部署后自检：骨架在位且 node 可启动。不依赖任何条目，不写 index.json。
+function selfCheckProcessAssets(home) {
+  const target = path.join(home, '.ctbz', '流程');
+  const required = ['查.mjs', '验.mjs'];
+  const missing = required.filter(name => !fs.existsSync(path.join(target, name)));
+  if (missing.length) throw Error(`流程资产自检失败: 缺少 ${missing.join(', ')}`);
+  try {
+    execFileSync(process.execPath, [path.join(target, '验.mjs'), '--self'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']});
+  } catch (error) {
+    throw Error(`流程资产自检失败: ${error.stderr || error.message}`);
+  }
+  return {ok: true, target};
+}
+
 export function deploy(repo, home, {checkOnly = false, failAt} = {}) {
   if (!path.isAbsolute(home)) throw Error('--home-dir must be absolute');
   const sources = packages(repo);
@@ -123,7 +158,11 @@ export function deploy(repo, home, {checkOnly = false, failAt} = {}) {
     const temporary = path.join(maintenance, `baseline-${id}.tmp`);
     fs.writeFileSync(temporary, JSON.stringify(baseline, null, 2) + '\n');
     fs.renameSync(temporary, baselineFile);
-    return {ok: true, version: VERSION, home, backup: path.join(transaction, 'backup'), installed: sources.map(pkg => path.join(home, pkg.target))};
+    // 流程资产模板：仅当 ~/.ctbz/流程 不存在或为空时安装；用户已有条目不动。
+    // 失败不回滚已安装的技能包（备份/回滚路径由上方 changed 列表负责），单独报错。
+    const processAssets = installProcessAssets(repo, home);
+    const processSelfCheck = processAssets.installed ? selfCheckProcessAssets(home) : {ok: true, skipped: 'target-not-empty'};
+    return {ok: true, version: VERSION, home, backup: path.join(transaction, 'backup'), installed: sources.map(pkg => path.join(home, pkg.target)), processAssets, processSelfCheck};
   } catch (error) {
     for (const entry of changed.reverse()) {
       if (entry.published) fs.rmSync(entry.target, {recursive: true});

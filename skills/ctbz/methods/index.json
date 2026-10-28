@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "methods": [
     {
       "id": "using-superpowers", "stage": "routing", "roles": ["parent"],
@@ -31,7 +31,7 @@
       "source": "skills/executing-plans/SKILL.md"
     },
     {
-      "id": "dispatching-parallel-agents", "stage": "dispatch", "roles": ["parent"],
+      "id": "dispatching-parallel-agents", "stage": "dispatch", "roles": ["parent", "leader"],
       "entry": "methods/superpowers/dispatching-parallel-agents.md",
       "resources": ["methods/contract.md", "methods/templates/task-brief.md"], "tools": ["Read", "Bash"],
       "output": "独立任务契约、实际派发回执与按依赖集成的证据",
@@ -73,7 +73,7 @@
       "source": "skills/receiving-code-review/SKILL.md"
     },
     {
-      "id": "verification-before-completion", "stage": "verification", "roles": ["parent", "planner", "reviewer", "debugger", "implementer", "explorer", "researcher", "tester", "reporter"],
+      "id": "verification-before-completion", "stage": "verification", "roles": ["parent", "planner", "reviewer", "debugger", "implementer", "explorer", "researcher", "tester", "reporter", "leader"],
       "entry": "methods/superpowers/verification-before-completion.md",
       "resources": ["methods/contract.md", "methods/templates/task-review.md"], "tools": ["Read"],
       "output": "与实际内容对应的验收证据、准确完成声明和限制",

@@ -3,11 +3,11 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "89a595933027159d904051ba5e1329f0cbbeb9bbb717c8f930bcc7347e1dac33"
+      "sha256": "b6691f55848debb6108da5ed6f773d7686889cf9e49ce5448f2b87448641c1a8"
     },
     {
       "path": "adapter.json",
-      "sha256": "1eb09f78b4d2830a83f516136df7f6d5152540f1943a454028be928a22b16610"
+      "sha256": "f9d00bc7c740f18ee4ca8e664cc0e5b79cca99130f09a26c98ec0785f45f5355"
     },
     {
       "path": "assets/agent-profile.md.tmpl",
@@ -59,7 +59,7 @@
     },
     {
       "path": "scripts/lib/初始化.mjs",
-      "sha256": "a43b4e1acbd5944a7f9ce4a1337dfdd8dab0ab2468b6a7e848409a34bc5fa761"
+      "sha256": "2145cf4a1e4716b642e8cd72bc9fe8b1bcc58ac26f06ac1f6f9d8f9d2e4dfb92"
     },
     {
       "path": "scripts/lib/存储位置.mjs",

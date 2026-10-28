@@ -1,3 +1,27 @@
+# 0.2.0 — 2026-10-28
+
+留痕与方法沉淀 + 质疑预演：交付不再只报结果，还要能复盘、经得起用户视角的攻击。
+
+- 留痕与方法沉淀：每个 run 结束前写 `.ctbz-record/runs/<runId>/method.md`（任务、路径、岔路、证据、可复用方法；失败/放弃的 run 也写，记录负结果）。
+- 探索记录：满足任一判据（无已知路径 / 首版方案失败换路 / 需探针实验对比 / 结论依赖新证据）标 `exploration=true`，必填假设—探针—观察—结论段。
+- 知识沉淀：可复用方法追加知识库 `experience`，带来源 runId、适用范围、前置条件、置信度；不自动升 `confirmed`。
+- 质疑预演：交付前写 `.ctbz-record/runs/<runId>/challenge.md`，用户视角必答 3–5 条（真解决了吗 / 为什么是这个方案 / 边界与反例 / 证据可信吗 / 成本风险副作用），每条含质疑、回应、证据位置、残余风险。
+- 高风险交付（不可逆、外部写入、安全、跨模块）由独立 challenger Agent 做一次用户视角攻击；challenger 用 reviewer 权限，不新增 profile 角色。
+- 派发回执新增 `method` 字段；执行 Agent 回执必须带方法观察，父会话汇总成 run 级留痕；不留痕不算完成，关键结论无留痕时交付标缺口。
+- 与现有机制边界：不替代 E3 验收（E3 验计划→产物，质疑预演练用户→交付）；不替代异议义务（异议义务管未决方案，质疑预演管已交付结果）；不替代独立反审（质疑预演可班主自做，高风险才加 challenger）。
+- 版本 0.2.0 贯穿核心、两个 adapter、adapter.json、release.mjs、native-runtime.mjs、角色清单、methods index、workbench vendor 快照。
+
+## 并行工作线（随本版一并交付）
+
+- 角色清单新增 `leader`（组长）：只派发工人任务、聚合并原样转述工人证据并上报；不做裁决、不写交付文件、不跨任务扩权，writeSet 为空；最大深度 2 级（主→组长→工人），只派生工人、不得派生组长，工人不得再派生；收到派生请求直接拒绝并上报（`skills/ctbz/角色清单.json`）。
+- `references/假设账本.md`（新增）：关键假设（推翻即导致已有产物作废或方向改变）统一登记为 dashboard question——title 存假设陈述、context 存可执行证伪条件、options 恰好 continue/revise/rollback 三个；设 5 条复审触发（阶段退出、连续 3 轮无新证据、成本/口径偏离、用户可逐条对账的矛盾、证伪线被击穿）；处置只有继续/修正/回滚三种，回滚必须列「留哪些、删哪些、重做哪些」三张清单，回滚只认实测级证据或用户裁决，`assumed` 结论不得作为回滚依据。
+- `scripts/内审.mjs`：新增假设与边界闸门 A/B/C——A 查【假设与边界】段存在、每条带可证伪条件、「无假设（依据：…）」豁免非空依据，阻断级；B 查结论段出现绝对断言但无证据指针，警告级不打断 exit；C 查回执声明新建脚本路径已在 `~/.ctbz/流程/index.json` 登记，阻断级（先复用再新建）。
+- `scripts/lib/dashboard-store.mjs` 与 `tests/dashboard-hierarchy.test.mjs`：看板节点支持层级——新增 role（leader/worker）、parentAgentId、派生 depth 校验与父状态汇总 `deriveParentStatus`；`NODE_STATUSES` 扩展 produced/reviewing/rework/approved；leader group 可进派发队列（须有可执行后代），其余 group 仍按「有子任务」排队。
+- `cost-rules.json`：`role_tier.heavy` 新增 leader，与 planner/reviewer/debugger 同档；理由写死为 leader 是派发与转述枢纽，把工人负结果美化成结论的失真会放大到下游全部工人，属降档即冗余。
+- `adapters/zcode/scripts/lib/初始化.mjs`：profile 生成按角色区分派生权限——leader 追加「只派生工人，不得派生组长；最大深度 2 级；不做裁决、不写交付文件」，其余角色保持「不得派生Agent」。
+- `tests/leader-role.test.mjs`（新增）：leader 角色回归——注册表带 Agent 且无 Write/Edit、指令声明不写交付文件、writeSet 非空被 `validateTask` 拒绝、brief 指令含「Dispatch only workers」、profile 派生文案按角色分流。
+- `skills/ctbz/methods/templates/task-brief.md`：brief 模板写入派生例外——接收角色默认不派生 Agent，唯一例外是 `role=leader` 的组长，只派生工人、不得派生组长，最多 2 级。
+
 # 0.1.0 — 2026-10-22
 
 班主基线 0.1.0 改版：以班主基线为核心工作方式，主进程不直接执行授权任务，全部拆分派发给子 Agent。

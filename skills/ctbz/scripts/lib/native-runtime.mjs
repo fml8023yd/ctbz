@@ -6,9 +6,9 @@ import {createHash} from 'node:crypto';
 import {verifyBundle, roleMethods, installRoot} from './methods.mjs';
 import {verifyPackage} from './release.mjs';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 export const HARNESS = Object.freeze({codex: '.codex', zcode: '.zcode'});
-const readOnly = new Set(['planner', 'reviewer', 'explorer', 'researcher', 'reporter']);
+const readOnly = new Set(['planner', 'reviewer', 'explorer', 'researcher', 'reporter', 'leader']);
 const phases = new Set(['plan', 'discuss', 'implement', 'debug', 'test', 'review', 'research', 'report']);
 const permissionDenied = error => ['EACCES', 'EPERM', 'PERMISSION_DENIED', 'permission-denied'].includes(error?.code || error?.category) || /permission denied|approval (?:denied|rejected)|not authorized/i.test(error?.message || '');
 
@@ -30,7 +30,7 @@ export function validateTask(task, core = installRoot) {
   if (!registry.roles.some(role => role.id === task.role) || !phases.has(task.phase)) throw Error('unknown role or phase');
   for (const field of ['objective', 'context', 'authorization']) if (typeof task[field] !== 'string' || !task[field].trim()) throw Error(`${field} is required standalone context`);
   if (!path.isAbsolute(task.workspace || '') || !Array.isArray(task.writeSet) || task.writeSet.some(file => typeof file !== 'string' || !path.isAbsolute(file))) throw Error('workspace and writeSet must be absolute');
-  if (readOnly.has(task.role) && task.writeSet.length) throw Error('read-only role requires an empty writeSet');
+  if (readOnly.has(task.role) && task.writeSet.length) throw Error(task.role === 'leader' ? 'leader 只派发与聚合，不写交付文件' : 'read-only role requires an empty writeSet');
   for (const field of ['acceptance', 'stopConditions']) if (!Array.isArray(task[field]) || !task[field].length || task[field].some(value => typeof value !== 'string' || !value.trim())) throw Error(`${field} requires nonempty checks`);
   if (!Array.isArray(task.inputs) || task.inputs.some(file => typeof file !== 'string' || !path.isAbsolute(file))) throw Error('inputs must be absolute paths');
   if (!task.budget || !Number.isInteger(task.budget.maxRepairRounds) || task.budget.maxRepairRounds < 0 || task.budget.maxRepairRounds > 3) throw Error('maxRepairRounds must be 0..3');
@@ -40,7 +40,7 @@ export function validateTask(task, core = installRoot) {
 }
 
 export function taskMessage(task) {
-  return `CTBZ standalone task\n${JSON.stringify(task, null, 2)}\nRead sharedContract and selected methods first. Do not spawn agents. Write only within writeSet; read-only roles return evidence or drafts. Return actual result, evidence, checkpoint, and permission failures. Do not alter project state or claim independent review if executing in the parent.`;
+  return `CTBZ standalone task\n${JSON.stringify(task, null, 2)}\nRead sharedContract and selected methods first. ${task.role === 'leader' ? 'Dispatch only workers, aggregate and relay their evidence verbatim. Do not adjudicate or write deliverables.' : 'Do not spawn agents.'} Write only within writeSet; read-only roles return evidence or drafts. Return actual result, evidence, checkpoint, and permission failures. Do not alter project state or claim independent review if executing in the parent.`;
 }
 
 export function nativeSelection(task, evidence) {

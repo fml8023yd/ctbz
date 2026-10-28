@@ -17,7 +17,8 @@ const MAX_PAYLOAD = 256 * 1024;
 const MAX_BOARD = 32 * 1024 * 1024;
 const TERMINAL = new Set(['completed', 'cancelled']);
 const MODES = ['normal', 'loop'];
-const NODE_STATUSES = ['planned', 'active', 'completed', 'blocked', 'cancelled'];
+export const NODE_STATUSES = ['planned', 'active', 'completed', 'blocked', 'cancelled', 'produced', 'reviewing', 'rework', 'approved'];
+export const NODE_ROLES = ['leader', 'worker'];
 const PROJECT_STATUSES = ['active', 'paused', 'stopped', 'blocked', 'completed'];
 const REQUEST_ACTIONS = ['pause', 'resume', 'stop', 'next', 'cancel', 'reopen', 'correct'];
 const REQUEST_TERMINAL = new Set(['completed', 'failed', 'withdrawn']);
@@ -102,6 +103,73 @@ function validateCycles(nodes, edges, label) {
     visited.add(key);
   }
   for (const node of nodes) visit(node.id);
+}
+
+function nodeDepthMap(nodes) {
+  const byId = new Map(nodes.map(node => [node.id, node]));
+  const depths = new Map();
+  const resolve = key => {
+    if (depths.has(key)) return depths.get(key);
+    const node = byId.get(key);
+    if (!node) fail(`Depth derivation references missing node ${key}`);
+    depths.set(key, 0);
+    const depth = node.parentId === null ? 0 : resolve(node.parentId) + 1;
+    depths.set(key, depth);
+    return depth;
+  };
+  for (const node of nodes) resolve(node.id);
+  return depths;
+}
+
+function computeDepth(nodes) {
+  return nodeDepthMap(nodes);
+}
+
+export function deriveParentStatus(children) {
+  if (!children.length) return 'planned';
+  if (children.some(child => child.status === 'rework')) return 'rework';
+  if (children.some(child => child.status === 'blocked') && !children.some(child => child.status === 'active')) return 'blocked';
+  if (children.every(child => TERMINAL.has(child.status))) {
+    // 全 cancelled 不视为 completed：保留为 blocked，避免虚假完成（blocked 或保留父状态，绝不当 completed）。
+    if (children.every(child => child.status === 'cancelled')) return 'blocked';
+    return 'completed';
+  }
+  return 'active';
+}
+
+// 子节点进入/离开这些状态时需要向上滚动父 group 的状态汇总（B-4）。
+const PARENT_ROLLUP_STATUSES = new Set(['produced', 'reviewing', 'approved', 'completed', 'cancelled']);
+// 沿 parentId 链向上，若任一祖先为 role=leader 的 group 返回 true（嵌套 leader 限制与调度排除共用）。
+// startingParentId 用于 next 尚未 push 进 board 的 node.upsert 现场，确保能取到待写入节点的父链起点。
+function hasLeaderAncestor(board, nodeId, startingParentId) {
+  const byId = new Map(board.nodes.map(node => [node.id, node]));
+  let parentId = (byId.get(nodeId)?.parentId ?? startingParentId) ?? null;
+  while (parentId !== null) {
+    const parent = byId.get(parentId);
+    if (!parent) break;
+    if (parent.role === 'leader') return true;
+    parentId = parent.parentId;
+  }
+  return false;
+}
+// 子节点状态变动后，沿祖先链向上重算每个 group 父节点的 status（仅对 kind=group 的父生效）。
+// 自动汇总不把 group 滚成 completed：completed 需要 result+evidence，只有手工完成才满足；
+// derive 得 completed 时置 approved（就绪待人工签收），其余按 deriveParentStatus 原值写入。
+function recomputeAncestorStatuses(board, nodeId) {
+  const byId = new Map(board.nodes.map(node => [node.id, node]));
+  let parentId = byId.get(nodeId)?.parentId ?? null;
+  while (parentId !== null) {
+    const parent = byId.get(parentId);
+    if (!parent || parent.kind !== 'group') break;
+    const children = board.nodes.filter(node => node.parentId === parent.id);
+    let derived = deriveParentStatus(children);
+    if (derived === 'completed' && !(parent.result?.trim() && parent.evidence?.length)) derived = 'approved';
+    if (derived !== parent.status) {
+      parent.status = derived;
+      parent.updatedAt = stamp();
+    }
+    parentId = parent.parentId;
+  }
 }
 
 function scopeDefaults() {
@@ -227,6 +295,8 @@ export function validateBoard(board) {
     }
     if (node.parentId !== null) id(node.parentId, 'parentId');
     oneOf(node.kind, ['group', 'task', 'experiment'], 'node.kind');
+    if (node.role !== undefined && node.role !== null) oneOf(node.role, NODE_ROLES, 'node.role');
+    if (node.parentAgentId !== undefined && node.parentAgentId !== null) text(node.parentAgentId, 'node.parentAgentId');
     oneOf(node.status, NODE_STATUSES, 'node.status');
     oneOf(node.outcome, ['unknown', 'supported', 'rejected', 'inconclusive'], 'node.outcome');
     text(node.title, 'node.title', true);
@@ -252,6 +322,12 @@ export function validateBoard(board) {
   }
   validateCycles(board.nodes, node => node.parentId ? [node.parentId] : [], 'Parent');
   validateCycles(board.nodes, node => node.dependsOn, 'Dependency');
+  const depths = computeDepth(board.nodes);
+  for (const node of board.nodes) {
+    if (node.depth !== undefined && node.depth !== depths.get(node.id)) fail(`node.depth must be derived from the parentId chain (expected ${depths.get(node.id)} for ${node.id})`);
+    if (node.parentAgentId !== undefined && node.parentAgentId !== null && node.parentId !== null && !board.nodes.some(other => other.id === node.parentId && other.role === 'leader')) fail('node.parentAgentId must reference a leader parent node');
+    if (node.role === 'leader' && hasLeaderAncestor(board, node.id)) fail('LEADER_DEPTH_EXCEEDED: Nested leader groups are not allowed: a role=leader group cannot have a leader ancestor (max depth 2: main → leader → worker)', 409, 'LEADER_DEPTH_EXCEEDED');
+  }
   for (const node of board.nodes) {
     const below = descendants(board, node.id);
     if (node.kind === 'group' && node.status === 'completed' && board.nodes.some(other => below.has(other.id) && !TERMINAL.has(other.status))) fail('Cannot complete a group with unfinished descendants');
@@ -511,25 +587,36 @@ export async function initBoard(workspace, projectFields = {}) {
 export function rankBoard(board, scopeId) {
   const byId = new Map(board.nodes.map(node => [node.id, node]));
   const parents = new Set(board.nodes.map(node => node.parentId).filter(Boolean));
+  const descendantsOf = nodeId => descendants(board, nodeId);
+  const dispatchable = nodeId => {
+    const node = byId.get(nodeId);
+    if (node.kind !== 'group' || node.role !== 'leader') return false;
+    const below = descendantsOf(nodeId);
+    return board.nodes.some(other => below.has(other.id) && other.kind !== 'group' && !other.archived && !TERMINAL.has(other.status) && other.status !== 'blocked');
+  };
   if (scopeId !== undefined) getScope(board, scopeId);
-  const queue = board.nodes.filter(node => node.kind !== 'group' && !TERMINAL.has(node.status) && !node.archived && (scopeId === undefined || scopeForNode(board, node.id) === scopeId)).map(node => {
+  const queue = board.nodes.filter(node => (node.kind !== 'group' || node.role === 'leader') && !TERMINAL.has(node.status) && !node.archived && (scopeId === undefined || scopeForNode(board, node.id) === scopeId) && (node.role !== 'leader' || !hasLeaderAncestor(board, node.id))).map(node => {
     let reason = '';
-    if (parents.has(node.id)) reason = 'Has child tasks';
+    if (node.kind === 'group' && node.role === 'leader') {
+      if (!dispatchable(node.id)) reason = 'Leader group has no executable descendants';
+      else if (node.status === 'active') reason = 'Already active';
+      else if (node.status === 'blocked') reason = 'Node is blocked';
+    } else if (parents.has(node.id)) reason = 'Has child tasks';
     else if (node.status === 'active') reason = 'Already active';
     else if (node.status === 'blocked') reason = 'Node is blocked';
     let parent = byId.get(node.parentId);
     while (parent) {
       if (parent.archived || ['blocked', 'cancelled'].includes(parent.status)) reason ||= 'Ancestor is blocked, archived or cancelled';
-      if (parent.dependsOn.some(key => byId.get(key)?.status !== 'completed')) reason ||= 'Ancestor dependencies incomplete';
+      if ((parent.dependsOn ?? []).some(key => byId.get(key)?.status !== 'completed')) reason ||= 'Ancestor dependencies incomplete';
       parent = byId.get(parent.parentId);
     }
-    const dependencies = node.dependsOn.filter(key => byId.get(key)?.status !== 'completed');
+    const dependencies = (node.dependsOn ?? []).filter(key => byId.get(key)?.status !== 'completed');
     if (dependencies.length) reason ||= `Dependencies incomplete: ${dependencies.join(', ')}`;
     return { ...node, eligible: !reason, blockedReason: reason, share: 0 };
-  }).sort((left, right) => right.score - left.score || left.id.localeCompare(right.id, 'en'));
+  }).sort((left, right) => (right.score ?? 50) - (left.score ?? 50) || left.id.localeCompare(right.id, 'en'));
   const ready = queue.filter(node => node.eligible);
-  const sum = ready.reduce((total, node) => total + node.score, 0);
-  for (const node of ready) node.share = sum ? node.score / sum * 100 : 100 / ready.length;
+  const sum = ready.reduce((total, node) => total + (node.score ?? 50), 0);
+  for (const node of ready) node.share = sum ? (node.score ?? 50) / sum * 100 : 100 / ready.length;
   return queue;
 }
 export function boardView(board) {
@@ -563,9 +650,9 @@ function requireActor(actual, required) {
 }
 function newNode(input) {
   const at = stamp();
-  return { id: input.id, parentId: null, kind: 'task', title: '', description: '', status: 'planned', outcome: 'unknown', owner: '', model: '', dependsOn: [], score: 50, scoreReason: '', result: '', evidence: [], method: '', pitfalls: '', nextSteps: '', createdAt: at, updatedAt: at, completedRound: null, archived: false, ...input };
+  return { id: input.id, parentId: null, kind: 'task', role: 'worker', title: '', description: '', status: 'planned', outcome: 'unknown', owner: '', model: '', dependsOn: [], score: 50, scoreReason: '', result: '', evidence: [], method: '', pitfalls: '', nextSteps: '', parentAgentId: null, createdAt: at, updatedAt: at, completedRound: null, archived: false, ...input };
 }
-const NODE_FIELDS = ['id', 'parentId', 'kind', 'title', 'description', 'status', 'outcome', 'owner', 'model', 'dependsOn', 'score', 'scoreReason', 'result', 'evidence', 'method', 'pitfalls', 'nextSteps', 'archived'];
+const NODE_FIELDS = ['id', 'parentId', 'kind', 'role', 'depth', 'title', 'description', 'status', 'outcome', 'owner', 'model', 'dependsOn', 'score', 'scoreReason', 'result', 'evidence', 'method', 'pitfalls', 'nextSteps', 'parentAgentId', 'archived'];
 
 function mutationScope(board, action, payload) {
   if (action.startsWith('node.') && payload.node && board.nodes.some(node => node.id === payload.node.id)) return scopeForNode(board, payload.node.id);
@@ -643,6 +730,18 @@ function applyMutation(board, action, payload, actor, options = {}) {
       if (previous?.execution && changed('kind')) fail('Cannot change the kind of a bound execution node', 409, 'NODE_BINDING_CONFLICT');
       if (previous?.execution && !options.projection && EXECUTION_FIELDS.some(field => changed(field))) fail('Bound execution facts are maintained by the run; submit a control request', 409, 'EXECUTION_BOUND');
       if (previous?.work && (next.parentId !== null || next.kind !== 'group')) fail('Independent work must remain a top-level group');
+      if (next.role !== undefined && next.role !== null) {
+        oneOf(next.role, NODE_ROLES, 'node.role');
+        if (next.role === 'leader' && next.kind !== 'group') fail('Only groups can carry role=leader');
+        if (next.role === 'leader' && hasLeaderAncestor(board, next.id, next.parentId)) fail('LEADER_DEPTH_EXCEEDED: Nested leader groups are not allowed: a role=leader group cannot have a leader ancestor (max depth 2: main → leader → worker)', 409, 'LEADER_DEPTH_EXCEEDED');
+        if (next.role !== (previous?.role ?? 'worker') && (previous?.execution || next.execution) && previous) fail('Cannot change the role of a bound execution node', 409, 'NODE_BINDING_CONFLICT');
+      } else next.role = previous?.role ?? 'worker';
+      if (payload.node.depth !== undefined) fail('node.depth is derived from the parentId chain and cannot be set manually');
+      if (next.parentAgentId !== undefined && next.parentAgentId !== null) {
+        text(next.parentAgentId, 'node.parentAgentId');
+        const agentParent = next.parentId !== null ? board.nodes.find(node => node.id === next.parentId) : null;
+        if (!agentParent || agentParent.role !== 'leader') fail('node.parentAgentId must reference a leader parent node');
+      }
       if (previous && changed('parentId') && [previous, ...board.nodes.filter(node => descendants(board, previous.id).has(node.id))].some(node => node.execution)) fail('Cannot move a bound execution branch', 409, 'NODE_BINDING_CONFLICT');
       if (payload.reopen !== undefined && typeof payload.reopen !== 'boolean') fail('reopen must be boolean');
       if (previous && TERMINAL.has(previous.status) && !options.projection) {
@@ -669,6 +768,7 @@ function applyMutation(board, action, payload, actor, options = {}) {
         if (next.archived) fail('Cannot activate an archived task', 409, 'NOT_ELIGIBLE');
       }
       const candidateBoard = { ...board, nodes: previous ? board.nodes.map(node => node.id === next.id ? next : node) : [...board.nodes, next] };
+      next.depth = computeDepth(candidateBoard.nodes).get(next.id);
       const nextScope = scopeForNode(candidateBoard, next.id);
       if (previous && nextScope !== scopeId) fail('A node cannot move between independent work scopes; create a new planned node', 409, 'INVALID_SCOPE');
       if (actor === 'agent') assertScopeOwner(board, nextScope, options.sessionId, options.ownerEpoch);
@@ -677,6 +777,10 @@ function applyMutation(board, action, payload, actor, options = {}) {
       if (options.projection && next.status !== 'completed') next.completedRound = null;
       if (payload.reopen) next.completedRound = null;
       if (previous) board.nodes[board.nodes.indexOf(previous)] = next; else board.nodes.push(next);
+      // B-4：子节点进入汇总状态（produced/reviewing/approved/completed/cancelled）时向上滚动父 group 状态。
+      if (!options.projection && (next.status !== previous?.status || !previous) && PARENT_ROLLUP_STATUSES.has(next.status)) {
+        recomputeAncestorStatuses(board, next.id);
+      }
       scopeId = nextScope;
       if (!options.projection && (!previous || ['title', 'description', 'parentId', 'kind', 'dependsOn', 'score', 'scoreReason', 'archived'].some(changed) || (actor === 'user' && changed('status')))) markPlan(nextScope);
       summary = `${previous ? 'Updated' : 'Added'} node: ${next.title}`;
@@ -976,7 +1080,7 @@ export function validateTaskBinding(board, task, run = {}, { reconcile = false }
   const key = projectedTaskId(task, run);
   const previous = board?.nodes.find(node => node.id === key);
   if (task.nodeId !== undefined && !previous) fail('Explicit task.nodeId must bind an existing planned node', 409, 'NODE_BINDING_MISSING');
-  if (previous?.kind === 'group') fail('An execution task cannot bind a summary group', 409, 'NODE_BINDING_CONFLICT');
+  if (previous?.kind === 'group' && previous.role !== 'leader') fail('An execution task cannot bind a summary group; only role=leader groups can carry execution identity', 409, 'NODE_BINDING_CONFLICT');
   if (previous?.execution && (previous.execution.runId !== (run.runId ?? 'default') || previous.execution.taskId !== task.taskId)) fail('Node is owned by another run/task', 409, 'NODE_BINDING_CONFLICT');
   if (board?.nodes.some(node => node.id !== key && node.execution?.runId === (run.runId ?? 'default') && node.execution?.taskId === task.taskId)) fail('Task already binds another node', 409, 'NODE_BINDING_CONFLICT');
   if (previous && task.parentId !== undefined && task.parentId !== previous.parentId) fail('Task must preserve planned parentId', 409, 'NODE_BINDING_CONFLICT');

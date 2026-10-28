@@ -1,6 +1,6 @@
 # 并行派发独立任务
 
-先读 [共享契约](../contract.md)。仅 parent 派发；子 Agent 不派生 Agent。
+先读 [共享契约](../contract.md)。仅 parent 派发；工人不派生，组长（`role=leader`）可派生工人，最多 2 级（主→组长→工人）。
 
 来源：Superpowers 6.3.0 `skills/dispatching-parallel-agents/SKILL.md`。适配：使用 CTBZ 角色、初始化选择、任务身份和 worktree 所有权；并行度由宿主调度器决定，父会话不设并发预算。
 

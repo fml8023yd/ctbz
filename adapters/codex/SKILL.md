@@ -1,13 +1,15 @@
 ---
 name: ctbz-codex
 metadata:
-  version: 0.1.0
+  version: 0.2.0
 description: CTBZ 在 Codex 的原生子 Agent 适配：原生 spawn/wait 语义、2 在途上限、后台待命、ServerChan 推送、30 分钟一次性唤醒与任务身份；与唯一全局 ctbz 核心配合使用。
 ---
 
-# Codex 适配器 0.1.0
+# Codex 适配器 0.2.0
 
 先读 `~/.agents/skills/ctbz/SKILL.md`；方法、角色、看板只引用该核心。班主权限、自动/计划模式、30 分钟决策升级以核心 [班主基线](~/.agents/skills/ctbz/references/班主基线.md) 与 [自动模式](~/.agents/skills/ctbz/references/自动模式.md) 为准。本文件只写 Codex 宿主能力与派发差异。
+
+回执带 method，交付前留痕与质疑预演按核心执行。
 
 安装仅限 `~/.codex/skills/ctbz-codex`，不放全局技能目录。
 

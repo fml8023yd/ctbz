@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
-import {tmpdir} from 'node:os';
+import {tmpdir, homedir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -334,7 +334,7 @@ const DELIVER3 = [
   '- 跑偏检查: 交付内容条条回指 B3 复命段',
 ];
 
-function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['- 修了部署.js 的 PATH 缺陷 → skills/ctbz/scripts/部署.js'], deliver = DELIVER3, pending = ['- 删远端数据 | 准入: 不可逆'], doubt = DOUBT, ledger = ['无']} = {}) {
+function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['- 修了部署.js 的 PATH 缺陷 → skills/ctbz/scripts/部署.js'], deliver = DELIVER3, pending = ['- 删远端数据 | 准入: 不可逆'], doubt = DOUBT, ledger = ['无'], assumption = ['- 用户授权已就位：推翻条件＝收到明确撤销指令', '- 写入落点在本仓库内：推翻条件＝路径越过 write-set 边界']} = {}) {
   const list = (items) => (items.length ? items : ['无']);
   return [
     '# 复命 ctbz-2.0.7',
@@ -356,6 +356,9 @@ function fumingText({extend = ['- 补跑了探活 → docs/探活.md'], fix = ['
     '',
     '行动账增量:',
     ...list(ledger),
+    '',
+    '【假设与边界】:',
+    ...list(assumption),
     '',
   ].join('\n');
 }
@@ -390,13 +393,13 @@ test('V3 待裁决: 无 → exit 0（自主延伸 / 自主修复 亦可为 无�
 });
 
 test('V3 段缺失 → exit 1', () => {
-  const noPending = fumingFixture(['# 复命 x', '', '自主延伸:', '无', '', '自主修复:', '无', '', '自疑:', ...DOUBT, '', '行动账增量:', '无', ''].join('\n'));
+  const noPending = fumingFixture(['# 复命 x', '', '自主延伸:', '无', '', '自主修复:', '无', '', '自疑:', ...DOUBT, '', '行动账增量:', '无', '', '【假设与边界】:', '- 落点在本仓库内：推翻条件＝越过 write-set', ''].join('\n'));
   const a = runFuming(noPending);
   assert.equal(a.status, 1, a.stdout);
   assert.match(a.stdout, /缺段标题/);
   assert.match(a.stdout, /待裁决/);
 
-  const noExtend = fumingFixture(['# 复命 x', '', '自主修复:', '无', '', '待裁决:', '无', '', '自疑:', ...DOUBT, '', '行动账增量:', '无', ''].join('\n'));
+  const noExtend = fumingFixture(['# 复命 x', '', '自主修复:', '无', '', '待裁决:', '无', '', '自疑:', ...DOUBT, '', '行动账增量:', '无', '', '【假设与边界】:', '- 落点在本仓库内：推翻条件＝越过 write-set', ''].join('\n'));
   const b = runFuming(noExtend);
   assert.equal(b.status, 1, b.stdout);
   assert.match(b.stdout, /缺段标题/);
@@ -623,4 +626,92 @@ test('帮助与位置参数顺序', () => {
   const file = join(ws, 'docs', '内审', ID + '.md');
   writeFileSync(file, auditText(), 'utf8');
   assert.equal(run(['check', '--json', file], {cwd: ws}).status, 0);
+});
+
+// ── 2.2.x 假设与边界闸门：A / B（警告）/ C 三条新增校验 ──
+// 复用 fumingText（已带合规【假设与边界】段）作基线，通过 assumption 参数操控 A 分支。
+test('A 缺【假设与边界】段 → exit 1 且提示含「假设」', () => {
+  const file = fumingFixture(
+    fumingText({assumption: []}).replace(/【假设与边界】:\n[\s\S]*$/, '').replace(/\n$/, '')
+  );
+  const r = runFuming(file);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /A: 缺【假设与边界】/);
+  assert.match(r.stdout, /假设/);
+});
+
+test('A 有假设但某条缺可证伪条件 → exit 1 指出第 N 条', () => {
+  const file = fumingFixture(
+    fumingText({assumption: ['- 用户会按预期使用本功能', '- 写入落点在本仓库内：推翻条件＝路径越过 write-set 边界']})
+  );
+  const r = runFuming(file);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /A: 假设第 1 条缺可证伪条件/);
+});
+
+test('A 假设+证伪条件俱全 → exit 0', () => {
+  const file = fumingFixture(
+    fumingText({assumption: ['- 用户会按预期使用本功能：推翻条件＝收到明确异常反馈', '- 写入落点在本仓库内：推翻条件＝路径越过 write-set 边界']})
+  );
+  assert.equal(runFuming(file).status, 0, 'A 合规须放行');
+});
+
+test('A 豁免「无假设（依据：…）」依据非空 → exit 0；空依据 → exit 1', () => {
+  const ok = fumingFixture(fumingText({assumption: ['- 无假设（依据：本次为纯读取，无可变决策）']}));
+  assert.equal(runFuming(ok).status, 0, '豁免带依据须放行');
+
+  const empty = fumingFixture(fumingText({assumption: ['- 无假设（依据：）']}));
+  const r = runFuming(empty);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /A: 豁免写法「无假设（依据：…）」缺依据/);
+});
+
+// C：流程资产复用——用真实 ~/.ctbz/流程/index.json 里登记过的脚本路径触发，用一个不存在的路径作反例。
+const PROCESS_INDEX = join(homedir(), '.ctbz', '流程', 'index.json');
+let knownScript = null;
+if (existsSync(PROCESS_INDEX)) {
+  try {
+    const idx = JSON.parse(readFileSync(PROCESS_INDEX, 'utf8'));
+    for (const e of idx.entries || []) for (const s of e.scripts || []) if (typeof s === 'string') { knownScript = s; break; }
+  } catch {}
+}
+
+test('C 声明新建索引已登记脚本 → exit 1（须先复用）；无新建声明 → 不触发', () => {
+  if (!knownScript) return; // 索引缺失时本检查整体跳过，用例无意义
+  const reuse = fumingFixture(fumingText() + '\n## 结论\n本轮新建脚本 ' + knownScript + ' 封装复用逻辑，确认无误已完成。\n');
+  const r = runFuming(reuse);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /C: 回执声明新建脚本 /);
+
+  // 不声明「新建」则 C 不触发（即便文本里出现了该路径）。
+  const quiet = fumingFixture(fumingText() + '\n## 结论\n复用了 ' + knownScript + ' 的既有能力。\n');
+  assert.equal(runFuming(quiet).status, 0, '无新建声明时 C 不得误伤');
+});
+
+test('C 索引缺失/损坏 → 不阻断（仅提示，exit 0）；新建未登记路径 → exit 0', () => {
+  assert.equal(runFuming(fumingFixture(fumingText())).status, 0, '基线（无新建声明）须放行');
+  const fresh = fumingFixture(fumingText() + '\n## 结论\n本轮新建脚本 /tmp/草台班子/ctbz/skills/ctbz/scripts/全新闸门.mjs 封装校验。\n');
+  assert.equal(runFuming(fresh).status, 0, '新建未登记路径须放行');
+});
+
+// B：结论段绝对断言且无证据指针 → 警告级（不阻断，exit 0 但输出 B⚠）。
+test('B 结论段未标注推测断言 → 警告不阻断（exit 0，输出 B⚠）', () => {
+  const file = fumingFixture(fumingText() + '\n## 结论\n本闸必然能拦截所有遗漏，确认无误无证据。\n');
+  const r = runFuming(file);
+  assert.equal(r.status, 0, 'B 为警告级，不得阻断 exit');
+  assert.match(r.stdout, /B⚠/);
+});
+
+test('B 结论段带 [measured]/实测/证据指针 → 不报警告', () => {
+  const file = fumingFixture(fumingText() + '\n## 结论\n实测 node --test 通过 5/5，确认无误。\n');
+  const r = runFuming(file);
+  assert.equal(r.status, 0, r.stdout);
+  assert.doesNotMatch(r.stdout, /B⚠/);
+});
+
+test('B 非结论段出现绝对词不误报', () => {
+  const file = fumingFixture(fumingText() + '\n## 过程记录\n必然要先读取配置再写盘。\n');
+  const r = runFuming(file);
+  assert.equal(r.status, 0, r.stdout);
+  assert.doesNotMatch(r.stdout, /B⚠/);
 });

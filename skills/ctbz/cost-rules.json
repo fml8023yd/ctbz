@@ -56,6 +56,12 @@
       "who": "用户",
       "change": "R1 升为常规最优先（priority 0，原 1），date_range 起点改为 2026-09-03（原 09-04）；R0_free_wb 降为次优先（priority 1，原 0）。口径：夜窗 23:00→次日09:00 最优先 GLM-5.3-Flash，次优先 WB deepseek-v4.1-flash。R-1 反审例外（priority -1，仅 09-17）维持不动。",
       "before": "R0=0 第一、R1=1 第二、R1 起点 09-04"
+    },
+    {
+      "date": "2026-10-25",
+      "who": "Agent",
+      "change": "role_tier.heavy 新增 leader（组长）。理由：heavy 档决定两件事——同厂商跟随取 vendor_map.heavy 强档，以及 free_window/free_model 降档时按 triple_scope:heavy_only 并行×3 汇总。leader 是派发与转述枢纽，它把工人负结果美化成结论的失真会放大到下游全部工人，属降档即冗余的典型角色；与 planner/reviewer/debugger 同档，不新造档位。",
+      "before": "heavy=[planner,reviewer,debugger]，leader 未登记，pick-profile warn 后按 light 单发"
     }
   ],
   "timezone": "Asia/Shanghai",
@@ -202,12 +208,14 @@
     "heavy": [
       "planner",
       "reviewer",
-      "debugger"
+      "debugger",
+      "leader"
     ],
     "light": [
       "implementer",
       "explorer",
       "researcher",
+      "reporter",
       "tester"
     ]
   },

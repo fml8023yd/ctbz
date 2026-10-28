@@ -1,13 +1,15 @@
 ---
 name: ctbz-zcode
 metadata:
-  version: 0.1.0
+  version: 0.2.0
 description: CTBZ 在 ZCode 的原生子 Agent 适配：run_in_background 后台派发、完成通知后主进程介入、时刻待命、ServerChan 推送、30 分钟一次性唤醒、任务身份与跨模型交叉验证；使用唯一全局 ctbz 核心。
 ---
 
-# ZCode 适配器 0.1.0
+# ZCode 适配器 0.2.0
 
 先读 `~/.agents/skills/ctbz/SKILL.md`；方法、角色、看板只引用该核心。班主权限、自动/计划模式、30 分钟决策升级以核心 [班主基线](~/.agents/skills/ctbz/references/班主基线.md) 与 [自动模式](~/.agents/skills/ctbz/references/自动模式.md) 为准。本文件只写 ZCode 宿主能力与派发差异。
+
+回执带 method，交付前留痕与质疑预演按核心执行。
 
 安装仅限 `~/.zcode/skills/ctbz-zcode`，不放全局技能目录。
 
@@ -41,6 +43,23 @@ description: CTBZ 在 ZCode 的原生子 Agent 适配：run_in_background 后台
 | 同步宿主 | 宿主无后台能力时允许同步派发；记录一次“无后台”能力事实，不伪装后台 |
 
 完成通知只触发“介入”，不触发“接管”。主进程不替该 Agent 补做未完成部分；缺证据按失败策略重派或报告。
+
+### 2.1 分级派生（leader）
+
+只有 `role=leader` 的组长 profile 带 `Agent` 工具，可以派生工人；其余既有 profile 保持“不得派生”，全员爆炸到此为止。
+
+leader 是核心 `角色清单.json` 里的注册角色（id=`leader`，tools 含 `Agent`，与其余角色的唯一区别就在这），批量生成器按角色区分派生权限：leader 追加“只派生工人，不得派生组长；最大深度 2 级；不做裁决、不写交付文件”，其余角色保持“不得派生Agent”。派发时 brief 写 `role=leader`，writeSet 为空；`native-runtime` 的 `validateTask` 接受 `role=leader` 并把它当只读角色，非空 writeSet 直接拒绝。
+
+| 约束 | 规则 |
+|---|---|
+| 深度 | 最大 2 级（主→组长→工人）；超过必须拒绝并记 `depth-exceeded` |
+| 组长职责 | 只拆工人任务、聚合回执、原样上报；不裁决、不写交付文件、不跨任务扩权，writeSet 为空 |
+| 回执 | 每一级都记 taskId/role/writeSet；工人回执必须带宿主真实 `agentId`，组长原样转交，不改写、不美化 |
+| 工人 | 不得再派生；收到派生请求直接拒绝并上报 |
+| 写集 | 跨级同一规则：同一文件同一时间单 owner；组长派发前先确认工人写集互不冲突 |
+| 失败 | 深度超限、写集冲突、工人失联都按失败策略记录并上报主进程，组长不接管执行 |
+
+组长不替代主进程验收。主进程仍需核身份、核证据、核交付位置；组长的“已完成”只是回执，不是验收结论。
 
 ## 3. 时刻待命
 

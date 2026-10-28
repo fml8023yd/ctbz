@@ -16,6 +16,10 @@
 | 宿主拒绝派发或满载 | 记录原因与真实回执，重试/排队；不静默亲力 | harness-rejected |
 | 写集合冲突（正确性，非调度） | 排队，真实检查点再派 | write-conflict |
 | 跨 run 写冲突 | 冲突任务排队；不冲突并行；不静默覆盖 | write-conflict |
+| 跨 leader 写集冲突 | 父会话统一排队串行；不静默覆盖 | worker-write-conflict |
+| 组长派生超过 2 级 | 组长拒绝派生并上报，父会话裁决 | depth-exceeded |
+| 组长途中失联 | 按 native-mid-task-failure 重派新组长；父会话不接管执行 | leader-mid-task-failure |
+| 复命闸（`内审.mjs 复命`）不过 | 交付标缺口，修复后重跑；exit≠0 不得标交付完成 | fuming-gate |
 | 无 Agent 可用 | 报告阻塞，问是否亲力；用户明确后才亲力 | no-native-tools |
 | 班主终检（E4）不通过 | 保留缺口，预算内回修；关键项未完成不得标交付 | parent-failed / evidence gap |
 | 3 轮回修不过 | 停，报缺口 | rework-budget |

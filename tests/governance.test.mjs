@@ -142,7 +142,8 @@ test('activate accepts role-covered partial loads (session-orphan self-heal)', (
   const activated = cli(['activate', ...base, '--session', 'orphan-session', '--loaded', partialFile, '--config', config]);
   assert.equal(activated.status, 0, activated.stderr);
   const after = JSON.parse(fs.readFileSync(path.join(home, '初始化状态.json'), 'utf8'));
-  assert.equal(after.partialLoad['orphan-session'].missingCount, 8);
+  // partial 只载入单模型槽位，缺的正是每个角色的另一槽位：数量由角色清单长度推导，不写死。
+  assert.equal(after.partialLoad['orphan-session'].missingCount, JSON.parse(fs.readFileSync(path.join(root, '角色清单.json'), 'utf8')).roles.length);
   const selected = cli(['select', ...base, '--session', 'orphan-session', '--loaded', partialFile, '--role', 'tester', '--parent-model', 'custom:test:design']);
   assert.equal(selected.status, 0, selected.stderr);
   assert.ok(JSON.parse(selected.stdout).profile.includes('tester'));

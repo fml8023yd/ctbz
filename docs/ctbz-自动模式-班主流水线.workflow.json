@@ -30,7 +30,7 @@
           "final_check",
           "handoff"
         ],
-        "note": "执行 + 集成 → 集成门 → 6 路全量验收 → 班主终检 → 交付"
+        "note": "执行 + 集成 → 集成门 → 6 路全量验收 → 班主终检 → E4 留 method.md → E5 质疑预演后交付"
       },
       {
         "id": "plan-exit",
@@ -266,8 +266,8 @@
       "type": "backend",
       "width": 145,
       "label": "E4 班主终检",
-      "sublabel": "抽样核对 · 走用户实际路径",
-      "tag": "③ 产物→实际使用"
+      "sublabel": "写 method.md · 抽样 + 用户路径",
+      "tag": "③ 产物→实际使用 · 留痕"
     },
     {
       "id": "handoff",
@@ -275,9 +275,9 @@
       "col": 5,
       "type": "external",
       "width": 145,
-      "label": "交付 / 计划出口",
-      "sublabel": "计划模式停 · 自动模式交付",
-      "tag": "倒叙汇报"
+      "label": "E5 交付 / 计划出口",
+      "sublabel": "质疑预演 ≥3 条 · 挑战者",
+      "tag": "倒叙汇报 · 预演"
     }
   ],
   "edges": [
@@ -387,5 +387,26 @@
       "label": "不通过 → 回修"
     }
   ],
-  "cards": []
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "E4 方法留痕 + E5 挑战",
+      "items": [
+        "路径 .ctbz-record/runs/<runId>/method.md",
+        "探索任务补探索记录；回执带 method",
+        "高风险交付加独立 challenger 攻击"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "E5 质疑预演 · 用户视角 ≥3 条",
+      "items": [
+        "① 真解决了吗，还是只做字面要求",
+        "② 为什么是这个方案，不是更简单的",
+        "③ 边界与反例：空输入、并发、失败",
+        "④ 证据可信吗：自审 vs 独立验收",
+        "⑤ 成本、风险、副作用；每条带证据/缺口"
+      ]
+    }
+  ]
 }
