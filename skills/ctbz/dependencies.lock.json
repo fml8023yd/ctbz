@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "SKILL.md",
-      "sha256": "18ac1fa12f6ee5da51f446d6a812706a64b5047fdb2baf865508e760d2ddf9f9"
+      "sha256": "0f9e4ee35f40592c1a1b53cbd3732d749c763b140b61d9971e6855606432140a"
     },
     {
       "path": "assets/stratified-results.json",
@@ -75,7 +75,7 @@
     },
     {
       "path": "methods/index.json",
-      "sha256": "442b42c0764980331da3350997685e6b0346308def668e37b6a4011f11bb27a1"
+      "sha256": "18063334322ea35be0c20cd3ee15fe5ec2c6173ecc359fb0f6ce2be045116352"
     },
     {
       "path": "methods/matt/recommended.md",
@@ -179,7 +179,7 @@
     },
     {
       "path": "references/delivery-contract.md",
-      "sha256": "6a7a3ffa6b8fc658d3859ae76fd88ef4141f48f8467e505a1b4583db1aae34b2"
+      "sha256": "88a700919ea14efde95b850b8257e7195f4896cb681e32c2c076133a12c78e0c"
     },
     {
       "path": "references/failure-policy.md",
@@ -190,12 +190,16 @@
       "sha256": "e7dec3dab005118e37028fe4695922e8666c946fc2a3f36311598cdf50c366d9"
     },
     {
+      "path": "references/ownership.md",
+      "sha256": "4113715be178d31eb6e459151a2e2637c5a72dcce0ed8799960d68cbfba78921"
+    },
+    {
       "path": "references/recommended-workflow.md",
       "sha256": "ea811a6b6b6d93126ebc0c16e8a7956f61b68937b6d5c3cf95f826636dda0e74"
     },
     {
       "path": "references/unified-workflow.md",
-      "sha256": "db3d89edc0e455755400aae9d4823ae1c62a7b00aa57a242f4e586189f569c44"
+      "sha256": "a4d762ed16608567ec7e6668d5242b6b71e0f29e8fad07e97310202c20881429"
     },
     {
       "path": "references/upstream-updates.md",
@@ -227,11 +231,11 @@
     },
     {
       "path": "references/班主基线.md",
-      "sha256": "9207088a503722cbb204adde071052ef70cacc8f05e62d63ddb68260aba8b3b6"
+      "sha256": "f13c1f4ad6887f2fc72d60aa607334d43aeafd906997026de19c02ff4cce75b9"
     },
     {
       "path": "references/自动模式.md",
-      "sha256": "6d685b386f87ff4ff12e17e40f5a429fda480719f967e7388ef0d315b418a0a5"
+      "sha256": "9217e090b9c3949b2baf923e50ae01c10535ff45d511a1f086a18efe42914542"
     },
     {
       "path": "references/项目看板.md",
@@ -259,7 +263,7 @@
     },
     {
       "path": "scripts/lib/release.mjs",
-      "sha256": "601ee5d6caff8f3080a4602f8f184885c1b05093aa0d8455b8eea0c2a2b2bdae"
+      "sha256": "738bea6fa381c3f7374521d1f87bca8de94b2a285032b8ce73e7656a2e24ac84"
     },
     {
       "path": "scripts/lib/state.mjs",
@@ -375,11 +379,11 @@
     },
     {
       "path": "vendor/workbench/source.json",
-      "sha256": "b6154546e1d3f109ff89a8df321d71942477d2794a1a73b5f8059af85021013a"
+      "sha256": "2b6af8067b75b54959a2f65f4eeb8bd3e24048b317009cdb362b4336f8ac9e62"
     },
     {
       "path": "角色清单.json",
-      "sha256": "122e73ed8faabdff6731643e80980e546ba2c31dd8b85cef164c95b8cb5b0674"
+      "sha256": "316dc7026f3bb2f4c0a85bdb9085ffb49f010500cc6e3ef7ba39034bfbb6dd80"
     }
   ]
 }

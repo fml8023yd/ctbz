@@ -1,1 +1,7 @@
-{"schemaVersion":1,"version":"0.2.1","harness":"codex","core":"~/.agents/skills/ctbz","entry":"scripts/native.mjs"}
+{
+  "schemaVersion": 1,
+  "version": "0.2.2",
+  "harness": "codex",
+  "core": "~/.agents/skills/ctbz",
+  "entry": "scripts/native.mjs"
+}

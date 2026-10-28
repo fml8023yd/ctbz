@@ -1,7 +1,7 @@
 ---
 name: ctbz-codex
 metadata:
-  version: 0.2.1
+  version: 0.2.2
 description: CTBZ 在 Codex 的原生子 Agent 适配：原生 spawn/wait 语义、2 在途上限、后台待命、ServerChan 推送、30 分钟一次性唤醒与任务身份；与唯一全局 ctbz 核心配合使用。
 ---
 

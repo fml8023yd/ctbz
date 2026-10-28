@@ -1,7 +1,7 @@
 ---
 name: ctbz-zcode
 metadata:
-  version: 0.2.1
+  version: 0.2.2
 description: CTBZ 在 ZCode 的原生子 Agent 适配：run_in_background 后台派发、完成通知后主进程介入、时刻待命、ServerChan 推送、30 分钟一次性唤醒、任务身份与跨模型交叉验证；使用唯一全局 ctbz 核心。
 ---
 

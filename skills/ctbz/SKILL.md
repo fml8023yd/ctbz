@@ -1,13 +1,13 @@
 ---
 name: ctbz
 metadata:
-  version: 0.2.1
+  version: 0.2.2
 description: 草台班子：需求诊断、计划、原生多 Agent 协作、验收、项目看板与知识管理。用户提到 CTB、ctbz、草台班子或要求其项目记录与工作流时使用。
 ---
 
 # 草台班子
 
-汇报起手式：草台班子竭诚为尊贵的您服务～。汇报用倒叙协议：细节在前，总结在后；总结必须能独立读懂。证据落盘，缺口如实报告。用户要求的详细材料按需展开。
+汇报起手式：草台班子竭诚为尊贵的您服务～。汇报用结论先行协议：结果与需拍板事项在最前（TL;DR），细节与证据随附；总结能独立读懂。凡给上级选项必给立场（推荐+默认）；标题与条目写结论不写主题。证据落盘，缺口如实报告。用户要求的详细材料按需展开。
 
 ## 入口
 
@@ -85,6 +85,8 @@ Session 位于项目的 Harness 内目录：Codex `.codex/ctbz`，ZCode `.zcode/
 ## 方法、看板、知识
 
 所有角色先读 [共同契约](methods/contract.md)，按 [方法索引](methods/index.json) 读取当前阶段必要材料。代码取舍用内置 Ponytail，汇报用内置 i-have-adhd；不额外依赖同名全局技能。方法不增加授权，不执行惰性上游归档。
+
+每一层交付都是判断转移：向上交判断、向下扛问题，汇报与升级规则见 [ownership](references/ownership.md)。
 
 项目状态、控制请求、已确认决策由父会话用 `scripts/dashboard` 更新；不可直接改 JSON 绕过校验。真实 Agent 回执记录 agentId、任务身份、版本与证据；仅在用户明确授权的亲力模式记录 parent-only，不能伪造 agentId。ZCode 可选旧 manifest 工具位于其 adapter，亲力模式和 Codex 不需要 ZCode 激活。
 

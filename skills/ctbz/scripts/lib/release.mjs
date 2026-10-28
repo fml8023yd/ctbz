@@ -5,7 +5,7 @@ import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {bundleFiles, verifyBundle} from './methods.mjs';
 
-export const VERSION = '0.2.1';
+export const VERSION = '0.2.2';
 export const repositoryRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 export const packages = repo => [
   {id: 'core', source: path.join(repo, 'skills/ctbz'), target: '.agents/skills/ctbz'},
