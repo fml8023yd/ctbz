@@ -102,7 +102,7 @@ test('两个 adapter 具备后台派发、30 分钟唤醒与推送能力', () =>
   assert.ok(codex.includes('spawn'), 'Codex adapter 缺少原生 spawn 语义');
 });
 
-test('版本 0.2.0 贯穿核心、适配器、发布脚本与注册表', () => {
+test('版本 0.2.1 贯穿核心、适配器、发布脚本与注册表', () => {
   for (const file of [
     'skills/ctbz/SKILL.md',
     'adapters/zcode/SKILL.md',
@@ -113,13 +113,13 @@ test('版本 0.2.0 贯穿核心、适配器、发布脚本与注册表', () => {
     'skills/ctbz/角色清单.json',
     'skills/ctbz/methods/index.json',
   ]) {
-    assert.ok(read(file).includes('0.2.0'), `${file} 未声明版本 0.2.0`);
+    assert.ok(read(file).includes('0.2.1'), `${file} 未声明版本 0.2.1`);
   }
-  assert.equal(JSON.parse(read('adapters/zcode/adapter.json')).version, '0.2.0', 'zcode adapter.json version 字段');
-  assert.equal(JSON.parse(read('adapters/codex/adapter.json')).version, '0.2.0', 'codex adapter.json version 字段');
-  assert.equal(JSON.parse(read('skills/ctbz/角色清单.json')).version, '0.2.0', '角色清单 version 字段');
-  assert.equal(JSON.parse(read('skills/ctbz/methods/index.json')).version, '0.2.0', 'methods index version 字段');
-  assert.match(read('skills/ctbz/scripts/lib/release.mjs'), /VERSION\s*=\s*['"]0\.2\.0['"]/, 'release.mjs VERSION 常量');
+  assert.equal(JSON.parse(read('adapters/zcode/adapter.json')).version, '0.2.1', 'zcode adapter.json version 字段');
+  assert.equal(JSON.parse(read('adapters/codex/adapter.json')).version, '0.2.1', 'codex adapter.json version 字段');
+  assert.equal(JSON.parse(read('skills/ctbz/角色清单.json')).version, '0.2.1', '角色清单 version 字段');
+  assert.equal(JSON.parse(read('skills/ctbz/methods/index.json')).version, '0.2.1', 'methods index version 字段');
+  assert.match(read('skills/ctbz/scripts/lib/release.mjs'), /VERSION\s*=\s*['"]0\.2\.1['"]/, 'release.mjs VERSION 常量');
 });
 
 test('contract.md 删除主会话直接执行口径，保留任务身份声明', () => {
@@ -255,6 +255,56 @@ test('内审 C 闸：index.json 缺失时显式标「未校验」', () => {
   // 降级为「只提示不拦截」：不因缺索引而阻断复命闸（见 SKILL.md 流程资产段）。
   assert.equal(r.status, 0, `流程资产降级不应阻断复命闸，实际 exit=${r.status}，输出：${out}`);
   fs.rmSync(dir, {recursive: true, force: true});
+});
+
+// ── 0.2.1 失败内审即时化 ──
+
+test('班主基线.md 写死失败即时内审：即时记录 + 禁用 + 重派', () => {
+  const text = read('skills/ctbz/references/班主基线.md');
+  // 即时性：不等整批结束。
+  contains(text, ['即时'], '班主基线.md 0.2.1 即时');
+  // 失败 Agent 在任务级禁用，同一 run 内不再派发同一身份。
+  contains(text, ['禁用'], '班主基线.md 0.2.1 禁用');
+  // 默认处置是重派新 Agent，不是静默亲力。
+  contains(text, ['重派'], '班主基线.md 0.2.1 重派');
+});
+
+test('failure-policy.md 含 immediate-audit / agent-disabled 失败码', () => {
+  const text = read('skills/ctbz/references/failure-policy.md');
+  const ok = text.includes('immediate-audit') || text.includes('agent-disabled');
+  assert.ok(
+    ok,
+    'failure-policy.md 缺少 0.2.1 失败码「immediate-audit」或「agent-disabled」'
+  );
+});
+
+test('自动模式.md 写死失败不等整批、立即重派', () => {
+  const text = read('skills/ctbz/references/自动模式.md');
+  const ok = text.includes('不等整批') || text.includes('立即重派');
+  assert.ok(
+    ok,
+    '自动模式.md 缺少 0.2.1 执行流水线失败即时处理口径「不等整批」或「立即重派」'
+  );
+});
+
+test('delivery-contract.md 含失败内审交付门槛', () => {
+  const text = read('skills/ctbz/references/delivery-contract.md');
+  const ok = text.includes('失败内审') || text.includes('audit-');
+  assert.ok(
+    ok,
+    'delivery-contract.md 缺少 0.2.1 失败内审交付门槛「失败内审」或「audit-」'
+  );
+});
+
+test('native-runtime.test.mjs 覆盖 onTaskFailure 失败即时回调', () => {
+  const text = read('tests/native-runtime.test.mjs');
+  const ok =
+    text.includes('onTaskFailure') ||
+    /失败[^\n]{0,20}重派|即时重派/.test(text);
+  assert.ok(
+    ok,
+    'tests/native-runtime.test.mjs 缺少 0.2.1 失败即时重派 / onTaskFailure 回调测试'
+  );
 });
 
 // 复命清单合法夹具（六段齐全 + 假设与边界），供 C 闸降级用例复用。

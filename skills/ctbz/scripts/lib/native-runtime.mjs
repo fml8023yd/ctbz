@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {verifyBundle, roleMethods, installRoot} from './methods.mjs';
 import {verifyPackage} from './release.mjs';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.2.1';
 export const HARNESS = Object.freeze({codex: '.codex', zcode: '.zcode'});
 const readOnly = new Set(['planner', 'reviewer', 'explorer', 'researcher', 'reporter', 'leader']);
 const phases = new Set(['plan', 'discuss', 'implement', 'debug', 'test', 'review', 'research', 'report']);
@@ -70,12 +70,17 @@ export async function discoverAdapter(evidence, home = homedir()) {
 }
 
 // The harness owns native tool calls; this module only invokes the supplied port.
-export function createRuntime({evidence, port, executeParent, parentExecutionAuthorized = false, notify = async event => { console.error(event.message); }, record, sessionId, core = installRoot, fallbackReason}) {
+// onTaskFailure is optional and backward compatible: when absent, behavior is unchanged
+// (failure is surfaced to the caller through the returned status / thrown fallback).
+export function createRuntime({evidence, port, executeParent, parentExecutionAuthorized = false, notify = async event => { console.error(event.message); }, record, sessionId, core = installRoot, fallbackReason, onTaskFailure}) {
   if (typeof sessionId !== 'string' || !sessionId.trim()) throw Error('actual sessionId is required');
+  if (onTaskFailure !== undefined && typeof onTaskFailure !== 'function') throw Error('onTaskFailure must be a function');
   let notified = false, parentGate = Promise.resolve();
   const tasks = new Set();
   const inFlight = new Map();
   const locations = new Map();
+  const attempts = new Map(); // taskId -> dispatch attempts (original + redispatches), for escalation on repeated failure
+  const disabledAgents = new Map(); // taskId -> Set(agentId) disabled at task level within this run
   const sessionKey = createHash('sha256').update(sessionId).digest('hex').slice(0, 24);
   function journalRoot(task) {
     const root = sessionRoot(task.workspace, evidence?.harness);
@@ -128,6 +133,8 @@ export function createRuntime({evidence, port, executeParent, parentExecutionAut
     if (!port || typeof port.start !== 'function' || (port.wait !== undefined && typeof port.wait !== 'function')) { tasks.add(task.taskId); return fallback(task, fallbackReason || 'missing-native-tools'); }
     if ([...inFlight.values()].some(other => other.writeSet.some(a => task.writeSet.some(b => a === b || a.startsWith(b + path.sep) || b.startsWith(a + path.sep))))) return queued(task, 'write-conflict');
     inFlight.set(task.taskId, task);
+    const attempt = (attempts.get(task.taskId) || 0) + 1;
+    attempts.set(task.taskId, attempt);
     let handle;
     try {
       const selection = nativeSelection(task, evidence);
@@ -139,7 +146,8 @@ export function createRuntime({evidence, port, executeParent, parentExecutionAut
       const receipt = await port.wait(handle);
       if (receipt?.agentId !== handle.agentId) throw Error('native receipt identity mismatch');
       if (receipt.status === 'permission-denied' || permissionDenied(receipt)) {
-        await emit({taskId: task.taskId, agentId: handle.agentId, status: 'permission-denied'});
+        await emit({taskId: task.taskId, agentId: handle.agentId, status: 'permission-denied', attempt});
+        await reportFailure(task, {agentId: handle.agentId, receipt, attempt, kind: 'permission-denied', reason: 'permission-denied', redispatch: false});
         return {mode: 'native', status: 'permission-denied', agentId: handle.agentId, receipt};
       }
       if (receipt.status !== 'completed' || !Array.isArray(receipt.evidence) || !receipt.evidence.length || receipt.evidence.some(item => typeof item !== 'string' || !item.trim())) {
@@ -151,7 +159,8 @@ export function createRuntime({evidence, port, executeParent, parentExecutionAut
       return {mode: 'native', status: 'completed', agentId: handle.agentId, receipt};
     } catch (error) {
       if (permissionDenied(error)) {
-        await emit({taskId: task.taskId, status: 'permission-denied', agentId: handle?.agentId || null});
+        await emit({taskId: task.taskId, status: 'permission-denied', agentId: handle?.agentId || null, attempt});
+        await reportFailure(task, {agentId: handle?.agentId || null, receipt: error.receipt || null, attempt, kind: 'permission-denied', reason: 'permission-denied', redispatch: false});
         return {mode: 'native', status: 'permission-denied', agentId: handle?.agentId || null};
       }
       if (handle?.agentId && error.receipt?.status !== 'failed') {
@@ -160,15 +169,49 @@ export function createRuntime({evidence, port, executeParent, parentExecutionAut
           // Keep the writeSet claim so a concurrent sibling cannot collide with the unconfirmed child,
           // but release the taskId claim so the parent may retry this task without a false duplicate.
           inFlight.set(task.taskId, {...task, writeSet: []});
-          await emit({taskId: task.taskId, status: 'awaiting-stop', agentId: handle.agentId, reason: 'cannot-confirm-child-stopped'});
+          await emit({taskId: task.taskId, status: 'awaiting-stop', agentId: handle.agentId, reason: 'cannot-confirm-child-stopped', attempt});
+          // Old child unconfirmed: no redispatch into the same writeSet until stop is confirmed.
+          await reportFailure(task, {agentId: handle.agentId, receipt: error.receipt || null, attempt, kind: 'awaiting-stop', reason: 'cannot-confirm-child-stopped', redispatch: false});
           return {mode: 'native', status: 'awaiting-stop', agentId: handle.agentId, reason: 'cannot-confirm-child-stopped'};
         }
       }
       tasks.add(task.taskId);
-      return fallback(task, handle ? 'native-mid-task-failure' : 'native-start-failure', {agentId: handle?.agentId || null, checkpoint: error.receipt?.checkpoint || null, evidence: error.receipt?.evidence || []});
+      const reason = handle ? 'native-mid-task-failure' : 'native-start-failure';
+      const redispatch = await reportFailure(task, {
+        agentId: handle?.agentId || null,
+        receipt: error.receipt || null,
+        attempt,
+        kind: 'model-failure',
+        reason,
+        redispatch: attempt < 2,
+        escalate: attempt >= 2,
+      });
+      if (redispatch === false) {
+        return {mode: 'native', status: 'failed', agentId: handle?.agentId || null, reason, checkpoint: error.receipt?.checkpoint || null, evidence: error.receipt?.evidence || []};
+      }
+      return fallback(task, reason, {agentId: handle?.agentId || null, checkpoint: error.receipt?.checkpoint || null, evidence: error.receipt?.evidence || [], attempt});
     } finally { inFlight.delete(task.taskId); }
   }
-  return {run};
+  // Terminal failure hook: called the moment a terminal failure state is observed,
+  // before the caller (or the batch) continues. Redispatch / agent-disable policy
+  // lives with the caller; this returns its decision so run() can stop or continue.
+  // Record path owned by the caller (needs runId):
+  //   .ctbz-record/runs/<runId>/audit-<taskId>-<agentId>.md
+  async function reportFailure(task, detail) {
+    if (detail.agentId) {
+      if (!disabledAgents.has(task.taskId)) disabledAgents.set(task.taskId, new Set());
+      disabledAgents.get(task.taskId).add(detail.agentId);
+    }
+    if (!onTaskFailure) return undefined;
+    return onTaskFailure({taskId: task.taskId, task, ...detail, at: new Date().toISOString()});
+  }
+  return {
+    run,
+    // Task-level agent disable: same run never dispatches the same agent identity to the same task again.
+    isAgentDisabled: (taskId, agentId) => disabledAgents.get(taskId)?.has(agentId) ?? false,
+    disabledAgents: taskId => [...(disabledAgents.get(taskId) ?? [])],
+    attempts: taskId => attempts.get(taskId) ?? 0,
+  };
 }
 
 export async function openRuntime(options) {

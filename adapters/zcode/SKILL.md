@@ -1,15 +1,15 @@
 ---
 name: ctbz-zcode
 metadata:
-  version: 0.2.0
+  version: 0.2.1
 description: CTBZ 在 ZCode 的原生子 Agent 适配：run_in_background 后台派发、完成通知后主进程介入、时刻待命、ServerChan 推送、30 分钟一次性唤醒、任务身份与跨模型交叉验证；使用唯一全局 ctbz 核心。
 ---
 
-# ZCode 适配器 0.2.0
+# ZCode 适配器 0.2.1
 
 先读 `~/.agents/skills/ctbz/SKILL.md`；方法、角色、看板只引用该核心。班主权限、自动/计划模式、30 分钟决策升级以核心 [班主基线](~/.agents/skills/ctbz/references/班主基线.md) 与 [自动模式](~/.agents/skills/ctbz/references/自动模式.md) 为准。本文件只写 ZCode 宿主能力与派发差异。
 
-回执带 method，交付前留痕与质疑预演按核心执行。
+回执带 method，交付前留痕与质疑预演按核心执行。失败即时内审：不等整批、记录/禁用/重派按核心执行。
 
 安装仅限 `~/.zcode/skills/ctbz-zcode`，不放全局技能目录。
 

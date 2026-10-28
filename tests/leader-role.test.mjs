@@ -35,7 +35,7 @@ test('role registry declares leader with the Agent tool and no write tools', () 
 test('validateTask accepts role=leader', () => {
   const task = validateTask(brief('leader', []));
   assert.equal(task.role, 'leader');
-  assert.equal(task.coreVersion, '0.2.0');
+  assert.equal(task.coreVersion, '0.2.1');
   assert.deepEqual(task.writeSet, []);
   assert.equal(task.methods.length, 0);
   // leader 已登记 verification-before-completion，故此处改为验证它被接受；

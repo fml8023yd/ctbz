@@ -1,7 +1,7 @@
 ---
 name: ctbz
 metadata:
-  version: 0.2.0
+  version: 0.2.1
 description: 草台班子：需求诊断、计划、原生多 Agent 协作、验收、项目看板与知识管理。用户提到 CTB、ctbz、草台班子或要求其项目记录与工作流时使用。
 ---
 

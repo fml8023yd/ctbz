@@ -1,4 +1,4 @@
-# CTBZ 0.2.0
+# CTBZ 0.2.1
 
 一份全局核心，Codex/ZCode 私有原生适配器。未知宿主或原生失败提示一次，重派或报告阻塞；不静默亲力；权限拒绝不绕过，自审不冒充独立评审。
 
@@ -18,7 +18,7 @@ node --test tests/*.test.mjs
 node skills/ctbz/scripts/发布检查.js
 node skills/ctbz/scripts/部署.js --home-dir /absolute/temporary-home
 node skills/ctbz/scripts/部署.js --home-dir /absolute/temporary-home --check-only
-sh skills/ctbz/scripts/发版.sh --output /absolute/ctbz-0.2.0.tar.gz
+sh skills/ctbz/scripts/发版.sh --output /absolute/ctbz-0.2.1.tar.gz
 ```
 
 `--write-lock` 仅显式源端维护使用；普通发布检查只读，覆盖修改/新增/删除。安装先校验并暂存全部包，备份到目标 home 的 `.ctbz-install/transactions`，失败回滚；原安装漂移停止覆盖。可用 `CTBZ_INSTALL_HOME` 替代 `--home-dir`，不修改实际 HOME。用户知识、偏好和项目 `.ctbz-record` 不进入安装镜像或发布包。

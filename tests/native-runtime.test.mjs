@@ -164,3 +164,85 @@ test('synchronous zcode hosts may omit wait while start and stop stay mandatory'
   assert.throws(() => zcodePort({...syncTools, start: undefined}, zcode), /missing start/);
   assert.throws(() => zcodePort({...syncTools, stop: undefined}, zcode), /missing stop/);
 });
+
+// 0.2.1 失败内审即时化：终态失败立刻回调 onTaskFailure，父会话在回调里记录 + 禁用 + 重派。
+test('无证据完成即触发 onTaskFailure 并支持即时重派', async () => {
+  const workspace = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ctbz-audit-')));
+  const briefFor = (taskId = 'audit_task') => ({...brief(taskId), workspace, writeSet: [path.join(workspace, taskId + '.txt')]});
+  const events = [];
+  const failures = [];
+  let starts = 0;
+  const agents = ['dead_agent', 'replacement_agent'];
+  const port = {
+    activeCount: async () => 0,
+    start: async selection => ({agentId: agents[starts++] || 'late_agent'}),
+    wait: async handle => handle.agentId === 'dead_agent'
+      // 无证据完成：status=completed 但 evidence 为空 → 视为失败终态。
+      ? {...handle, status: 'completed', evidence: []}
+      : {...handle, status: 'completed', evidence: ['actual verified output']},
+    stop: async () => true,
+  };
+  // 父会话在 onTaskFailure 内完成：写 audit 记录 → 任务级禁用 → 立即重派（不同身份）。
+  const auditWrites = [];
+  let redispatched = null;
+  const runtime = createRuntime({
+    evidence: codex,
+    port,
+    sessionId: 'audit-session',
+    record: async e => events.push(e),
+    notify: async () => {},
+    onTaskFailure: async detail => {
+      failures.push(detail);
+      auditWrites.push({taskId: detail.taskId, agentId: detail.agentId, kind: detail.kind, attempt: detail.attempt});
+      assert.equal(detail.kind, 'model-failure', '无证据完成归类 model-failure');
+      assert.equal(detail.redispatch, true, '首次失败应允许重派');
+      assert.equal(detail.escalate, false, '首次失败不升级');
+      // 同一 run 内禁用该 Agent 身份，不再派发。
+      assert.equal(runtime.isAgentDisabled(detail.taskId, detail.agentId), true);
+      redispatched = await runtime.run({...briefFor(detail.taskId + '_retry'), objective: 'Write the authorized deliverable (redispatched)'});
+      return false; // 父会话已自行重派，run 不再走 fallback
+    },
+  });
+  const result = await runtime.run(briefFor('audit_task'));
+  assert.equal(result.status, 'failed', '无证据完成且父会话已重派 → run 返回 failed 终态');
+  assert.equal(result.agentId, 'dead_agent');
+  assert.equal(failures.length, 1);
+  assert.equal(failures[0].agentId, 'dead_agent');
+  assert.equal(failures[0].attempt, 1);
+  assert.ok(failures[0].receipt, '失败回调必须带回执');
+  assert.equal(auditWrites.length, 1, '失败必须触发即时内审记录');
+  assert.equal(auditWrites[0].taskId, 'audit_task');
+  assert.equal(runtime.disabledAgents('audit_task').includes('dead_agent'), true);
+  assert.equal(runtime.attempts('audit_task'), 1);
+  // 重派的新 Agent 不同身份，立刻完成，不受原失败阻塞。
+  assert.equal(redispatched.status, 'completed');
+  assert.equal(redispatched.agentId, 'replacement_agent');
+  assert.equal(starts, 2, '失败后立即重派新 Agent');
+  // 权限拒绝不重派、不升级为重派。
+  let deniedCalls = 0;
+  const deniedAgents = [];
+  const deniedPort = {
+    activeCount: async () => 0,
+    start: async () => ({agentId: 'denied_agent'}),
+    wait: async handle => ({...handle, status: 'permission-denied', evidence: ['host refused']}),
+    stop: async () => true,
+  };
+  const deniedRuntime = createRuntime({
+    evidence: codex,
+    port: deniedPort,
+    sessionId: 'audit-denied-session',
+    record: async () => {},
+    notify: async () => {},
+    onTaskFailure: async detail => {
+      deniedCalls++;
+      deniedAgents.push(detail.agentId);
+      assert.equal(detail.kind, 'permission-denied');
+      assert.equal(detail.redispatch, false, '权限拒绝不得重派');
+    },
+  });
+  const denied = await deniedRuntime.run(briefFor('audit_denied'));
+  assert.equal(denied.status, 'permission-denied');
+  assert.equal(deniedCalls, 1);
+  assert.deepEqual(deniedAgents, ['denied_agent']);
+  assert.equal(deniedRuntime.isAgentDisabled('audit_denied', 'denied_agent'), true);
+});

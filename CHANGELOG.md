@@ -1,3 +1,33 @@
+# 0.2.1 — 2026-10-28
+
+失败内审即时化 + kimi → swe2 模型迁移。
+
+## 失败内审即时化（不等整批）
+
+- 任一 Agent 回执为失败 / 失联 / 权限拒绝 / 无证据完成时，班主**不等整批结束**，立即走失败即时内审：
+  1. 记录失败到 `.ctbz-record/runs/<runId>/audit-<taskId>-<agentId>.md`（失败原因、回执、检查点）；
+  2. 任务级禁用该 Agent（同一 run 内不再派发同一身份，禁用不跨 run 泄漏）；
+  3. 立刻按原 brief 重派新 Agent（不同 model / profile 优先）；
+  4. 其余在途 Agent 不受影响继续跑；不阻塞合并 / 攻击 / 验收。
+- `references/failure-policy.md` 新增失败码 `immediate-audit`、`agent-disabled`、`awaiting-stop`。
+- `references/班主基线.md` 失败策略表加「失败即时内审」行，第三节派发加「失败即禁即派」。
+- `references/自动模式.md` E1/E2/E3 加失败即时处理规则：不等整批、立即记录禁用重派；旧 Agent 停止未确认按 `awaiting-stop`，不派发写同一 writeSet 的任务。
+- `references/delivery-contract.md` 交付门槛加失败内审记录要求；失败 Agent 记录保留，供 E4 班主终检和质疑预演引用。
+- `scripts/lib/native-runtime.mjs` 的 `createRuntime` 新增可选 `onTaskFailure` 回调：终态一到立即回调，记录 / 禁用 / 重派由父会话在回调内执行，不再把失败留到调用方统一处理。无回调时默认行为不变，向后兼容。
+- 处置口径：权限拒绝不重派，报 `permission-denied`；模型失败 / 断流重派；同任务连续 2 次失败升级班主裁决。
+- 测试覆盖：`tests/native-runtime.test.mjs` 无证据完成触发 `onTaskFailure` 并支持即时重派；`tests/班主基线.test.mjs` 断言失败策略关键词与失败码。
+
+## kimi → swe2 模型迁移
+
+- 8 个 `team-ctbz-*-kimi-k2.8-enabled` profile（debugger / explorer / implementer / planner / reporter / researcher / reviewer / tester）全部换成 `team-ctbz-*-swe2-enabled`，模型引用 `custom:new-provider:swe-2`，thoughtLevel 沿用 `enabled`，每角色工具不变。
+- 旧 kimi profile 已备份到 `~/.zcode/agent-backups/kimi-replaced-<timestamp>/`，不删除。
+- leader 不参与（leader 无 kimi 版本，只有 deepseek / hy3）。
+- `cost-rules.json` 的 `role_tier` 与模型无关，不动。
+
+## 版本
+
+- 0.2.1 贯穿核心 SKILL.md、release.mjs、native-runtime.mjs、角色清单、methods index、workbench vendor 快照、两个 adapter 的 SKILL.md 与 adapter.json、README、CHANGELOG、发布检查锁。
+
 # 0.2.0 — 2026-10-28
 
 留痕与方法沉淀 + 质疑预演：交付不再只报结果，还要能复盘、经得起用户视角的攻击。
